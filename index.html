@@ -735,7 +735,7 @@ function renderHome(){
     <p>Scenario-based multiple choice. No “right answers.” Your pattern creates your outcome — and your growth path.</p>
 
     <div class="hr"></div>
-  <div class="col kpi">
+    <div class="col kpi">
   <b>Your Details</b>
 
   <div class="tiny" style="margin-top:10px;">
@@ -749,10 +749,31 @@ function renderHome(){
     <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
   </div>
 
-  
+  <div class="row" style="margin-top:12px;">
+    <div class="col">
+      <input id="nameInput" class="in" placeholder="Full name" />
+    </div>
+    <div class="col">
+      <input id="phoneInput" class="in" placeholder="Phone number" />
+    </div>
+  </div>
 
+  <div style="margin-top:10px;">
+    <input id="emailInput" class="in" placeholder="Email address" />
+  </div>
 
-<!-- CHOOSE MODE (BELOW) -->
+  <label style="display:flex;gap:8px;margin-top:12px;">
+    <input type="checkbox" id="consentChk" />
+    <span class="tiny">
+      I agree to receive my results and updates from Love Jones Therapy.
+    </span>
+  </label>
+
+  <div class="btnrow" style="margin-top:12px;">
+    <button id="clearBtn">Clear</button>
+  </div>
+</div>
+
 <div class="col kpi" style="margin-top:14px;">
   <b>Choose a Mode</b>
 
@@ -766,6 +787,7 @@ function renderHome(){
     <button id="privacyBtn">Privacy</button>
   </div>
 </div>
+  
 
         <div class="badgeGrid">
           ${Object.entries(TYPES).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(v.name)}</strong></span>`).join("")}
