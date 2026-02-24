@@ -820,7 +820,74 @@ function renderHome(){
       </div>
     </div>
   `;
+// --- Home screen wiring (REQUIRED) ---
+const singleBtn = document.getElementById("singleBtn");
+const couplesBtn = document.getElementById("couplesBtn");
+const privacyBtn = document.getElementById("privacyBtn");
+const privacyLink = document.getElementById("privacyLink");
 
+const nameInput = document.getElementById("nameInput");
+const phoneInput = document.getElementById("phoneInput");
+const emailInput = document.getElementById("emailInput");
+const consentChk = document.getElementById("consentChk");
+const clearBtn = document.getElementById("clearBtn");
+
+// Guard: if anything is missing, don’t silently fail
+if(!singleBtn || !couplesBtn || !nameInput || !phoneInput || !emailInput || !consentChk){
+  alert("Home UI wiring error: missing element IDs. Check nameInput/phoneInput/emailInput/singleBtn/couplesBtn.");
+  return;
+}
+
+function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||"").trim()); }
+function isValidPhone(v){ return (v||"").replace(/\D/g,"").length >= 10; }
+
+function canProceed(){
+  return (
+    (nameInput.value||"").trim().length >= 2 &&
+    isValidPhone(phoneInput.value) &&
+    isValidEmail(emailInput.value) &&
+    consentChk.checked
+  );
+}
+
+function syncState(){
+  state.userName = nameInput.value;
+  state.userPhone = phoneInput.value;
+  state.userEmail = emailInput.value;
+  state.consent = !!consentChk.checked;
+
+  const ok = canProceed();
+  singleBtn.disabled = !ok;
+  couplesBtn.disabled = !ok;
+}
+
+// Keep state up to date + enable buttons
+[nameInput, phoneInput, emailInput].forEach(el => el.addEventListener("input", syncState));
+consentChk.addEventListener("change", syncState);
+syncState();
+
+// Click actions
+singleBtn.onclick = () => {
+  if(!canProceed()) { showToast("Enter details + consent first"); return; }
+  state.mode = "single";
+  startSingle();
+};
+
+couplesBtn.onclick = () => {
+  if(!canProceed()) { showToast("Enter details + consent first"); return; }
+  state.mode = "couples";
+  startCouples();
+};
+
+if(clearBtn){
+  clearBtn.onclick = () => {
+    state.userName = ""; state.userPhone = ""; state.userEmail = ""; state.consent = false;
+    render();
+  };
+}
+
+if(privacyBtn) privacyBtn.onclick = openPrivacy;
+if(privacyLink) privacyLink.onclick = (e)=>{ e.preventDefault(); openPrivacy(); };
   document.getElementById("privacyBtn").onclick = openPrivacyModal;
   document.getElementById("privacyLink").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
 
