@@ -735,7 +735,15 @@ function renderHome(){
     <p>Scenario-based multiple choice. No “right answers.” Your pattern creates your outcome — and your growth path.</p>
 
     <div class="hr"></div>
-
+  <div class="col kpi">
+        <b>Your Details</b>
+        <div class="tiny" style="margin-top:10px;">
+          Enter your details on the left to continue.
+        </div>
+        <div class="tiny" style="margin-top:8px;">
+          <span class="accent">We use your info to send your Relationship IQ results and Love Jones Therapy updates.</span>
+          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
+        </div>
     <div class="row">
       <div class="col kpi">
         <b>Choose a Mode</b>
@@ -751,15 +759,7 @@ function renderHome(){
         </div>
       </div>
 
-      <div class="col kpi">
-        <b>Your Details</b>
-        <div class="tiny" style="margin-top:8px;">
-          Please enter your name, phone number, and email address.
-        </div>
-        <div class="tiny" style="margin-top:8px;">
-          <span class="accent">We use your info to send your Relationship IQ results and Love Jones Therapy updates.</span>
-          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
-        </div>
+    
 
         <div style="margin-top:10px;">
           <input type="text" id="nameInput" placeholder="Full name" value="${escapeHtml(state.userName)}" />
