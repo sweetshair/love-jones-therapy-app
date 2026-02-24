@@ -1,45 +1,1269 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Love Jones Therapy • Relationship IQ</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Relationship IQ • Love Jones Therapy</title>
 
-<style>
-body{
-  background:#111;
-  color:white;
-  font-family:Arial;
-  text-align:center;
-  padding:20px;
-}
-button{
-  padding:12px 18px;
-  margin:10px;
-  border:none;
-  border-radius:10px;
-}
-.primary{background:gold;color:black;}
-</style>
+  <meta name="theme-color" content="#111111" />
+  <meta name="description" content="Relationship IQ by Love Jones Therapy. Scenario-based quiz with 7 outcomes, couples mode, and offline support." />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    :root { --bg:#0b0b0e; --card:#14141a; --muted:#a6a6b3; --text:#f2f2f5; --accent:#f6c34a; --ok:#48d18a; --bad:#ff7878; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(900px 600px at 20% 0%, #1b1b26, var(--bg));
+      color: var(--text);
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 18px; }
+    .card {
+      background: rgba(20,20,26,.92);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 14px 35px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 14px; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .logo {
+      width: 42px; height: 42px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(246,195,74,.24), rgba(246,195,74,.06));
+      border: 1px solid rgba(246,195,74,.25);
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.28);
+    }
+    .logo b { color: var(--accent); font-size: 16px; letter-spacing: .6px; }
+    .brandTxt { display:flex; flex-direction:column; gap:2px; }
+    .brandTxt .title { font-weight: 900; letter-spacing: .2px; font-size: 18px; }
+    .brandTxt .sub { color: var(--muted); font-size: 13px; }
+    .pill { border: 1px solid rgba(255,255,255,.12); color: var(--muted); padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+    .accent { color: var(--accent); font-weight: 900; }
+
+    h1,h2,h3 { margin: 8px 0; }
+    h1 { font-size: 26px; }
+    p { margin: 10px 0; color: var(--muted); line-height: 1.45; }
+
+    .btnrow { display:flex; flex-wrap:wrap; gap:10px; margin-top: 14px; }
+    button {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover { background: rgba(255,255,255,.09); }
+    button:active { transform: translateY(1px); }
+    .primary {
+      background: linear-gradient(135deg, rgba(246,195,74,.22), rgba(246,195,74,.08));
+      border-color: rgba(246,195,74,.35);
+    }
+    .primary:hover { background: linear-gradient(135deg, rgba(246,195,74,.28), rgba(246,195,74,.12)); }
+    .ok {
+      background: linear-gradient(135deg, rgba(72,209,138,.20), rgba(72,209,138,.07));
+      border-color: rgba(72,209,138,.35);
+    }
+    .ok:hover { background: linear-gradient(135deg, rgba(72,209,138,.26), rgba(72,209,138,.11)); }
+    .danger {
+      background: rgba(255,120,120,.08);
+      border-color: rgba(255,120,120,.28);
+    }
+    .danger:hover { background: rgba(255,120,120,.12); }
+
+    .choices { display:grid; gap:10px; margin-top: 12px; }
+    .choice {
+      text-align:left; width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+    }
+    .choice small { display:block; margin-top: 6px; color: var(--muted); font-weight: 500; }
+    .progress {
+      height: 10px; border-radius: 99px;
+      background: rgba(255,255,255,.08);
+      overflow: hidden;
+      margin: 12px 0 0;
+    }
+    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, rgba(246,195,74,.95), rgba(246,195,74,.35)); }
+
+    .row { display:flex; gap: 12px; flex-wrap: wrap; }
+    .col { flex: 1 1 320px; }
+    .kpi {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .kpi b { display:block; margin-bottom: 5px; }
+    .list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .footerNote { margin-top: 14px; font-size: 12px; color: rgba(166,166,179,.9); }
+    .tiny { font-size: 12px; color: var(--muted); }
+    .hr { height:1px; background: rgba(255,255,255,.08); margin: 14px 0; }
+
+    .badgeGrid { display:flex; flex-wrap:wrap; gap:8px; margin-top: 10px; }
+    .badge { border:1px solid rgba(255,255,255,.12); padding: 6px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); }
+    .badge strong { color: var(--text); }
+
+    input[type="text"]{
+      width:100%;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      padding: 12px 12px;
+      color: var(--text);
+      outline: none;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Modal */
+    .modalBackdrop{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center;
+      padding: 18px;
+      z-index: 50;
+    }
+    .modal{
+      width:min(760px, 100%);
+      background: rgba(20,20,26,.98);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.6);
+    }
+
+    /* Install bar */
+    .installBar{
+      position: fixed; left: 12px; right: 12px; bottom: 12px;
+      display:none; z-index: 70;
+    }
+    .installInner{
+      max-width: 980px; margin: 0 auto;
+      background: rgba(20,20,26,.96);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.55);
+      display:flex; gap: 12px; flex-wrap:wrap;
+      align-items:center; justify-content:space-between;
+    }
+    .installTxt { color: var(--muted); font-size: 12px; line-height: 1.35; flex: 1 1 320px; }
+    .installBtns { display:flex; gap:10px; flex-wrap:wrap; }
+
+    /* Cookie banner */
+    .cookie { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60; display:none; }
+    .cookieInner{
+      max-width: 980px; margin: 0 auto;
+      background: rgba(20,20,26,.96);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.55);
+      display:flex; gap: 12px; align-items:flex-start; justify-content:space-between; flex-wrap: wrap;
+    }
+    .cookieText{ color: var(--muted); font-size: 12px; line-height: 1.35; flex: 1 1 320px; }
+    .cookieBtns{ display:flex; gap: 10px; flex-wrap:wrap; }
+
+    /* Toast */
+    .toast{
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      display:flex; justify-content:center;
+      z-index: 80;
+      pointer-events:none;
+    }
+    .toastInner{
+      pointer-events:auto;
+      max-width: 760px;
+      background: rgba(20,20,26,.96);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.55);
+      color: var(--muted);
+      font-size: 13px;
+      display:none;
+    }
+
+    @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  </style>
 </head>
 
 <body>
+  <div class="wrap">
+    <div class="card" id="app"></div>
+    <div class="footerNote">
+      Works as an installable app (PWA). Offline supported after first load.
+    </div>
+  </div>
 
-<h1>Love Jones Therapy</h1>
-<h2>Relationship IQ App</h2>
+  <!-- Toast -->
+  <div class="toast"><div class="toastInner" id="toastBox"></div></div>
 
-<p>Welcome to your Relationship IQ experience.</p>
+  <!-- Privacy modal -->
+  <div class="modalBackdrop" id="privacyBackdrop" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+    <div class="modal">
+      <div class="topbar" style="margin-bottom:6px;">
+        <div class="brand">
+          <div class="logo"><b>LJ</b></div>
+          <div class="brandTxt">
+            <div class="title" id="privacyTitle">Privacy & Consent</div>
+            <div class="sub">Short and clear</div>
+          </div>
+        </div>
+        <div class="pill">Love Jones Therapy</div>
+      </div>
 
-<button class="primary" onclick="startQuiz()">Start Quiz</button>
+      <p><b>What we collect:</b> Name, phone number, email address, and your Relationship IQ results.</p>
+      <p><b>Why we collect it:</b> We use your info to send your Relationship IQ results and Love Jones Therapy updates.</p>
 
-<div id="app"></div>
+      <p><b>How your data is handled in this app:</b></p>
+      <ul class="list">
+        <li>Entries are validated (phone and email format).</li>
+        <li>Results can be exported by the organizer as a CSV file.</li>
+        <li>This starter build does not include ads or third-party trackers.</li>
+      </ul>
+
+      <p class="tiny">
+        By continuing, you confirm you agree to receive your results and Love Jones Therapy updates.
+        If you do not agree, do not submit your info.
+      </p>
+
+      <div class="btnrow">
+        <button class="primary" id="privacyOkBtn">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cookie banner (preference stored locally; no trackers included) -->
+  <div class="cookie" id="cookieBanner">
+    <div class="cookieInner">
+      <div class="cookieText">
+        <b style="color:var(--text);">Cookies</b><br/>
+        This app stores preferences on your device (like cookie choice) and can store offline files for faster loading.
+        No third-party tracking scripts are included.
+        <span> <a href="#" id="cookieLearn">Privacy</a></span>
+      </div>
+      <div class="cookieBtns">
+        <button id="cookieReject">Reject</button>
+        <button class="primary" id="cookieAccept">Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install prompt bar -->
+  <div class="installBar" id="installBar">
+    <div class="installInner">
+      <div class="installTxt">
+        <b style="color:var(--text);">Install Relationship IQ</b><br/>
+        Add it to your home screen for a faster, app-like experience (works offline after first load).
+      </div>
+      <div class="installBtns">
+        <button id="installLater">Later</button>
+        <button class="ok" id="installBtn">Install</button>
+      </div>
+    </div>
+  </div>
 
 <script>
-function startQuiz(){
-  document.getElementById("app").innerHTML =
-    "<h3>Your app is working 🎉</h3><p>Next step: we add the full questions and couples mode.</p>";
-}
-</script>
+/**
+ * Relationship IQ • Love Jones Therapy
+ * Best build (no frameworks):
+ * - PWA install prompt (Android/Chrome + supported browsers)
+ * - Offline support via service worker (sw.js)
+ * - App icons via manifest + PNG files
+ * - Lead capture + consent
+ * - Single mode quiz + Couples mode compare
+ * - Export leads to CSV
+ */
 
+// ------------------------ Types ------------------------
+const TYPES = {
+  SB: { name:"Secure Builder", tagline:"Calm, clear, and consistent — you build trust over time.",
+        strengths:["Direct communication","Steady emotional tone","Healthy boundaries"],
+        blindSpots:["May over-focus on logic","Can under-express needs","May expect others to be as steady as you"],
+        growth:"Name your needs early and ask for clarity instead of assuming." },
+  AC: { name:"Anxious Connector", tagline:"You love closeness and reassurance — connection matters deeply to you.",
+        strengths:["Affectionate and loyal","High empathy","Strong desire to repair"],
+        blindSpots:["Overthinking","Needing constant reassurance","Reacting to uncertainty"],
+        growth:"Pause before you chase reassurance. Try: “I’m feeling unsure — can we talk later today?”" },
+  PA: { name:"Protective Avoider", tagline:"You protect your heart by staying guarded — safety comes first.",
+        strengths:["Self-control","Independent coping","Spots red flags quickly"],
+        blindSpots:["Shutting down","Withholding feelings","Leaving problems unresolved"],
+        growth:"Try small honesty: one feeling + one request. You don’t have to spill everything at once." },
+  PP: { name:"Peacekeeper", tagline:"You keep harmony — you’d rather smooth it out than fight.",
+        strengths:["Supportive partner","Good listener","Creates calm environments"],
+        blindSpots:["Avoiding conflict","Saying yes when you mean no","Resentment from unmet needs"],
+        growth:"Practice “kind no’s” and boundary language. Peace is real when you’re not sacrificing yourself." },
+  PR: { name:"Passionate Reactor", tagline:"Big feelings, big love — you show up with intensity.",
+        strengths:["High passion","Expressive","Protective and committed"],
+        blindSpots:["Escalation","Saying things you regret","Quick assumptions in conflict"],
+        growth:"Use a 20-minute cool-down. Come back with: “Here’s what I meant, and here’s what I need.”" },
+  IT: { name:"Independent Thinker", tagline:"You value freedom and respect — space helps you stay grounded.",
+        strengths:["Logical decisions","Strong self-identity","Less drama under pressure"],
+        blindSpots:["Emotional distance","Slow to open up","Partner may feel shut out"],
+        growth:"Schedule closeness on purpose (check-ins, quality time). Consistency beats intensity." },
+  GR: { name:"Growth Seeker", tagline:"You treat love like a skill — you want to improve and evolve.",
+        strengths:["Self-aware","Open to feedback","Learns from patterns"],
+        blindSpots:["Over-analyzing","Turning relationships into projects","Being hard on yourself or partner"],
+        growth:"Balance growth with enjoyment. Celebrate wins, not just fixes." }
+};
+
+// ------------------------ Quiz ------------------------
+const QUIZ = {
+  title: "Relationship IQ",
+  subtitle: "7 outcomes • multiple choice • scenario based",
+  questions: [
+    { q:"Your partner doesn’t text back all day. What do you do first?",
+      options:[
+        {t:"SB",a:"Check in calmly later: “Everything good?”",hint:"Clear + steady"},
+        {t:"AC",a:"Feel anxious and double-text for reassurance",hint:"Connection seeking"},
+        {t:"IT",a:"Assume they’re busy and focus on your day",hint:"Self-directed"},
+        {t:"PA",a:"Pull back emotionally to protect yourself",hint:"Guard up"},
+      ]},
+    { q:"An argument starts getting heated. What’s your move?",
+      options:[
+        {t:"SB",a:"Slow it down and focus on one issue",hint:"De-escalation"},
+        {t:"PR",a:"Say what you feel right now, full intensity",hint:"Heat + honesty"},
+        {t:"PP",a:"Try to keep peace even if you swallow your point",hint:"Harmony first"},
+        {t:"PA",a:"Shut down or leave the conversation",hint:"Protective exit"},
+      ]},
+    { q:"Your partner wants to talk about feelings. You usually…",
+      options:[
+        {t:"GR",a:"Lean in and ask questions to understand patterns",hint:"Growth mode"},
+        {t:"IT",a:"Prefer practical talk and solutions",hint:"Logic first"},
+        {t:"AC",a:"Get emotional but want reassurance",hint:"Need safety"},
+        {t:"PA",a:"Feel uncomfortable and keep it short",hint:"Guarded"},
+      ]},
+    { q:"Jealousy shows up. What do you do?",
+      options:[
+        {t:"SB",a:"Name it calmly and ask for clarity",hint:"Secure approach"},
+        {t:"AC",a:"Need reassurance right away",hint:"Closeness needed"},
+        {t:"PR",a:"Confront strongly and demand answers",hint:"Intensity"},
+        {t:"PA",a:"Pretend you don’t care, but withdraw",hint:"Distance"},
+      ]},
+    { q:"You feel unappreciated. You usually…",
+      options:[
+        {t:"SB",a:"Say it directly with a specific request",hint:"Clear request"},
+        {t:"PP",a:"Do more, hoping they notice",hint:"Overgiving"},
+        {t:"PR",a:"Bring it up in frustration when it builds",hint:"Burst after build-up"},
+        {t:"PA",a:"Detach and stop trying",hint:"Shutdown"},
+      ]},
+    { q:"Your partner apologizes. You…",
+      options:[
+        {t:"SB",a:"Accept and discuss how to do better next time",hint:"Repair + plan"},
+        {t:"GR",a:"Appreciate it and reflect on both sides",hint:"Learning"},
+        {t:"PA",a:"Take time to trust it’s real",hint:"Slow trust"},
+        {t:"PR",a:"Still feel heated, need time to cool down",hint:"Emotion first"},
+      ]},
+    { q:"When you’re stressed, you prefer…",
+      options:[
+        {t:"IT",a:"Space and quiet to reset",hint:"Solo recharge"},
+        {t:"AC",a:"Closeness and reassurance",hint:"Together feels safe"},
+        {t:"PA",a:"Handle it alone and not explain much",hint:"Self-protection"},
+        {t:"SB",a:"A calm check-in and a clear plan",hint:"Steady support"},
+      ]},
+    { q:"You notice a boundary being crossed. You…",
+      options:[
+        {t:"SB",a:"Address it calmly and clearly",hint:"Boundaries"},
+        {t:"PP",a:"Let it slide to avoid conflict",hint:"Peace at a cost"},
+        {t:"PR",a:"React fast and strongly",hint:"Immediate pushback"},
+        {t:"PA",a:"Back away and say less",hint:"Distance response"},
+      ]},
+    { q:"Your partner says: “We need to talk.” You feel…",
+      options:[
+        {t:"SB",a:"Curious and ready to listen",hint:"Stable mindset"},
+        {t:"AC",a:"Worried and imagine worst-case",hint:"Anxiety"},
+        {t:"PA",a:"Defensive and want to avoid it",hint:"Guarded"},
+        {t:"IT",a:"Neutral, waiting for facts",hint:"Information first"},
+      ]},
+    { q:"How do you usually show love?",
+      options:[
+        {t:"AC",a:"Words, affection, frequent check-ins",hint:"Closeness"},
+        {t:"IT",a:"Practical help and reliability",hint:"Actions"},
+        {t:"PR",a:"Big gestures and intense attention",hint:"Passion"},
+        {t:"PP",a:"Doing whatever makes them happy",hint:"Over-accommodating"},
+      ]},
+    { q:"After conflict, what helps most?",
+      options:[
+        {t:"SB",a:"Repair talk + a clear agreement",hint:"Closure"},
+        {t:"PA",a:"Time alone before re-connecting",hint:"Distance then return"},
+        {t:"AC",a:"Reassurance and closeness quickly",hint:"Reconnect fast"},
+        {t:"GR",a:"Reflecting on triggers and patterns",hint:"Learn from it"},
+      ]},
+    { q:"Your partner is upset, but won’t say why. You…",
+      options:[
+        {t:"SB",a:"Invite safely: “I’m here when you’re ready.”",hint:"Gentle"},
+        {t:"AC",a:"Press for answers because silence is stressful",hint:"Uncertainty hurts"},
+        {t:"IT",a:"Give space and wait for direct communication",hint:"Respect autonomy"},
+        {t:"PR",a:"Get frustrated and confront the silence",hint:"Push for resolution"},
+      ]},
+    { q:"How do you handle criticism?",
+      options:[
+        {t:"GR",a:"Reflect, learn, adjust",hint:"Growth"},
+        {t:"PR",a:"Feel it deeply and react first",hint:"Emotion spikes"},
+        {t:"PA",a:"Shut down or minimize it",hint:"Protective"},
+        {t:"SB",a:"Ask for examples and respond calmly",hint:"Clear process"},
+      ]},
+    { q:"What’s your biggest relationship fear (most likely)?",
+      options:[
+        {t:"AC",a:"Being abandoned or replaced",hint:"Attachment worry"},
+        {t:"PA",a:"Being controlled or trapped",hint:"Freedom protection"},
+        {t:"PP",a:"Being disliked or causing conflict",hint:"Approval seeking"},
+        {t:"PR",a:"Being disrespected or not valued",hint:"Respect sensitivity"},
+      ]},
+    { q:"If your partner needs space, you…",
+      options:[
+        {t:"IT",a:"Respect it easily and stay grounded",hint:"Space-friendly"},
+        {t:"AC",a:"Struggle and need reassurance",hint:"Connection need"},
+        {t:"PA",a:"Feel relief and pull back",hint:"Distance comfort"},
+        {t:"SB",a:"Agree on a time to reconnect",hint:"Structure"},
+      ]},
+    { q:"What best describes your conflict style?",
+      options:[
+        {t:"SB",a:"Talk it out calmly, stay on topic",hint:"Steady"},
+        {t:"PR",a:"Escalate fast, then regret later",hint:"Hot then cool"},
+        {t:"PP",a:"Avoid or soften the issue",hint:"Peacekeeping"},
+        {t:"PA",a:"Withdraw or go quiet",hint:"Shutdown"},
+      ]},
+    { q:"You want to improve your relationships. Your approach is…",
+      options:[
+        {t:"GR",a:"Learn, reflect, practice skills",hint:"Growth path"},
+        {t:"SB",a:"Communicate clearly and be consistent",hint:"Secure habits"},
+        {t:"AC",a:"Seek reassurance and closeness",hint:"Connection focus"},
+        {t:"IT",a:"Improve with practical routines and boundaries",hint:"Systems"},
+      ]},
+  ]
+};
+
+// ------------------------ State ------------------------
+const STORAGE = {
+  cookieChoice: "ljt_cookie_choice",
+  installDismissed: "ljt_install_dismissed",
+};
+
+const Mode = { SINGLE:"single", COUPLES:"couples" };
+const CouplesStep = { SETUP:"setup", PARTNER_A:"partnerA", PARTNER_B:"partnerB", COMPARE:"compare" };
+
+let state = {
+  screen: "home",          // home | quiz | result | couples
+  mode: Mode.SINGLE,       // single | couples
+  idx: 0,
+  scores: newScores(),
+  answers: [],
+
+  // lead capture
+  userName: "",
+  userPhone: "",
+  userEmail: "",
+  consentOk: false,
+
+  // couples mode
+  couplesStep: CouplesStep.SETUP,
+  partnerA: { name:"", scores: newScores(), result:null },
+  partnerB: { name:"", scores: newScores(), result:null },
+
+  // install prompt
+  deferredInstallPrompt: null
+};
+
+const app = document.getElementById("app");
+const toastBox = document.getElementById("toastBox");
+
+// ------------------------ Helpers ------------------------
+function newScores(){ return Object.fromEntries(Object.keys(TYPES).map(k => [k, 0])); }
+function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function escapeAttr(s){ return String(s ?? "").replace(/"/g, "&quot;"); }
+function pct(n, d){ return Math.max(0, Math.min(100, Math.round((n/d)*100))); }
+
+function showToast(msg){
+  toastBox.textContent = msg;
+  toastBox.style.display = "block";
+  setTimeout(() => toastBox.style.display = "none", 2400);
+}
+
+function topTwoScores(scores){
+  const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  return { top: arr[0], second: arr[1], sorted: arr };
+}
+
+function computeResultFrom(scores){
+  const { top, second, sorted } = topTwoScores(scores);
+  const primary = top[0];
+  const secondary = second[0];
+  const tie = (top[1] === second[1]);
+  return { primary, secondary, tie, sorted };
+}
+
+// ------------------------ Privacy modal ------------------------
+function openPrivacyModal(){ document.getElementById("privacyBackdrop").style.display = "flex"; }
+function closePrivacyModal(){ document.getElementById("privacyBackdrop").style.display = "none"; }
+document.getElementById("privacyOkBtn").onclick = closePrivacyModal;
+
+// ------------------------ Cookie banner ------------------------
+function showCookieBannerIfNeeded(){
+  const choice = localStorage.getItem(STORAGE.cookieChoice);
+  document.getElementById("cookieBanner").style.display = choice ? "none" : "block";
+}
+function setCookieChoice(val){
+  localStorage.setItem(STORAGE.cookieChoice, val);
+  showCookieBannerIfNeeded();
+}
+document.getElementById("cookieAccept").onclick = () => setCookieChoice("accept");
+document.getElementById("cookieReject").onclick = () => setCookieChoice("reject");
+document.getElementById("cookieLearn").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
+
+// ------------------------ Install prompt (PWA) ------------------------
+function hideInstallBar(){ document.getElementById("installBar").style.display = "none"; }
+function showInstallBar(){
+  const dismissed = localStorage.getItem(STORAGE.installDismissed) === "1";
+  if (dismissed) return;
+  if (!state.deferredInstallPrompt) return;
+  document.getElementById("installBar").style.display = "block";
+}
+document.getElementById("installLater").onclick = () => {
+  localStorage.setItem(STORAGE.installDismissed, "1");
+  hideInstallBar();
+};
+document.getElementById("installBtn").onclick = async () => {
+  if (!state.deferredInstallPrompt) return;
+  hideInstallBar();
+  state.deferredInstallPrompt.prompt();
+  const res = await state.deferredInstallPrompt.userChoice;
+  state.deferredInstallPrompt = null;
+  if (res && res.outcome === "accepted") showToast("Installed ✅");
+};
+
+// Capture the install prompt
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  state.deferredInstallPrompt = e;
+  showInstallBar();
+});
+
+// If already installed, hide install bar
+window.addEventListener("appinstalled", () => {
+  state.deferredInstallPrompt = null;
+  hideInstallBar();
+});
+
+// ------------------------ Service Worker (offline) ------------------------
+async function registerSW(){
+  if (!("serviceWorker" in navigator)) return;
+  try{
+    await navigator.serviceWorker.register("./sw.js");
+  }catch(e){
+    // If SW fails, app still works online. No need to break.
+  }
+}
+
+// ------------------------ Lead export ------------------------
+function downloadTextFile(filename, text, mime="text/plain"){
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function csvEscape(v){
+  const s = String(v ?? "");
+  if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function exportLeadCSV(singleResult){
+  const now = new Date();
+  const row = {
+    timestamp: now.toISOString(),
+    name: state.userName || "",
+    phone: state.userPhone || "",
+    email: state.userEmail || "",
+    primary_type: TYPES[singleResult.primary].name,
+    secondary_type: TYPES[singleResult.secondary].name,
+    blend: singleResult.tie ? "yes" : "no",
+    score_primary: state.scores[singleResult.primary],
+    score_secondary: state.scores[singleResult.secondary],
+    total_questions: QUIZ.questions.length
+  };
+
+  const headers = Object.keys(row);
+  const values = headers.map(h => csvEscape(row[h]));
+  const csv = headers.join(",") + "\n" + values.join(",") + "\n";
+
+  const safeName = (state.userName || "lead").trim().replace(/[^a-z0-9]+/gi,"_").slice(0,40);
+  const fileName = `relationship_iq_lead_${safeName}_${now.toISOString().slice(0,10)}.csv`;
+  downloadTextFile(fileName, csv, "text/csv");
+}
+
+async function copyText(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast("Copied ✅");
+  }catch(e){
+    prompt("Copy this:", text);
+  }
+}
+
+async function shareResultText(singleResult){
+  const shareText = `${state.userName ? state.userName + ", " : ""}my Relationship IQ result is ${TYPES[singleResult.primary].name}${singleResult.tie ? " (blend)" : ""}. Secondary: ${TYPES[singleResult.secondary].name}.`;
+  try{
+    if(navigator.share){
+      await navigator.share({ title: "Relationship IQ", text: shareText });
+      return;
+    }
+  }catch(e){}
+  await copyText(shareText);
+}
+
+// ------------------------ Single quiz engine ------------------------
+function resetSingleQuiz(){
+  state.idx = 0;
+  state.scores = newScores();
+  state.answers = [];
+}
+
+function pickAnswerSingle(typeKey, optionText){
+  state.scores[typeKey] += 1;
+  state.answers.push({ qIndex: state.idx, type: typeKey, text: optionText });
+  if(state.idx < QUIZ.questions.length - 1){
+    state.idx += 1;
+    render();
+  } else {
+    state.screen = "result";
+    render();
+  }
+}
+
+function goBackSingle(){
+  if(state.idx === 0){ state.screen = "home"; render(); return; }
+  const last = state.answers.pop();
+  if(last) state.scores[last.type] = Math.max(0, state.scores[last.type] - 1);
+  state.idx = Math.max(0, state.idx - 1);
+  render();
+}
+
+// ------------------------ Couples quiz engine ------------------------
+function resetCouples(){
+  state.couplesStep = CouplesStep.SETUP;
+  state.partnerA = { name:"", scores:newScores(), result:null };
+  state.partnerB = { name:"", scores:newScores(), result:null };
+  state.idx = 0;
+  state.answers = [];
+}
+
+function couplesActivePartner(){
+  return state.couplesStep === CouplesStep.PARTNER_A ? state.partnerA : state.partnerB;
+}
+function couplesSetScore(typeKey){
+  const p = couplesActivePartner();
+  p.scores[typeKey] += 1;
+}
+function couplesPick(typeKey, optionText){
+  couplesSetScore(typeKey);
+  state.answers.push({ step: state.couplesStep, qIndex: state.idx, type: typeKey, text: optionText });
+
+  if(state.idx < QUIZ.questions.length - 1){
+    state.idx += 1;
+    render();
+    return;
+  }
+
+  // finish partner
+  const p = couplesActivePartner();
+  p.result = computeResultFrom(p.scores);
+
+  if(state.couplesStep === CouplesStep.PARTNER_A){
+    state.couplesStep = CouplesStep.PARTNER_B;
+    state.idx = 0;
+    state.answers = [];
+    render();
+  } else {
+    state.couplesStep = CouplesStep.COMPARE;
+    render();
+  }
+}
+
+function couplesBack(){
+  if(state.idx === 0){
+    state.couplesStep = CouplesStep.SETUP;
+    render();
+    return;
+  }
+  // Undo last
+  const last = state.answers.pop();
+  if(last){
+    const p = state.couplesStep === CouplesStep.PARTNER_A ? state.partnerA : state.partnerB;
+    p.scores[last.type] = Math.max(0, p.scores[last.type] - 1);
+  }
+  state.idx = Math.max(0, state.idx - 1);
+  render();
+}
+
+// ------------------------ Rendering ------------------------
+function headerRightPill(){
+  // shows offline status
+  const online = navigator.onLine;
+  return `<div class="pill">${online ? "Online" : "Offline"}</div>`;
+}
+
+function renderHome(){
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• 7 Types</span></div>
+          <div class="sub">Love Jones Therapy • Single mode + Couples mode • Installable • Offline</div>
+        </div>
+      </div>
+      ${headerRightPill()}
+    </div>
+
+    <h1>Find your Relationship IQ outcome</h1>
+    <p>Scenario-based multiple choice. No “right answers.” Your pattern creates your outcome — and your growth path.</p>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <div class="col kpi">
+        <b>Choose a Mode</b>
+        <div class="tiny">Single mode gives your personal result. Couples mode compares two results side-by-side.</div>
+        <div class="btnrow">
+          <button class="primary" id="singleBtn">Single Mode</button>
+          <button class="ok" id="couplesBtn">Couples Mode</button>
+          <button id="privacyBtn">Privacy</button>
+        </div>
+
+        <div class="badgeGrid">
+          ${Object.entries(TYPES).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(v.name)}</strong></span>`).join("")}
+        </div>
+      </div>
+
+      <div class="col kpi">
+        <b>Your Details</b>
+        <div class="tiny" style="margin-top:8px;">
+          Please enter your name, phone number, and email address.
+        </div>
+        <div class="tiny" style="margin-top:8px;">
+          <span class="accent">We use your info to send your Relationship IQ results and Love Jones Therapy updates.</span>
+          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
+        </div>
+
+        <div style="margin-top:10px;">
+          <input type="text" id="nameInput" placeholder="Full name" value="${escapeHtml(state.userName)}" />
+        </div>
+        <div style="margin-top:10px;">
+          <input type="text" id="phoneInput" placeholder="Phone number" value="${escapeHtml(state.userPhone)}" />
+        </div>
+        <div style="margin-top:10px;">
+          <input type="text" id="emailInput" placeholder="Email address" value="${escapeHtml(state.userEmail)}" />
+        </div>
+
+        <label style="display:flex; gap:8px; align-items:flex-start; margin-top:12px; font-size:13px; color:#a6a6b3;">
+          <input type="checkbox" id="consentCheck" ${state.consentOk ? "checked" : ""} />
+          I agree to receive my results and updates from Love Jones Therapy.
+        </label>
+
+        <div class="tiny" id="errMsg" style="margin-top:10px;"></div>
+
+        <div class="btnrow">
+          <button class="danger" id="clearBtn">Clear</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("privacyBtn").onclick = openPrivacyModal;
+  document.getElementById("privacyLink").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
+
+  document.getElementById("clearBtn").onclick = () => {
+    state.userName = ""; state.userPhone = ""; state.userEmail = ""; state.consentOk = false;
+    render();
+  };
+
+  document.getElementById("singleBtn").onclick = () => {
+    if(!validateLeadInputs()) return;
+    state.mode = Mode.SINGLE;
+    state.screen = "quiz";
+    resetSingleQuiz();
+    render();
+  };
+
+  document.getElementById("couplesBtn").onclick = () => {
+    if(!validateLeadInputs()) return;
+    state.mode = Mode.COUPLES;
+    state.screen = "couples";
+    resetCouples();
+    render();
+  };
+}
+
+function validateLeadInputs(){
+  const name = (document.getElementById("nameInput")?.value || "").trim();
+  const phone = (document.getElementById("phoneInput")?.value || "").trim();
+  const email = (document.getElementById("emailInput")?.value || "").trim();
+  const consent = document.getElementById("consentCheck")?.checked;
+  const err = document.getElementById("errMsg");
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const phoneOk = phone.replace(/\D/g, "").length >= 10;
+
+  if(!name || !phone || !email){
+    if(err) err.textContent = "Please fill in all fields.";
+    return false;
+  }
+  if(!phoneOk){
+    if(err) err.textContent = "Please enter a valid phone number (10+ digits).";
+    return false;
+  }
+  if(!emailOk){
+    if(err) err.textContent = "Please enter a valid email address.";
+    return false;
+  }
+  if(!consent){
+    if(err) err.textContent = "Please agree before continuing.";
+    return false;
+  }
+
+  state.userName = name;
+  state.userPhone = phone;
+  state.userEmail = email;
+  state.consentOk = true;
+
+  if(err) err.textContent = "";
+  return true;
+}
+
+function renderSingleQuiz(){
+  const total = QUIZ.questions.length;
+  const i = state.idx;
+  const item = QUIZ.questions[i];
+  const progress = pct(i, total - 1);
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• Single</span></div>
+          <div class="sub">Question <span class="accent">${i + 1}</span> of ${total}</div>
+        </div>
+      </div>
+      <div class="pill">${progress}%</div>
+    </div>
+
+    <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
+
+    <h2 style="margin-top:14px;">${escapeHtml(item.q)}</h2>
+    <div class="choices">
+      ${item.options.map((o, idx) => `
+        <button class="choice" data-t="${o.t}" data-a="${escapeAttr(o.a)}">
+          <span><b>${String.fromCharCode(65+idx)}.</b> ${escapeHtml(o.a)}</span>
+          <small>${escapeHtml(o.hint)}</small>
+        </button>
+      `).join("")}
+    </div>
+
+    <div class="btnrow">
+      <button id="backBtn">Back</button>
+      <button id="homeBtn">Home</button>
+      <button id="privacyBtn">Privacy</button>
+    </div>
+  `;
+
+  document.querySelectorAll(".choice").forEach(btn => {
+    btn.onclick = () => pickAnswerSingle(btn.dataset.t, btn.dataset.a);
+  });
+  document.getElementById("backBtn").onclick = goBackSingle;
+  document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+  document.getElementById("privacyBtn").onclick = openPrivacyModal;
+}
+
+function renderSingleResult(){
+  const r = computeResultFrom(state.scores);
+  const primaryData = TYPES[r.primary];
+  const secondaryData = TYPES[r.secondary];
+
+  const total = QUIZ.questions.length;
+  const topScore = state.scores[r.primary];
+  const secondScore = state.scores[r.secondary];
+
+  const blendLabel = r.tie
+    ? `Blend: ${primaryData.name} + ${secondaryData.name}`
+    : `Primary: ${primaryData.name} • Secondary: ${secondaryData.name}`;
+
+  const scoreBadges = r.sorted.map(([k,v]) => {
+    const label = TYPES[k].name;
+    const isTop = (k === r.primary);
+    return `<span class="badge"><strong>${isTop ? "⭐ " : ""}${escapeHtml(label)}</strong> ${v}/${total}</span>`;
+  }).join("");
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} Results</div>
+          <div class="sub">${escapeHtml(blendLabel)}</div>
+        </div>
+      </div>
+      <div class="pill">${topScore}/${total}</div>
+    </div>
+
+    <h1>${escapeHtml(primaryData.name)}</h1>
+    <p>${escapeHtml(primaryData.tagline)}</p>
+
+    <div class="row">
+      <div class="col kpi">
+        <b>Strengths</b>
+        <ul class="list">
+          ${primaryData.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
+        </ul>
+      </div>
+      <div class="col kpi">
+        <b>Blind Spots</b>
+        <ul class="list">
+          ${primaryData.blindSpots.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
+        </ul>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="kpi">
+      <b>Growth Tip</b>
+      <p style="margin:8px 0 0;">${escapeHtml(primaryData.growth)}</p>
+      <p class="tiny" style="margin-top:10px;">
+        Secondary influence: <span class="accent">${escapeHtml(secondaryData.name)}</span> (${secondScore}/${total})
+      </p>
+    </div>
+
+    <div class="kpi" style="margin-top:12px;">
+      <b>Score Breakdown</b>
+      <div class="badgeGrid">${scoreBadges}</div>
+    </div>
+
+    <div class="kpi" style="margin-top:12px;">
+      <b>Lead Info</b>
+      <div class="tiny">
+        Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
+        Phone: <span style="color:var(--text);">${escapeHtml(state.userPhone)}</span><br/>
+        Email: <span style="color:var(--text);">${escapeHtml(state.userEmail)}</span>
+      </div>
+      <div class="tiny" style="margin-top:10px;">
+        We use your info to send your Relationship IQ results and Love Jones Therapy updates.
+        <a href="#" id="privacyLink2" style="margin-left:6px;">Privacy</a>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="primary" id="exportBtn">Export Lead (CSV)</button>
+      <button id="copyLeadBtn">Copy Lead</button>
+      <button id="shareBtn">Share Result</button>
+      <button class="ok" id="couplesQuickBtn">Couples Mode</button>
+      <button id="retakeBtn">Retake</button>
+      <button id="homeBtn">Home</button>
+    </div>
+  `;
+
+  document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
+  document.getElementById("exportBtn").onclick = () => exportLeadCSV(r);
+  document.getElementById("shareBtn").onclick = () => shareResultText(r);
+
+  document.getElementById("copyLeadBtn").onclick = async () => {
+    const text =
+`Relationship IQ Lead
+Name: ${state.userName}
+Phone: ${state.userPhone}
+Email: ${state.userEmail}
+Primary: ${TYPES[r.primary].name}
+Secondary: ${TYPES[r.secondary].name}
+Blend: ${r.tie ? "Yes" : "No"}`;
+    await copyText(text);
+  };
+
+  document.getElementById("couplesQuickBtn").onclick = () => {
+    state.mode = Mode.COUPLES;
+    state.screen = "couples";
+    resetCouples();
+    render();
+  };
+
+  document.getElementById("retakeBtn").onclick = () => { state.screen = "quiz"; resetSingleQuiz(); render(); };
+  document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+}
+
+function renderCouples(){
+  if(state.couplesStep === CouplesStep.SETUP) return renderCouplesSetup();
+  if(state.couplesStep === CouplesStep.PARTNER_A) return renderCouplesQuiz("A");
+  if(state.couplesStep === CouplesStep.PARTNER_B) return renderCouplesQuiz("B");
+  return renderCouplesCompare();
+}
+
+function renderCouplesSetup(){
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• Couples Mode</span></div>
+          <div class="sub">Two people take the same quiz, then compare results.</div>
+        </div>
+      </div>
+      ${headerRightPill()}
+    </div>
+
+    <div class="kpi">
+      <b>Couples Setup</b>
+      <div class="tiny">Enter names for both partners. (Lead info stays as the main contact above.)</div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <div class="tiny">Partner A name</div>
+          <div style="margin-top:8px;">
+            <input type="text" id="aName" placeholder="Partner A" value="${escapeHtml(state.partnerA.name)}" />
+          </div>
+        </div>
+        <div class="col">
+          <div class="tiny">Partner B name</div>
+          <div style="margin-top:8px;">
+            <input type="text" id="bName" placeholder="Partner B" value="${escapeHtml(state.partnerB.name)}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="tiny" id="couplesErr" style="margin-top:10px;"></div>
+
+      <div class="btnrow">
+        <button class="ok" id="startA">Start Partner A</button>
+        <button id="homeBtn">Home</button>
+        <button id="privacyBtn">Privacy</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("privacyBtn").onclick = openPrivacyModal;
+  document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+
+  document.getElementById("startA").onclick = () => {
+    const a = (document.getElementById("aName").value || "").trim();
+    const b = (document.getElementById("bName").value || "").trim();
+    const err = document.getElementById("couplesErr");
+
+    if(!a || !b){
+      err.textContent = "Please enter both names.";
+      return;
+    }
+    state.partnerA.name = a;
+    state.partnerB.name = b;
+    state.partnerA.scores = newScores();
+    state.partnerB.scores = newScores();
+    state.idx = 0;
+    state.answers = [];
+    state.couplesStep = CouplesStep.PARTNER_A;
+    render();
+  };
+}
+
+function renderCouplesQuiz(label){
+  const total = QUIZ.questions.length;
+  const i = state.idx;
+  const item = QUIZ.questions[i];
+  const progress = pct(i, total - 1);
+
+  const partnerName = (state.couplesStep === CouplesStep.PARTNER_A) ? state.partnerA.name : state.partnerB.name;
+  const who = (state.couplesStep === CouplesStep.PARTNER_A) ? "Partner A" : "Partner B";
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• Couples</span></div>
+          <div class="sub">${escapeHtml(who)}: <span class="accent">${escapeHtml(partnerName)}</span> • Q${i+1}/${total}</div>
+        </div>
+      </div>
+      <div class="pill">${progress}%</div>
+    </div>
+
+    <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
+
+    <h2 style="margin-top:14px;">${escapeHtml(item.q)}</h2>
+    <div class="choices">
+      ${item.options.map((o, idx) => `
+        <button class="choice" data-t="${o.t}" data-a="${escapeAttr(o.a)}">
+          <span><b>${String.fromCharCode(65+idx)}.</b> ${escapeHtml(o.a)}</span>
+          <small>${escapeHtml(o.hint)}</small>
+        </button>
+      `).join("")}
+    </div>
+
+    <div class="btnrow">
+      <button id="backBtn">Back</button>
+      <button id="resetBtn" class="danger">Reset Couples</button>
+      <button id="privacyBtn">Privacy</button>
+    </div>
+  `;
+
+  document.querySelectorAll(".choice").forEach(btn => {
+    btn.onclick = () => couplesPick(btn.dataset.t, btn.dataset.a);
+  });
+  document.getElementById("backBtn").onclick = couplesBack;
+  document.getElementById("resetBtn").onclick = () => { resetCouples(); render(); };
+  document.getElementById("privacyBtn").onclick = openPrivacyModal;
+}
+
+function renderCouplesCompare(){
+  const A = state.partnerA;
+  const B = state.partnerB;
+
+  const aP = TYPES[A.result.primary].name;
+  const bP = TYPES[B.result.primary].name;
+
+  const aS = TYPES[A.result.secondary].name;
+  const bS = TYPES[B.result.secondary].name;
+
+  const compatibleNotes = getCouplesNotes(A.result.primary, B.result.primary);
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><b>LJ</b></div>
+        <div class="brandTxt">
+          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• Compare</span></div>
+          <div class="sub">${escapeHtml(A.name)} vs ${escapeHtml(B.name)}</div>
+        </div>
+      </div>
+      ${headerRightPill()}
+    </div>
+
+    <div class="row">
+      <div class="col kpi">
+        <b>${escapeHtml(A.name)}</b>
+        <div class="tiny">Primary: <span class="accent">${escapeHtml(aP)}</span></div>
+        <div class="tiny">Secondary: ${escapeHtml(aS)}</div>
+        <div class="badgeGrid" style="margin-top:10px;">
+          ${A.result.sorted.slice(0,4).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(TYPES[k].name)}</strong> ${v}/${QUIZ.questions.length}</span>`).join("")}
+        </div>
+      </div>
+
+      <div class="col kpi">
+        <b>${escapeHtml(B.name)}</b>
+        <div class="tiny">Primary: <span class="accent">${escapeHtml(bP)}</span></div>
+        <div class="tiny">Secondary: ${escapeHtml(bS)}</div>
+        <div class="badgeGrid" style="margin-top:10px;">
+          ${B.result.sorted.slice(0,4).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(TYPES[k].name)}</strong> ${v}/${QUIZ.questions.length}</span>`).join("")}
+        </div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="kpi">
+      <b>Couples Insight</b>
+      <ul class="list">
+        ${compatibleNotes.map(x => `<li>${escapeHtml(x)}</li>`).join("")}
+      </ul>
+      <p class="tiny" style="margin-top:10px;">
+        This is coaching-style feedback, not a diagnosis. Use it as a conversation starter.
+      </p>
+    </div>
+
+    <div class="btnrow">
+      <button class="primary" id="copyCompareBtn">Copy Compare Summary</button>
+      <button class="ok" id="restartCouplesBtn">Run Couples Again</button>
+      <button id="homeBtn">Home</button>
+      <button id="privacyBtn">Privacy</button>
+    </div>
+  `;
+
+  document.getElementById("privacyBtn").onclick = openPrivacyModal;
+  document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+  document.getElementById("restartCouplesBtn").onclick = () => { resetCouples(); render(); };
+
+  document.getElementById("copyCompareBtn").onclick = async () => {
+    const text =
+`Relationship IQ Couples Compare
+${A.name}: Primary ${aP}, Secondary ${aS}
+${B.name}: Primary ${bP}, Secondary ${bS}
+
+Conversation starters:
+- ${compatibleNotes.join("\n- ")}`;
+    await copyText(text);
+  };
+}
+
+function getCouplesNotes(typeA, typeB){
+  // Simple, helpful compare notes (no heavy claims).
+  const pair = [typeA, typeB].sort().join("-");
+  const notes = [];
+
+  // Generic base
+  notes.push("Start with one strength each person brings, then one thing you want to improve together.");
+
+  // Pair-specific suggestions
+  if(pair.includes("AC") && pair.includes("PA")){
+    notes.push("One partner may seek reassurance while the other needs space. Agree on a “reconnect time” so nobody feels abandoned or chased.");
+    notes.push("Use clear sentences: “I need closeness” vs “I need a break,” then set a time to resume the talk.");
+  } else if(pair.includes("PR") && pair.includes("PP")){
+    notes.push("Intensity + peacekeeping can create a pattern: one escalates, the other swallows feelings. Build a ‘pause’ rule and make sure both get heard.");
+    notes.push("Try a 2-minute turn-taking rule: each person speaks without interruption.");
+  } else if(pair.includes("SB") && pair.includes("PR")){
+    notes.push("Secure steadiness can calm intensity, but don’t dismiss feelings. Validate emotion first, then solve.");
+  } else if(pair.includes("IT") && pair.includes("AC")){
+    notes.push("Independence + connection needs can clash. Plan quality time and also protect solo time so both needs are respected.");
+  } else if(pair.includes("GR")){
+    notes.push("Growth energy is great — just don’t turn the relationship into homework. Make room for fun and softness too.");
+  } else {
+    notes.push("Pick one conflict habit to change this week (tone, timing, or boundaries) and track progress together.");
+  }
+
+  notes.push("Best quick habit: weekly 10-minute check-in (What went well? What do we need? What’s one small request?).");
+  return notes;
+}
+
+// ------------------------ Main render router ------------------------
+function render(){
+  if(state.screen === "home") return renderHome();
+
+  if(state.screen === "quiz"){
+    if(state.mode !== Mode.SINGLE){ state.mode = Mode.SINGLE; }
+    return renderSingleQuiz();
+  }
+
+  if(state.screen === "result"){
+    return renderSingleResult();
+  }
+
+  if(state.screen === "couples"){
+    if(state.mode !== Mode.COUPLES){ state.mode = Mode.COUPLES; }
+    return renderCouples();
+  }
+
+  state.screen = "home";
+  return renderHome();
+}
+
+// ------------------------ SW / connectivity events ------------------------
+window.addEventListener("online", () => showToast("Back online ✅"));
+window.addEventListener("offline", () => showToast("Offline mode ✅"));
+
+// ------------------------ Start ------------------------
+render();
+showCookieBannerIfNeeded();
+registerSW();
+</script>
 </body>
 </html>
