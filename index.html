@@ -213,6 +213,67 @@
       border-radius:24px;
       box-shadow:0 0 30px rgba(0,0,0,.5);
     }
+    #splashScreen img{
+  width:140px;
+  height:140px;
+  border-radius:24px;
+  box-shadow:0 0 30px rgba(0,0,0,.5);
+}
+
+/* ===== PREMIUM PACK START ===== */
+
+:root{
+  --glass: rgba(255,255,255,.06);
+  --stroke: rgba(255,255,255,.10);
+  --shadowSoft: 0 12px 35px rgba(0,0,0,.35);
+}
+
+#app{
+  animation: appIn .35s ease both;
+}
+
+@keyframes appIn{
+  from{opacity:0; transform:translateY(10px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+button{
+  border:1px solid var(--stroke);
+  background:var(--glass);
+  box-shadow:0 10px 24px rgba(0,0,0,.20);
+  transition:all .2s ease;
+}
+
+button:hover{
+  transform:translateY(-1px);
+}
+
+.choice{
+  border:1px solid rgba(255,255,255,.10);
+  transition:all .2s ease;
+}
+
+.choice:hover{
+  transform:translateY(-1px);
+  border-color:rgba(246,195,74,.20);
+}
+
+.progress{
+  height:11px;
+}
+
+.bar{
+  animation: barGrow .4s ease both;
+}
+
+@keyframes barGrow{
+  from{opacity:.6; transform:translateX(-6px);}
+  to{opacity:1; transform:translateX(0);}
+}
+
+/* ===== PREMIUM PACK END ===== */
+
+</style>
   </style>
 </head>
 
