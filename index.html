@@ -1477,13 +1477,24 @@ window.addEventListener("offline", () => showToast("Offline mode ✅"));
 render();
 showCookieBannerIfNeeded();
 registerSW();
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    const splash = document.getElementById("splashScreen");
-    splash.style.opacity = "0";
-    setTimeout(()=> splash.remove(), 600);
-  }, 2000); // 2 seconds
-});  
+function removeSplash(){
+  const splash = document.getElementById("splashScreen");
+  if (!splash) return;
+  splash.style.opacity = "0";
+  splash.style.pointerEvents = "none";
+  setTimeout(() => splash.remove(), 700);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(removeSplash, 1200);
+});
+
+// absolute safety backup
+setTimeout(removeSplash, 3500);
 </script>
+<div class="tiny" style="margin-top:16px; text-align:center; opacity:.8;">
+  Contact Us • <a href="mailto:lovejonestherapy@gmail.com" style="color:var(--accent);">lovejonestherapy@gmail.com</a> •
+  <a href="https://lovejonestherapy.com" target="_blank" style="color:var(--accent);">lovejonestherapy.com</a>
+</div>
 </body>
 </html>
