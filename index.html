@@ -1124,29 +1124,119 @@ function renderCouplesQuiz(label){
   document.getElementById("resetBtn").onclick = () => { resetCouples(); render(); };
   document.getElementById("privacyBtn").onclick = openPrivacyModal;
 }
+function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
+// Simple compatibility logic (you can tweak later)
+function compatibilityScore(typeA, typeB){
+  // Base score
+  let score = 70;
+
+  const pair = [typeA, typeB].sort().join("-");
+
+  // Helpful pairings
+  const boosts = {
+    "AC-SB": 10,
+    "GR-SB": 8,
+    "IT-SB": 6,
+    "PP-SB": 8,
+    "PR-SB": 6,
+    "GR-IT": 6,
+    "GR-PP": 6,
+    "AC-GR": 6
+  };
+
+  // Challenging pairings
+  const drops = {
+    "AC-PA": 14,
+    "AC-IT": 10,
+    "PR-PA": 12,
+    "PR-IT": 10,
+    "PA-PP": 8
+  };
+
+  if(boosts[pair]) score += boosts[pair];
+  if(drops[pair]) score -= drops[pair];
+
+  // Keep it realistic
+  score = clamp(score, 45, 95);
+
+  // Label
+  let label = "Strong";
+  if(score < 60) label = "Needs Work";
+  else if(score < 75) label = "Good";
+  else if(score < 88) label = "Strong";
+  else label = "Elite";
+
+  return { score, label };
+}
+
+async function shareText(title, text){
+  // Web Share (phones)
+  if(navigator.share){
+    try{
+      await navigator.share({ title, text });
+      showToast("Shared ✅");
+      return;
+    }catch(e){}
+  }
+  // Fallback: copy
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast("Copied ✅");
+  }catch(e){
+    prompt("Copy this:", text);
+  }
+}
 function renderCouplesCompare(){
   const A = state.partnerA;
   const B = state.partnerB;
 
-  const aP = TYPES[A.result.primary].name;
-  const bP = TYPES[B.result.primary].name;
+  const aPKey = A.result.primary;
+  const bPKey = B.result.primary;
 
-  const aS = TYPES[A.result.secondary].name;
-  const bS = TYPES[B.result.secondary].name;
+  const aP = TYPES[aPKey].name, aS = TYPES[A.result.secondary].name;
+  const bP = TYPES[bPKey].name, bS = TYPES[B.result.secondary].name;
 
-  const compatibleNotes = getCouplesNotes(A.result.primary, B.result.primary);
+  const comp = compatibilityScore(aPKey, bPKey);
+  const notes = couplesNotes(aPKey, bPKey);
+
+  const meter = `
+    <div class="kpi" style="margin-top:12px;">
+      <b>Love Score</b>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+        <div style="
+          width:88px; height:88px; border-radius:999px;
+          border:1px solid rgba(255,255,255,.12);
+          display:flex; align-items:center; justify-content:center;
+          background: rgba(246,195,74,.08);
+        ">
+          <div style="text-align:center;">
+            <div style="font-size:26px; font-weight:900; color: var(--accent); line-height:1;">${comp.score}%</div>
+            <div class="tiny" style="margin-top:4px;">${comp.label}</div>
+          </div>
+        </div>
+
+        <div style="flex:1 1 260px;">
+          <div class="tiny" style="margin-bottom:8px;">Compatibility meter</div>
+          <div class="progress"><div class="bar" style="width:${comp.score}%"></div></div>
+          <div class="tiny" style="margin-top:8px;">
+            Based on primary styles: <span class="accent">${escapeHtml(aP)}</span> + <span class="accent">${escapeHtml(bP)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 
   app.innerHTML = `
     <div class="topbar">
       <div class="brand">
         <div class="logo"><b>LJ</b></div>
         <div class="brandTxt">
-          <div class="title">${escapeHtml(QUIZ.title)} <span class="accent">• Compare</span></div>
+          <div class="title">Couples Mode <span class="accent">• Compare</span></div>
           <div class="sub">${escapeHtml(A.name)} vs ${escapeHtml(B.name)}</div>
         </div>
       </div>
-      ${headerRightPill()}
+      ${onlinePill()}
     </div>
 
     <div class="row">
@@ -1154,55 +1244,51 @@ function renderCouplesCompare(){
         <b>${escapeHtml(A.name)}</b>
         <div class="tiny">Primary: <span class="accent">${escapeHtml(aP)}</span></div>
         <div class="tiny">Secondary: ${escapeHtml(aS)}</div>
-        <div class="badgeGrid" style="margin-top:10px;">
-          ${A.result.sorted.slice(0,4).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(TYPES[k].name)}</strong> ${v}/${QUIZ.questions.length}</span>`).join("")}
-        </div>
       </div>
-
       <div class="col kpi">
         <b>${escapeHtml(B.name)}</b>
         <div class="tiny">Primary: <span class="accent">${escapeHtml(bP)}</span></div>
         <div class="tiny">Secondary: ${escapeHtml(bS)}</div>
-        <div class="badgeGrid" style="margin-top:10px;">
-          ${B.result.sorted.slice(0,4).map(([k,v]) => `<span class="badge"><strong>${escapeHtml(TYPES[k].name)}</strong> ${v}/${QUIZ.questions.length}</span>`).join("")}
-        </div>
       </div>
     </div>
+
+    ${meter}
 
     <div class="hr"></div>
 
     <div class="kpi">
       <b>Couples Insight</b>
-      <ul class="list">
-        ${compatibleNotes.map(x => `<li>${escapeHtml(x)}</li>`).join("")}
+      <ul style="margin:8px 0 0; padding-left:18px; color:var(--muted);">
+        ${notes.map(n=>`<li>${escapeHtml(n)}</li>`).join("")}
       </ul>
-      <p class="tiny" style="margin-top:10px;">
-        This is coaching-style feedback, not a diagnosis. Use it as a conversation starter.
-      </p>
+      <p class="tiny" style="margin-top:10px;">This is coaching-style feedback, not a diagnosis. Use it as a conversation starter.</p>
     </div>
 
     <div class="btnrow">
-      <button class="primary" id="copyCompareBtn">Copy Compare Summary</button>
-      <button class="ok" id="restartCouplesBtn">Run Couples Again</button>
+      <button class="primary" id="shareBtn">Share Results</button>
+      <button id="copyBtn">Copy Summary</button>
+      <button class="ok" id="againBtn">Run Couples Again</button>
       <button id="homeBtn">Home</button>
       <button id="privacyBtn">Privacy</button>
     </div>
   `;
 
-  document.getElementById("privacyBtn").onclick = openPrivacyModal;
-  document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
-  document.getElementById("restartCouplesBtn").onclick = () => { resetCouples(); render(); };
+  document.getElementById("privacyBtn").onclick = openPrivacy;
+  document.getElementById("homeBtn").onclick = ()=>{ state.screen="home"; render(); };
+  document.getElementById("againBtn").onclick = ()=>{ resetCouples(); render(); };
 
-  document.getElementById("copyCompareBtn").onclick = async () => {
-    const text =
-`Relationship IQ Couples Compare
+  const summary =
+`Love Jones Therapy • Couples Compare
 ${A.name}: Primary ${aP}, Secondary ${aS}
 ${B.name}: Primary ${bP}, Secondary ${bS}
 
+Love Score: ${comp.score}% (${comp.label})
+
 Conversation starters:
-- ${compatibleNotes.join("\n- ")}`;
-    await copyText(text);
-  };
+- ${notes.join("\n- ")}`;
+
+  document.getElementById("copyBtn").onclick = ()=> shareText("LJT Couples Compare", summary);
+  document.getElementById("shareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
 }
 
 function getCouplesNotes(typeA, typeB){
