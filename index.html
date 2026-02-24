@@ -1171,23 +1171,46 @@ function compatibilityScore(typeA, typeB){
 }
 
 async function shareText(title, text){
-  // Web Share (phones)
+  const shareUrl = getShareUrl();
+  const fullText = `${text}\n\nTake the Love Jones Therapy Relationship IQ:\n${shareUrl}`;
+
+  // Web Share (most phones)
   if(navigator.share){
     try{
-      await navigator.share({ title, text });
+      await navigator.share({ title, text: fullText, url: shareUrl });
       showToast("Shared ✅");
       return;
     }catch(e){}
   }
+
   // Fallback: copy
   try{
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(fullText);
     showToast("Copied ✅");
   }catch(e){
-    prompt("Copy this:", text);
+    prompt("Copy this:", fullText);
   }
 }
-function renderCouplesCompare(){
+function getReferralCode(){
+  const key = "ljt_ref";
+  let code = localStorage.getItem(key);
+  if(!code){
+    code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    localStorage.setItem(key, code);
+  }
+  return code;
+}
+
+function getShareUrl(){
+  const url = new URL(window.location.href);
+  // optional tracking params
+  url.searchParams.set("utm_source", "share");
+  url.searchParams.set("utm_medium", "couples");
+  url.searchParams.set("utm_campaign", "love_score");
+  url.searchParams.set("ref", getReferralCode());
+  return url.toString();
+}
+  function renderCouplesCompare(){
   const A = state.partnerA;
   const B = state.partnerB;
 
@@ -1217,7 +1240,7 @@ function renderCouplesCompare(){
         </div>
 
         <div style="flex:1 1 260px;">
-          <div class="tiny" style="margin-bottom:8px;">Compatibility meter</div>
+          <div class="tiny" style="margin-bottom:8px;">Compatibility Score</div>
           <div class="progress"><div class="bar" style="width:${comp.score}%"></div></div>
           <div class="tiny" style="margin-top:8px;">
             Based on primary styles: <span class="accent">${escapeHtml(aP)}</span> + <span class="accent">${escapeHtml(bP)}</span>
@@ -1265,7 +1288,7 @@ function renderCouplesCompare(){
     </div>
 
     <div class="btnrow">
-      <button class="primary" id="shareBtn">Share Results</button>
+      <button class="primary" id="viralShareBtn">Share your Love Score ❤️</button>
       <button id="copyBtn">Copy Summary</button>
       <button class="ok" id="againBtn">Run Couples Again</button>
       <button id="homeBtn">Home</button>
@@ -1283,12 +1306,13 @@ ${A.name}: Primary ${aP}, Secondary ${aS}
 ${B.name}: Primary ${bP}, Secondary ${bS}
 
 Love Score: ${comp.score}% (${comp.label})
+Compatibility Score: ${comp.score}%
 
 Conversation starters:
 - ${notes.join("\n- ")}`;
 
   document.getElementById("copyBtn").onclick = ()=> shareText("LJT Couples Compare", summary);
-  document.getElementById("shareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
+  document.getElementById("viralShareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
 }
 
 function getCouplesNotes(typeA, typeB){
