@@ -796,26 +796,7 @@ function renderHome(){
 
     
 
-        <div style="margin-top:10px;">
-          <input type="text" id="nameInput" placeholder="Full name" value="${escapeHtml(state.userName)}" />
-        </div>
-        <div style="margin-top:10px;">
-          <input type="text" id="phoneInput" placeholder="Phone number" value="${escapeHtml(state.userPhone)}" />
-        </div>
-        <div style="margin-top:10px;">
-          <input type="text" id="emailInput" placeholder="Email address" value="${escapeHtml(state.userEmail)}" />
-        </div>
-
-        <label style="display:flex; gap:8px; align-items:flex-start; margin-top:12px; font-size:13px; color:#a6a6b3;">
-          <input type="checkbox" id="consentCheck" ${state.consentOk ? "checked" : ""} />
-          I agree to receive my results and updates from Love Jones Therapy.
-        </label>
-
-        <div class="tiny" id="errMsg" style="margin-top:10px;"></div>
-
-        <div class="btnrow">
-          <button class="danger" id="clearBtn">Clear</button>
-        </div>
+  
       </div>
     </div>
   `;
