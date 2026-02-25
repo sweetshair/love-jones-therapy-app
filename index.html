@@ -14,105 +14,168 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <style>
-    :root { --bg:#0b0b0e; --card:#14141a; --muted:#a6a6b3; --text:#f2f2f5; --accent:#f6c34a; --ok:#48d18a; --bad:#ff7878; }
+    :root{
+      --bg:#0b0b0e;
+      --card:#14141a;
+      --muted:#a6a6b3;
+      --text:#f2f2f5;
+      --accent:#f6c34a;
+      --ok:#48d18a;
+      --bad:#ff7878;
+
+      /* premium */
+      --glass: rgba(255,255,255,.06);
+      --stroke: rgba(255,255,255,.10);
+      --shadowSoft: 0 16px 44px rgba(0,0,0,.45);
+      --glowGold: 0 0 0 1px rgba(246,195,74,.22), 0 10px 40px rgba(246,195,74,.12);
+    }
+
     * { box-sizing: border-box; }
-    body {
-      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(900px 600px at 20% 0%, #1b1b26, var(--bg));
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 600px at 20% 0%, #1b1b26, var(--bg)),
+        radial-gradient(800px 400px at 80% 30%, rgba(246,195,74,.08), transparent 55%);
       color: var(--text);
     }
-    .wrap { max-width: 980px; margin: 0 auto; padding: 18px; }
-    .card {
+
+    .wrap{ max-width:980px; margin:0 auto; padding:18px; }
+
+    .card{
       background: rgba(20,20,26,.92);
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 18px;
       padding: 18px;
-      box-shadow: 0 14px 35px rgba(0,0,0,.35);
-      backdrop-filter: blur(8px);
+      box-shadow: var(--shadowSoft);
+      backdrop-filter: blur(10px);
+      animation: appIn .35s ease both;
     }
-    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 14px; }
-    .brand { display:flex; align-items:center; gap:10px; }
-    .logo {
-      width: 42px; height: 42px; border-radius: 14px;
-      background: linear-gradient(135deg, rgba(246,195,74,.24), rgba(246,195,74,.06));
+
+    @keyframes appIn{
+      from{opacity:0; transform:translateY(10px);}
+      to{opacity:1; transform:translateY(0);}
+    }
+
+    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .brand{ display:flex; align-items:center; gap:10px; }
+    .logo{
+      width:42px; height:42px; border-radius:14px;
+      background: linear-gradient(135deg, rgba(246,195,74,.28), rgba(246,195,74,.06));
       border: 1px solid rgba(246,195,74,.25);
       display:flex; align-items:center; justify-content:center;
       box-shadow: 0 10px 30px rgba(0,0,0,.28);
     }
-    .logo b { color: var(--accent); font-size: 16px; letter-spacing: .6px; }
-    .brandTxt { display:flex; flex-direction:column; gap:2px; }
-    .brandTxt .title { font-weight: 900; letter-spacing: .2px; font-size: 18px; }
-    .brandTxt .sub { color: var(--muted); font-size: 13px; }
-    .pill { border: 1px solid rgba(255,255,255,.12); color: var(--muted); padding: 6px 10px; border-radius: 999px; font-size: 12px; }
-    .accent { color: var(--accent); font-weight: 900; }
+    .logo b{ color: var(--accent); font-size:16px; letter-spacing:.6px; }
+    .brandTxt{ display:flex; flex-direction:column; gap:2px; }
+    .brandTxt .title{ font-weight:900; letter-spacing:.2px; font-size:18px; }
+    .brandTxt .sub{ color: var(--muted); font-size:13px; }
 
-    h1,h2,h3 { margin: 8px 0; }
-    h1 { font-size: 26px; }
-    p { margin: 10px 0; color: var(--muted); line-height: 1.45; }
+    .pill{
+      border:1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size:12px;
+      background: rgba(255,255,255,.03);
+    }
+    .pill.admin{
+      color: var(--text);
+      border-color: rgba(246,195,74,.28);
+      box-shadow: var(--glowGold);
+    }
+    .accent{ color: var(--accent); font-weight:900; }
 
-    .btnrow { display:flex; flex-wrap:wrap; gap:10px; margin-top: 14px; }
-    button {
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
+    h1,h2,h3{ margin:8px 0; }
+    h1{ font-size:26px; }
+    p{ margin:10px 0; color: var(--muted); line-height:1.45; }
+
+    .btnrow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    button{
+      border:1px solid var(--stroke);
+      background: var(--glass);
       color: var(--text);
       padding: 11px 14px;
       border-radius: 12px;
-      cursor: pointer;
-      font-weight: 750;
-      transition: transform .05s ease, background .2s ease, border-color .2s ease;
+      cursor:pointer;
+      font-weight:750;
+      box-shadow: 0 10px 24px rgba(0,0,0,.20);
+      transition: transform .12s ease, background .2s ease, border-color .2s ease;
     }
-    button:hover { background: rgba(255,255,255,.09); }
-    button:active { transform: translateY(1px); }
-    button:disabled { opacity:.45; cursor:not-allowed; }
-    .primary {
+    button:hover{ background: rgba(255,255,255,.09); transform: translateY(-1px); }
+    button:active{ transform: translateY(0px); }
+    button:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .primary{
       background: linear-gradient(135deg, rgba(246,195,74,.22), rgba(246,195,74,.08));
       border-color: rgba(246,195,74,.35);
     }
-    .primary:hover { background: linear-gradient(135deg, rgba(246,195,74,.28), rgba(246,195,74,.12)); }
-    .ok {
+    .primary:hover{ background: linear-gradient(135deg, rgba(246,195,74,.28), rgba(246,195,74,.12)); }
+    .ok{
       background: linear-gradient(135deg, rgba(72,209,138,.20), rgba(72,209,138,.07));
       border-color: rgba(72,209,138,.35);
     }
-    .ok:hover { background: linear-gradient(135deg, rgba(72,209,138,.26), rgba(72,209,138,.11)); }
-    .danger {
+    .ok:hover{ background: linear-gradient(135deg, rgba(72,209,138,.26), rgba(72,209,138,.11)); }
+    .danger{
       background: rgba(255,120,120,.08);
       border-color: rgba(255,120,120,.28);
     }
-    .danger:hover { background: rgba(255,120,120,.12); }
+    .danger:hover{ background: rgba(255,120,120,.12); }
 
-    .choices { display:grid; gap:10px; margin-top: 12px; }
-    .choice {
-      text-align:left; width: 100%;
+    .choices{ display:grid; gap:10px; margin-top:12px; }
+    .choice{
+      text-align:left; width:100%;
       padding: 14px;
       border-radius: 14px;
       background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
     }
-    .choice small { display:block; margin-top: 6px; color: var(--muted); font-weight: 500; }
-    .progress {
-      height: 10px; border-radius: 99px;
+    .choice:hover{ border-color: rgba(246,195,74,.20); }
+    .choice small{ display:block; margin-top:6px; color: var(--muted); font-weight:500; }
+
+    .progress{
+      height:11px; border-radius:99px;
       background: rgba(255,255,255,.08);
-      overflow: hidden;
+      overflow:hidden;
       margin: 12px 0 0;
     }
-    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, rgba(246,195,74,.95), rgba(246,195,74,.35)); }
+    .bar{
+      height:100%; width:0%;
+      background: linear-gradient(90deg, rgba(246,195,74,.95), rgba(246,195,74,.35));
+      animation: barGrow .35s ease both;
+    }
+    @keyframes barGrow{
+      from{opacity:.6; transform: translateX(-6px);}
+      to{opacity:1; transform: translateX(0);}
+    }
 
-    .row { display:flex; gap: 12px; flex-wrap: wrap; }
-    .col { flex: 1 1 320px; }
-    .kpi {
+    .row{ display:flex; gap:12px; flex-wrap:wrap; }
+    .col{ flex: 1 1 320px; }
+
+    .kpi{
       background: rgba(255,255,255,.04);
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 14px;
       padding: 12px;
     }
-    .kpi b { display:block; margin-bottom: 5px; }
-    .list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
-    .footerNote { margin-top: 14px; font-size: 12px; color: rgba(166,166,179,.9); }
-    .tiny { font-size: 12px; color: var(--muted); }
-    .hr { height:1px; background: rgba(255,255,255,.08); margin: 14px 0; }
+    .kpi b{ display:block; margin-bottom:5px; }
+    .list{ margin:8px 0 0; padding-left:18px; color: var(--muted); }
 
-    .badgeGrid { display:flex; flex-wrap:wrap; gap:8px; margin-top: 10px; }
-    .badge { border:1px solid rgba(255,255,255,.12); padding: 6px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); }
-    .badge strong { color: var(--text); }
+    .footerNote{ margin-top:14px; font-size:12px; color: rgba(166,166,179,.9); }
+    .tiny{ font-size:12px; color: var(--muted); }
+    .hr{ height:1px; background: rgba(255,255,255,.08); margin:14px 0; }
+
+    .badgeGrid{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .badge{
+      border:1px solid rgba(255,255,255,.12);
+      padding: 6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      color: var(--muted);
+      background: rgba(255,255,255,.02);
+    }
+    .badge strong{ color: var(--text); }
 
     input[type="text"], input.in{
       width:100%;
@@ -123,8 +186,8 @@
       color: var(--text);
       outline: none;
     }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration: underline; }
 
     /* Modal */
     .modalBackdrop{
@@ -158,11 +221,11 @@
       display:flex; gap: 12px; flex-wrap:wrap;
       align-items:center; justify-content:space-between;
     }
-    .installTxt { color: var(--muted); font-size: 12px; line-height: 1.35; flex: 1 1 320px; }
-    .installBtns { display:flex; gap:10px; flex-wrap:wrap; }
+    .installTxt{ color: var(--muted); font-size:12px; line-height:1.35; flex: 1 1 320px; }
+    .installBtns{ display:flex; gap:10px; flex-wrap:wrap; }
 
     /* Cookie banner */
-    .cookie { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60; display:none; }
+    .cookie{ position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60; display:none; }
     .cookieInner{
       max-width: 980px; margin: 0 auto;
       background: rgba(20,20,26,.96);
@@ -172,7 +235,7 @@
       box-shadow: 0 16px 40px rgba(0,0,0,.55);
       display:flex; gap: 12px; align-items:flex-start; justify-content:space-between; flex-wrap: wrap;
     }
-    .cookieText{ color: var(--muted); font-size: 12px; line-height: 1.35; flex: 1 1 320px; }
+    .cookieText{ color: var(--muted); font-size:12px; line-height:1.35; flex: 1 1 320px; }
     .cookieBtns{ display:flex; gap: 10px; flex-wrap:wrap; }
 
     /* Toast */
@@ -195,101 +258,84 @@
       display:none;
     }
 
-    @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; animation:none !important; }
+    }
 
+    /* Premium splash */
     #splashScreen{
       position:fixed;
       inset:0;
-      background:#090b12;
+      background:
+        radial-gradient(700px 500px at 50% 30%, rgba(246,195,74,.10), transparent 60%),
+        radial-gradient(900px 700px at 20% 0%, rgba(255,255,255,.06), transparent 55%),
+        #070912;
       display:flex;
       align-items:center;
       justify-content:center;
       z-index:9999;
-      transition:opacity .6s ease;
+      transition: opacity .65s ease;
     }
-    #splashScreen img{
-      width:140px;
-      height:140px;
-      border-radius:24px;
-      box-shadow:0 0 30px rgba(0,0,0,.5);
+    #splashCard{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap: 14px;
+      padding: 18px 18px 14px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(15,16,24,.62);
+      box-shadow: 0 22px 70px rgba(0,0,0,.65);
+      backdrop-filter: blur(10px);
+      transform: translateY(0) scale(1);
+      animation: splashPop .9s ease both;
     }
-    #splashScreen img{
-  width:140px;
-  height:140px;
-  border-radius:24px;
-  box-shadow:0 0 30px rgba(0,0,0,.5);
-}
-
-/* ===== PREMIUM PACK START ===== */
-
-:root{
-  --glass: rgba(255,255,255,.06);
-  --stroke: rgba(255,255,255,.10);
-  --shadowSoft: 0 12px 35px rgba(0,0,0,.35);
-}
-
-#app{
-  animation: appIn .35s ease both;
-}
-
-@keyframes appIn{
-  from{opacity:0; transform:translateY(10px);}
-  to{opacity:1; transform:translateY(0);}
-}
-
-button{
-  border:1px solid var(--stroke);
-  background:var(--glass);
-  box-shadow:0 10px 24px rgba(0,0,0,.20);
-  transition:all .2s ease;
-}
-
-button:hover{
-  transform:translateY(-1px);
-}
-
-.choice{
-  border:1px solid rgba(255,255,255,.10);
-  transition:all .2s ease;
-}
-
-.choice:hover{
-  transform:translateY(-1px);
-  border-color:rgba(246,195,74,.20);
-}
-
-.progress{
-  height:11px;
-}
-
-.bar{
-  animation: barGrow .4s ease both;
-}
-
-@keyframes barGrow{
-  from{opacity:.6; transform:translateX(-6px);}
-  to{opacity:1; transform:translateX(0);}
-}
-
-/* ===== PREMIUM PACK END ===== */
-/* Hide organizer-only buttons */
-#exportBtn,
-#copyLeadBtn {
-  display: none !important;
-}
-</style>
- 
+    @keyframes splashPop{
+      0%{ opacity:0; transform: translateY(10px) scale(.98); }
+      100%{ opacity:1; transform: translateY(0) scale(1); }
+    }
+    #splashLogo{
+      width: 128px; height: 128px;
+      border-radius: 26px;
+      box-shadow: 0 0 0 1px rgba(246,195,74,.22), 0 30px 80px rgba(0,0,0,.70);
+      outline: 1px solid rgba(255,255,255,.10);
+    }
+    #splashText{
+      text-align:center;
+      line-height: 1.15;
+    }
+    #splashText .name{
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+    #splashText .sub{
+      margin-top: 4px;
+      font-size: 12px;
+      color: rgba(166,166,179,.92);
+    }
+  </style>
 </head>
 
 <body>
-  <div id="splashScreen">
-    <img src="icon-512.png" alt="Love Jones Therapy" />
+  <div id="splashScreen" aria-hidden="true">
+    <div id="splashCard">
+      <img id="splashLogo" src="icon-512.png" alt="Love Jones Therapy" />
+      <div id="splashText">
+        <div class="name">Love Jones Therapy</div>
+        <div class="sub">Relationship IQ</div>
+      </div>
+    </div>
   </div>
 
   <div class="wrap">
     <div class="card" id="app"></div>
+
     <div class="footerNote">
       Works as an installable app (PWA). Offline supported after first load.
+      <div class="tiny" style="margin-top:10px; text-align:center; opacity:.85;">
+        Contact Us • <a href="mailto:lovejonestherapy@gmail.com">lovejonestherapy@gmail.com</a> •
+        <a href="https://lovejonestherapy.com" target="_blank" rel="noopener">lovejonestherapy.com</a>
+      </div>
     </div>
   </div>
 
@@ -316,9 +362,8 @@ button:hover{
       <p><b>How your data is handled in this app:</b></p>
       <ul class="list">
         <li>Entries are validated (phone and email format).</li>
-        <li>Results can be exported by the organizer as a CSV file.</li>
+        <li>Leads are stored locally on this device (in this browser) until the organizer exports.</li>
         <li>This starter build does not include ads or third-party trackers.</li>
-        <li>Data is stored locally on this device until exported.</li>
       </ul>
 
       <p class="tiny">
@@ -332,7 +377,7 @@ button:hover{
     </div>
   </div>
 
-  <!-- Cookie banner (preference stored locally; no trackers included) -->
+  <!-- Cookie banner -->
   <div class="cookie" id="cookieBanner">
     <div class="cookieInner">
       <div class="cookieText">
@@ -362,49 +407,62 @@ button:hover{
     </div>
   </div>
 
-  <script>
-  /**
-   * Relationship IQ • Love Jones Therapy
-   * Fixed build (no frameworks):
-   * - No duplicate wiring
-   * - No missing function names
-   * - Couples compare bugs fixed (online pill, notes function, privacy click)
-   * - Consent checkbox ID fixed
-   */
+<script>
+/**
+ * Relationship IQ • Love Jones Therapy
+ * Public-safe build:
+ * - Admin-only export/copy behind URL key (?admin=...)
+ * - Leads stored locally (this browser) until admin exports
+ * - Premium splash
+ * - SW update flow to avoid stale cached UI
+ */
 
-  // ------------------------ Types ------------------------
+(() => {
+  // =================== ADMIN GATE ===================
+  // NOTE: This is "privacy by obscurity" (client-side). For true security, use Netlify Identity + Functions.
+  const ADMIN_KEY = "$Cla26swe";
+
+  function getAdminFromUrl(){
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get("admin") || "";
+  }
+  function isAdmin(){
+    return getAdminFromUrl() === ADMIN_KEY;
+  }
+
+  // =================== TYPES ===================
   const TYPES = {
     SB: { name:"Secure Builder", tagline:"Calm, clear, and consistent — you build trust over time.",
-          strengths:["Direct communication","Steady emotional tone","Healthy boundaries"],
-          blindSpots:["May over-focus on logic","Can under-express needs","May expect others to be as steady as you"],
-          growth:"Name your needs early and ask for clarity instead of assuming." },
+      strengths:["Direct communication","Steady emotional tone","Healthy boundaries"],
+      blindSpots:["May over-focus on logic","Can under-express needs","May expect others to be as steady as you"],
+      growth:"Name your needs early and ask for clarity instead of assuming." },
     AC: { name:"Anxious Connector", tagline:"You love closeness and reassurance — connection matters deeply to you.",
-          strengths:["Affectionate and loyal","High empathy","Strong desire to repair"],
-          blindSpots:["Overthinking","Needing constant reassurance","Reacting to uncertainty"],
-          growth:"Pause before you chase reassurance. Try: “I’m feeling unsure — can we talk later today?”" },
+      strengths:["Affectionate and loyal","High empathy","Strong desire to repair"],
+      blindSpots:["Overthinking","Needing constant reassurance","Reacting to uncertainty"],
+      growth:"Pause before you chase reassurance. Try: “I’m feeling unsure — can we talk later today?”" },
     PA: { name:"Protective Avoider", tagline:"You protect your heart by staying guarded — safety comes first.",
-          strengths:["Self-control","Independent coping","Spots red flags quickly"],
-          blindSpots:["Shutting down","Withholding feelings","Leaving problems unresolved"],
-          growth:"Try small honesty: one feeling + one request. You don’t have to spill everything at once." },
+      strengths:["Self-control","Independent coping","Spots red flags quickly"],
+      blindSpots:["Shutting down","Withholding feelings","Leaving problems unresolved"],
+      growth:"Try small honesty: one feeling + one request. You don’t have to spill everything at once." },
     PP: { name:"Peacekeeper", tagline:"You keep harmony — you’d rather smooth it out than fight.",
-          strengths:["Supportive partner","Good listener","Creates calm environments"],
-          blindSpots:["Avoiding conflict","Saying yes when you mean no","Resentment from unmet needs"],
-          growth:"Practice “kind no’s” and boundary language. Peace is real when you’re not sacrificing yourself." },
+      strengths:["Supportive partner","Good listener","Creates calm environments"],
+      blindSpots:["Avoiding conflict","Saying yes when you mean no","Resentment from unmet needs"],
+      growth:"Practice “kind no’s” and boundary language. Peace is real when you’re not sacrificing yourself." },
     PR: { name:"Passionate Reactor", tagline:"Big feelings, big love — you show up with intensity.",
-          strengths:["High passion","Expressive","Protective and committed"],
-          blindSpots:["Escalation","Saying things you regret","Quick assumptions in conflict"],
-          growth:"Use a 20-minute cool-down. Come back with: “Here’s what I meant, and here’s what I need.”" },
+      strengths:["High passion","Expressive","Protective and committed"],
+      blindSpots:["Escalation","Saying things you regret","Quick assumptions in conflict"],
+      growth:"Use a 20-minute cool-down. Come back with: “Here’s what I meant, and here’s what I need.”" },
     IT: { name:"Independent Thinker", tagline:"You value freedom and respect — space helps you stay grounded.",
-          strengths:["Logical decisions","Strong self-identity","Less drama under pressure"],
-          blindSpots:["Emotional distance","Slow to open up","Partner may feel shut out"],
-          growth:"Schedule closeness on purpose (check-ins, quality time). Consistency beats intensity." },
+      strengths:["Logical decisions","Strong self-identity","Less drama under pressure"],
+      blindSpots:["Emotional distance","Slow to open up","Partner may feel shut out"],
+      growth:"Schedule closeness on purpose (check-ins, quality time). Consistency beats intensity." },
     GR: { name:"Growth Seeker", tagline:"You treat love like a skill — you want to improve and evolve.",
-          strengths:["Self-aware","Open to feedback","Learns from patterns"],
-          blindSpots:["Over-analyzing","Turning relationships into projects","Being hard on yourself or partner"],
-          growth:"Balance growth with enjoyment. Celebrate wins, not just fixes." }
+      strengths:["Self-aware","Open to feedback","Learns from patterns"],
+      blindSpots:["Over-analyzing","Turning relationships into projects","Being hard on yourself or partner"],
+      growth:"Balance growth with enjoyment. Celebrate wins, not just fixes." }
   };
 
-  // ------------------------ Quiz ------------------------
+  // =================== QUIZ ===================
   const QUIZ = {
     title: "Relationship IQ",
     subtitle: "7 outcomes • multiple choice • scenario based",
@@ -531,10 +589,11 @@ button:hover{
     ]
   };
 
-  // ------------------------ State ------------------------
+  // =================== STATE ===================
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
     installDismissed: "ljt_install_dismissed",
+    leadsKey: "ljt_relationship_iq_leads_v1"
   };
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
@@ -543,31 +602,28 @@ button:hover{
   function newScores(){ return Object.fromEntries(Object.keys(TYPES).map(k => [k, 0])); }
 
   let state = {
-    screen: "home",          // home | quiz | result | couples
-    mode: Mode.SINGLE,       // single | couples
+    screen: "home", // home | quiz | result | couples
+    mode: Mode.SINGLE,
     idx: 0,
     scores: newScores(),
     answers: [],
 
-    // lead capture
     userName: "",
     userPhone: "",
     userEmail: "",
     consentOk: false,
 
-    // couples mode
     couplesStep: CouplesStep.SETUP,
-    partnerA: { name:"", scores: newScores(), result:null },
-    partnerB: { name:"", scores: newScores(), result:null },
+    partnerA: { name:"", scores:newScores(), result:null },
+    partnerB: { name:"", scores:newScores(), result:null },
 
-    // install prompt
     deferredInstallPrompt: null
   };
 
   const app = document.getElementById("app");
   const toastBox = document.getElementById("toastBox");
 
-  // ------------------------ Helpers ------------------------
+  // =================== HELPERS ===================
   function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
   function escapeAttr(s){ return String(s ?? "").replace(/"/g, "&quot;"); }
   function pct(n, d){ return Math.max(0, Math.min(100, Math.round((n/d)*100))); }
@@ -593,15 +649,17 @@ button:hover{
 
   function headerRightPill(){
     const online = navigator.onLine;
+    const admin = isAdmin();
+    if(admin) return `<div class="pill admin">Admin • ${online ? "Online" : "Offline"}</div>`;
     return `<div class="pill">${online ? "Online" : "Offline"}</div>`;
   }
 
-  // ------------------------ Privacy modal ------------------------
+  // =================== PRIVACY MODAL ===================
   function openPrivacyModal(){ document.getElementById("privacyBackdrop").style.display = "flex"; }
   function closePrivacyModal(){ document.getElementById("privacyBackdrop").style.display = "none"; }
   document.getElementById("privacyOkBtn").onclick = closePrivacyModal;
 
-  // ------------------------ Cookie banner ------------------------
+  // =================== COOKIE BANNER ===================
   function showCookieBannerIfNeeded(){
     const choice = localStorage.getItem(STORAGE.cookieChoice);
     document.getElementById("cookieBanner").style.display = choice ? "none" : "block";
@@ -609,22 +667,20 @@ button:hover{
   function setCookieChoice(val){
     localStorage.setItem(STORAGE.cookieChoice, val);
     showCookieBannerIfNeeded();
-    // If cookie banner is gone, we can show install bar if prompt exists
     showInstallBarIfReady();
   }
   document.getElementById("cookieAccept").onclick = () => setCookieChoice("accept");
   document.getElementById("cookieReject").onclick = () => setCookieChoice("reject");
   document.getElementById("cookieLearn").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
 
-  // ------------------------ Install prompt (PWA) ------------------------
+  // =================== PWA INSTALL ===================
   function hideInstallBar(){ document.getElementById("installBar").style.display = "none"; }
   function showInstallBarIfReady(){
     const dismissed = localStorage.getItem(STORAGE.installDismissed) === "1";
     const hasCookieChoice = !!localStorage.getItem(STORAGE.cookieChoice);
-    if (dismissed) return;
-    if (!state.deferredInstallPrompt) return;
-    // Prevent overlap: only show after cookie decision (or if banner isn't showing)
-    if (!hasCookieChoice) return;
+    if(dismissed) return;
+    if(!state.deferredInstallPrompt) return;
+    if(!hasCookieChoice) return;
     document.getElementById("installBar").style.display = "block";
   }
 
@@ -634,12 +690,12 @@ button:hover{
   };
 
   document.getElementById("installBtn").onclick = async () => {
-    if (!state.deferredInstallPrompt) return;
+    if(!state.deferredInstallPrompt) return;
     hideInstallBar();
     state.deferredInstallPrompt.prompt();
     const res = await state.deferredInstallPrompt.userChoice;
     state.deferredInstallPrompt = null;
-    if (res && res.outcome === "accepted") showToast("Installed ✅");
+    if(res && res.outcome === "accepted") showToast("Installed ✅");
   };
 
   window.addEventListener("beforeinstallprompt", (e) => {
@@ -653,17 +709,75 @@ button:hover{
     hideInstallBar();
   });
 
-  // ------------------------ Service Worker (offline) ------------------------
+  // =================== SERVICE WORKER ===================
   async function registerSW(){
-    if (!("serviceWorker" in navigator)) return;
+    if(!("serviceWorker" in navigator)) return;
     try{
-      await navigator.serviceWorker.register("./sw.js");
+      const reg = await navigator.serviceWorker.register("./sw.js");
+
+      // If a new SW is waiting, notify and refresh on click later (simple approach)
+      if(reg.waiting){
+        showToast("Update ready ✅ Refresh the page");
+      }
+
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener("statechange", () => {
+          if(nw.state === "installed" && navigator.serviceWorker.controller){
+            showToast("Update ready ✅ Refresh the page");
+          }
+        });
+      });
+
+      // optional auto-reload on controllerchange:
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        // Avoid infinite loops
+        if(window.__reloading) return;
+        window.__reloading = true;
+        window.location.reload();
+      });
+
     }catch(e){
-      // App still works online.
+      // still works online
     }
   }
 
-  // ------------------------ Lead export ------------------------
+  // =================== LEADS (LOCAL) ===================
+  function loadLeads(){
+    try{
+      const raw = localStorage.getItem(STORAGE.leadsKey);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch{
+      return [];
+    }
+  }
+
+  function saveLeads(arr){
+    localStorage.setItem(STORAGE.leadsKey, JSON.stringify(arr));
+  }
+
+  function addLead(singleResult){
+    const now = new Date();
+    const entry = {
+      timestamp: now.toISOString(),
+      name: state.userName || "",
+      phone: state.userPhone || "",
+      email: state.userEmail || "",
+      primary_type: TYPES[singleResult.primary].name,
+      secondary_type: TYPES[singleResult.secondary].name,
+      blend: singleResult.tie ? "yes" : "no",
+      score_primary: state.scores[singleResult.primary],
+      score_secondary: state.scores[singleResult.secondary],
+      total_questions: QUIZ.questions.length,
+      mode: "single"
+    };
+    const leads = loadLeads();
+    leads.push(entry);
+    saveLeads(leads);
+  }
+
   function downloadTextFile(filename, text, mime="text/plain"){
     const blob = new Blob([text], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -682,27 +796,19 @@ button:hover{
     return s;
   }
 
-  function exportLeadCSV(singleResult){
-    const now = new Date();
-    const row = {
-      timestamp: now.toISOString(),
-      name: state.userName || "",
-      phone: state.userPhone || "",
-      email: state.userEmail || "",
-      primary_type: TYPES[singleResult.primary].name,
-      secondary_type: TYPES[singleResult.secondary].name,
-      blend: singleResult.tie ? "yes" : "no",
-      score_primary: state.scores[singleResult.primary],
-      score_secondary: state.scores[singleResult.secondary],
-      total_questions: QUIZ.questions.length
-    };
-
-    const headers = Object.keys(row);
-    const values = headers.map(h => csvEscape(row[h]));
-    const csv = headers.join(",") + "\n" + values.join(",") + "\n";
-
-    const safeName = (state.userName || "lead").trim().replace(/[^a-z0-9]+/gi,"_").slice(0,40);
-    const fileName = `relationship_iq_lead_${safeName}_${now.toISOString().slice(0,10)}.csv`;
+  function exportAllLeadsCSV(){
+    const leads = loadLeads();
+    if(!leads.length){
+      showToast("No leads saved on this device yet");
+      return;
+    }
+    const headers = Object.keys(leads[0]);
+    const lines = [
+      headers.join(","),
+      ...leads.map(row => headers.map(h => csvEscape(row[h])).join(","))
+    ];
+    const csv = lines.join("\n") + "\n";
+    const fileName = `LJT_relationship_iq_leads_${new Date().toISOString().slice(0,10)}.csv`;
     downloadTextFile(fileName, csv, "text/csv");
   }
 
@@ -710,7 +816,7 @@ button:hover{
     try{
       await navigator.clipboard.writeText(text);
       showToast("Copied ✅");
-    }catch(e){
+    }catch{
       prompt("Copy this:", text);
     }
   }
@@ -726,7 +832,7 @@ button:hover{
     await copyText(shareText);
   }
 
-  // ------------------------ Single quiz engine ------------------------
+  // =================== SINGLE QUIZ ENGINE ===================
   function resetSingleQuiz(){
     state.idx = 0;
     state.scores = newScores();
@@ -753,7 +859,7 @@ button:hover{
     render();
   }
 
-  // ------------------------ Couples quiz engine ------------------------
+  // =================== COUPLES ENGINE ===================
   function resetCouples(){
     state.couplesStep = CouplesStep.SETUP;
     state.partnerA = { name:"", scores:newScores(), result:null };
@@ -769,7 +875,6 @@ button:hover{
   function couplesPick(typeKey, optionText){
     const p = couplesActivePartner();
     p.scores[typeKey] += 1;
-
     state.answers.push({ step: state.couplesStep, qIndex: state.idx, type: typeKey, text: optionText });
 
     if(state.idx < QUIZ.questions.length - 1){
@@ -778,7 +883,6 @@ button:hover{
       return;
     }
 
-    // finish partner
     p.result = computeResultFrom(p.scores);
 
     if(state.couplesStep === CouplesStep.PARTNER_A){
@@ -807,31 +911,15 @@ button:hover{
     render();
   }
 
-  // ------------------------ Couples compare helpers ------------------------
+  // =================== COUPLES COMPARE HELPERS ===================
   function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
   function compatibilityScore(typeA, typeB){
     let score = 70;
     const pair = [typeA, typeB].sort().join("-");
 
-    const boosts = {
-      "AC-SB": 10,
-      "GR-SB": 8,
-      "IT-SB": 6,
-      "PP-SB": 8,
-      "PR-SB": 6,
-      "GR-IT": 6,
-      "GR-PP": 6,
-      "AC-GR": 6
-    };
-
-    const drops = {
-      "AC-PA": 14,
-      "AC-IT": 10,
-      "PR-PA": 12,
-      "PR-IT": 10,
-      "PA-PP": 8
-    };
+    const boosts = { "AC-SB":10, "GR-SB":8, "IT-SB":6, "PP-SB":8, "PR-SB":6, "GR-IT":6, "GR-PP":6, "AC-GR":6 };
+    const drops  = { "AC-PA":14, "AC-IT":10, "PR-PA":12, "PR-IT":10, "PA-PP":8 };
 
     if(boosts[pair]) score += boosts[pair];
     if(drops[pair]) score -= drops[pair];
@@ -912,7 +1000,7 @@ button:hover{
     return notes;
   }
 
-  // ------------------------ Rendering ------------------------
+  // =================== RENDERING ===================
   function renderHome(){
     app.innerHTML = `
       <div class="topbar">
@@ -957,6 +1045,17 @@ button:hover{
         <div class="btnrow" style="margin-top:12px;">
           <button id="clearBtn">Clear</button>
         </div>
+
+        ${isAdmin() ? `
+          <div class="hr"></div>
+          <div class="tiny">
+            <span class="accent">Admin tools:</span> Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
+          </div>
+          <div class="btnrow" style="margin-top:10px;">
+            <button class="primary" id="adminExportAllBtn">Export All Leads (CSV)</button>
+            <button class="danger" id="adminClearAllBtn">Clear Leads On This Device</button>
+          </div>
+        ` : ``}
       </div>
 
       <div class="col kpi" style="margin-top:14px;">
@@ -1029,18 +1128,27 @@ button:hover{
       render();
     };
 
-    if(clearBtn){
-      clearBtn.onclick = () => {
-        state.userName = "";
-        state.userPhone = "";
-        state.userEmail = "";
-        state.consentOk = false;
-        render();
-      };
-    }
+    clearBtn.onclick = () => {
+      state.userName = "";
+      state.userPhone = "";
+      state.userEmail = "";
+      state.consentOk = false;
+      render();
+    };
 
     if(privacyBtn) privacyBtn.onclick = openPrivacyModal;
     if(privacyLink) privacyLink.onclick = (e)=>{ e.preventDefault(); openPrivacyModal(); };
+
+    // Admin home tools
+    const adminExportAllBtn = document.getElementById("adminExportAllBtn");
+    const adminClearAllBtn = document.getElementById("adminClearAllBtn");
+    if(adminExportAllBtn) adminExportAllBtn.onclick = exportAllLeadsCSV;
+    if(adminClearAllBtn) adminClearAllBtn.onclick = () => {
+      if(!confirm("Clear all leads stored on this device/browser?")) return;
+      saveLeads([]);
+      showToast("Cleared ✅");
+      render();
+    };
   }
 
   function renderSingleQuiz(){
@@ -1090,6 +1198,16 @@ button:hover{
 
   function renderSingleResult(){
     const r = computeResultFrom(state.scores);
+
+    // Save lead locally (only once per completion)
+    // Prevent double save if user refreshes result screen:
+    const completionKey = "ljt_last_completion_hash";
+    const hash = `${state.userName}|${state.userPhone}|${state.userEmail}|${r.primary}|${r.secondary}|${Object.values(state.scores).join(",")}`;
+    if(localStorage.getItem(completionKey) !== hash){
+      addLead(r);
+      localStorage.setItem(completionKey, hash);
+    }
+
     const primaryData = TYPES[r.primary];
     const secondaryData = TYPES[r.secondary];
 
@@ -1153,7 +1271,7 @@ button:hover{
       </div>
 
       <div class="kpi" style="margin-top:12px;">
-        <b>Lead Info</b>
+        <b>Your Info</b>
         <div class="tiny">
           Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
           Phone: <span style="color:var(--text);">${escapeHtml(state.userPhone)}</span><br/>
@@ -1165,8 +1283,21 @@ button:hover{
         </div>
       </div>
 
+      ${isAdmin() ? `
+        <div class="kpi" style="margin-top:12px;">
+          <b>Admin Tools</b>
+          <div class="tiny">
+            Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
+          </div>
+          <div class="btnrow" style="margin-top:10px;">
+            <button class="primary" id="adminExportAllBtn2">Export All Leads (CSV)</button>
+            <button id="adminCopyLastBtn">Copy This Lead</button>
+          </div>
+        </div>
+      ` : ``}
+
       <div class="btnrow">
-               <button id="shareBtn">Share Result</button>
+        <button id="shareBtn">Share Result</button>
         <button class="ok" id="couplesQuickBtn">Couples Mode</button>
         <button id="retakeBtn">Retake</button>
         <button id="homeBtn">Home</button>
@@ -1174,19 +1305,25 @@ button:hover{
     `;
 
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
-// document.getElementById("exportBtn").onclick = () => exportLeadCSV(r);
+    document.getElementById("shareBtn").onclick = () => shareResultText(r);
 
-// document.getElementById("copyLeadBtn").onclick = async () => {
-//   const text =
-// `Relationship IQ Lead
-// Name: ${state.userName}
-// Phone: ${state.userPhone}
-// Email: ${state.userEmail}
-// Primary: ${TYPES[r.primary].name}
-// Secondary: ${TYPES[r.secondary].name}
-// Blend: ${r.tie ? "Yes" : "No"}`;
-//   await copyText(text);
-// };
+    const adminExportAllBtn2 = document.getElementById("adminExportAllBtn2");
+    if(adminExportAllBtn2) adminExportAllBtn2.onclick = exportAllLeadsCSV;
+
+    const adminCopyLastBtn = document.getElementById("adminCopyLastBtn");
+    if(adminCopyLastBtn){
+      adminCopyLastBtn.onclick = async () => {
+        const text =
+`Relationship IQ Lead
+Name: ${state.userName}
+Phone: ${state.userPhone}
+Email: ${state.userEmail}
+Primary: ${TYPES[r.primary].name}
+Secondary: ${TYPES[r.secondary].name}
+Blend: ${r.tie ? "Yes" : "No"}`;
+        await copyText(text);
+      };
+    }
 
     document.getElementById("couplesQuickBtn").onclick = () => {
       state.mode = Mode.COUPLES;
@@ -1424,7 +1561,7 @@ Conversation starters:
     document.getElementById("viralShareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
   }
 
-  // ------------------------ Main render router ------------------------
+  // =================== ROUTER ===================
   function render(){
     if(state.screen === "home") return renderHome();
 
@@ -1446,33 +1583,28 @@ Conversation starters:
     return renderHome();
   }
 
-  // ------------------------ SW / connectivity events ------------------------
+  // =================== CONNECTIVITY EVENTS ===================
   window.addEventListener("online", () => showToast("Back online ✅"));
   window.addEventListener("offline", () => showToast("Offline mode ✅"));
 
-  // ------------------------ Splash ------------------------
+  // =================== SPLASH ===================
   function removeSplash(){
     const splash = document.getElementById("splashScreen");
-    if (!splash) return;
+    if(!splash) return;
     splash.style.opacity = "0";
     splash.style.pointerEvents = "none";
-    setTimeout(() => splash.remove(), 700);
+    setTimeout(() => splash.remove(), 800);
   }
 
-  // ------------------------ Start ------------------------
+  // =================== START ===================
   render();
   showCookieBannerIfNeeded();
   registerSW();
 
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(removeSplash, 1200);
-  });
-  setTimeout(removeSplash, 3500);
-  </script>
+  document.addEventListener("DOMContentLoaded", () => setTimeout(removeSplash, 900));
+  setTimeout(removeSplash, 2600);
 
-  <div class="tiny" style="margin-top:16px; text-align:center; opacity:.8;">
-    Contact Us • <a href="mailto:lovejonestherapy@gmail.com" style="color:var(--accent);">lovejonestherapy@gmail.com</a> •
-    <a href="https://lovejonestherapy.com" target="_blank" style="color:var(--accent);">lovejonestherapy.com</a>
-  </div>
+})();
+</script>
 </body>
 </html>
