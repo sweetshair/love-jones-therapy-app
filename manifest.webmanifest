@@ -1,20 +1,13 @@
 {
-  "name": "Love Jones Therapy Relationship IQ",
-  "short_name": "Love Jones Therapy",
+  "name": "Relationship IQ • Love Jones Therapy",
+  "short_name": "Relationship IQ",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0b0b0e",
+  "theme_color": "#111111",
+  "description": "Relationship IQ by Love Jones Therapy. Scenario-based quiz with 7 outcomes, couples mode, and offline support.",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
