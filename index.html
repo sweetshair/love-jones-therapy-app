@@ -420,15 +420,38 @@
 (() => {
   // =================== ADMIN GATE ===================
   // NOTE: This is "privacy by obscurity" (client-side). For true security, use Netlify Identity + Functions.
-  const ADMIN_KEY = "$Cla26swe";
+// =================== ADMIN GATE ===================
+// NOTE: Client-side admin is "privacy by obscurity". For true security use Netlify Identity + Functions.
+const ADMIN_PASS = "$Cla26swe";
+const ADMIN_STORE_KEY = "ljt_admin_unlocked_v1";
 
-  function getAdminFromUrl(){
-    const sp = new URLSearchParams(window.location.search);
-    return sp.get("admin") || "";
+function isAdmin(){
+  const url = new URL(window.location.href);
+
+  // If correct pass is present in URL, unlock and persist
+  if (url.searchParams.get("admin") === ADMIN_PASS) {
+    localStorage.setItem(ADMIN_STORE_KEY, "1");
+
+    // Optional: remove the admin param from the URL so nobody sees it if you screenshot/share
+    url.searchParams.delete("admin");
+    window.history.replaceState({}, "", url.toString());
+
+    return true;
   }
-  function isAdmin(){
-    return getAdminFromUrl() === ADMIN_KEY;
+
+  return localStorage.getItem(ADMIN_STORE_KEY) === "1";
+}
+
+// Optional: allow you to lock it again manually by visiting ?admin=logout
+function adminLogoutIfRequested(){
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("admin") === "logout") {
+    localStorage.removeItem(ADMIN_STORE_KEY);
+    url.searchParams.delete("admin");
+    window.history.replaceState({}, "", url.toString());
   }
+}
+adminLogoutIfRequested();
 
   // =================== TYPES ===================
   const TYPES = {
