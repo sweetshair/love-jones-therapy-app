@@ -1162,9 +1162,7 @@ button:hover{
       </div>
 
       <div class="btnrow">
-        <button class="primary" id="exportBtn">Export Lead (CSV)</button>
-        <button id="copyLeadBtn">Copy Lead</button>
-        <button id="shareBtn">Share Result</button>
+               <button id="shareBtn">Share Result</button>
         <button class="ok" id="couplesQuickBtn">Couples Mode</button>
         <button id="retakeBtn">Retake</button>
         <button id="homeBtn">Home</button>
@@ -1172,20 +1170,19 @@ button:hover{
     `;
 
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
-    document.getElementById("exportBtn").onclick = () => exportLeadCSV(r);
-    document.getElementById("shareBtn").onclick = () => shareResultText(r);
+// document.getElementById("exportBtn").onclick = () => exportLeadCSV(r);
 
-    document.getElementById("copyLeadBtn").onclick = async () => {
-      const text =
-`Relationship IQ Lead
-Name: ${state.userName}
-Phone: ${state.userPhone}
-Email: ${state.userEmail}
-Primary: ${TYPES[r.primary].name}
-Secondary: ${TYPES[r.secondary].name}
-Blend: ${r.tie ? "Yes" : "No"}`;
-      await copyText(text);
-    };
+// document.getElementById("copyLeadBtn").onclick = async () => {
+//   const text =
+// `Relationship IQ Lead
+// Name: ${state.userName}
+// Phone: ${state.userPhone}
+// Email: ${state.userEmail}
+// Primary: ${TYPES[r.primary].name}
+// Secondary: ${TYPES[r.secondary].name}
+// Blend: ${r.tie ? "Yes" : "No"}`;
+//   await copyText(text);
+// };
 
     document.getElementById("couplesQuickBtn").onclick = () => {
       state.mode = Mode.COUPLES;
