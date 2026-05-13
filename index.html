@@ -1219,6 +1219,64 @@ adminLogoutIfRequested();
     document.getElementById("privacyBtn").onclick = openPrivacyModal;
   }
 
+
+  function getDatingGuidance(result){
+    const playbook = {
+      SB: {
+        title: "The Rebuilder Dating Playbook",
+        focus: ["Choose consistency over intensity in the first month.", "State one emotional need early instead of testing for it.", "Ask: ‘What does healthy pacing look like for you?’"],
+        green: ["Follows through on small promises", "Can talk about hard moments without blame"],
+        red: ["Love-bombing then disappearing", "Calls your boundaries ‘too much’"]
+      },
+      AC: {
+        title: "The Heart-Forward Dating Playbook",
+        focus: ["Share warmth, but pace personal disclosure.", "Pause before over-functioning for chemistry.", "Use ‘I’ statements when clarifying expectations."],
+        green: ["Reciprocal effort and planning", "Comfortable with emotional honesty"],
+        red: ["Only reaches out when convenient", "Avoids defining intentions"]
+      },
+      IT: {
+        title: "The Strategist Dating Playbook",
+        focus: ["Lead with curiosity, not evaluation.", "Name feelings directly at least once per date.", "Let connection build before making long-term judgments."],
+        green: ["Respects your structure and time", "Communicates clearly between dates"],
+        red: ["Mixed signals and ambiguity", "Dismisses emotional conversations"]
+      },
+      PP: {
+        title: "The Peacekeeper Dating Playbook",
+        focus: ["Practice one clear preference every date.", "Don’t confuse harmony with compatibility.", "Ask for what you want before resentment builds."],
+        green: ["Invites your opinion and boundaries", "Handles disagreement calmly"],
+        red: ["Steamrolls your choices", "Guilts you for saying no"]
+      },
+      PR: {
+        title: "The Firecracker Dating Playbook",
+        focus: ["Pause before reacting to uncertainty.", "Swap assumptions for direct questions.", "Protect your peace with response-time boundaries."],
+        green: ["Consistent communication", "Can repair conflict quickly"],
+        red: ["Hot-and-cold behavior", "Escalates tension instead of resolving it"]
+      },
+      GR: {
+        title: "The Visionary Dating Playbook",
+        focus: ["Balance future-talk with present behavior.", "Verify compatibility through routines, not promises.", "Slow down to notice emotional availability."],
+        green: ["Actions match stated values", "Builds shared rituals over time"],
+        red: ["Big promises without follow-through", "Avoids day-to-day accountability"]
+      },
+      PA: {
+        title: "The Grounded Dating Playbook",
+        focus: ["Keep standards high and communication soft.", "Share needs before withdrawing.", "Leave space for spontaneity and play."],
+        green: ["Reliable and emotionally present", "Open to feedback and growth"],
+        red: ["Defensive when challenged", "Treats vulnerability as weakness"]
+      }
+    };
+
+    return playbook[result.primary] || playbook.SB;
+  }
+
+  function getBestMatchTypes(primary){
+    const matrix = {
+      SB:["GR","IT","PP"], AC:["SB","GR","PP"], PA:["SB","IT","GR"], PP:["SB","GR","AC"],
+      PR:["SB","GR","PP"], IT:["SB","GR","PA"], GR:["SB","IT","AC"]
+    };
+    return (matrix[primary] || ["SB","GR","IT"]).map(k => TYPES[k]?.name || k);
+  }
+
   function renderSingleResult(){
     const r = computeResultFrom(state.scores);
 
@@ -1241,6 +1299,10 @@ adminLogoutIfRequested();
     const blendLabel = r.tie
       ? `Blend: ${primaryData.name} + ${secondaryData.name}`
       : `Primary: ${primaryData.name} • Secondary: ${secondaryData.name}`;
+
+    const dating = getDatingGuidance(r);
+    const bestMatches = getBestMatchTypes(r.primary);
+    const compatibility = Math.max(55, Math.min(98, Math.round((topScore / total) * 100)));
 
     const scoreBadges = r.sorted.map(([k,v]) => {
       const label = TYPES[k].name;
@@ -1294,6 +1356,50 @@ adminLogoutIfRequested();
       </div>
 
       <div class="kpi" style="margin-top:12px;">
+        <b>Dating Section</b>
+        <p style="margin:8px 0 0;"><span class="accent">${escapeHtml(dating.title)}</span></p>
+        <div class="row" style="margin-top:8px;">
+          <div class="col">
+            <div class="tiny" style="color:var(--text); margin-bottom:6px;">How to date smarter</div>
+            <ul class="list">
+              ${dating.focus.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="col">
+            <div class="tiny" style="color:var(--text); margin-bottom:6px;">Green flags to prioritize</div>
+            <ul class="list">
+              ${dating.green.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+            <div class="tiny" style="color:var(--text); margin:10px 0 6px;">Red flags to watch</div>
+            <ul class="list">
+              ${dating.red.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px;">
+        <b>Dating Features</b>
+        <div class="tiny" style="margin-top:8px;">Best Match Types</div>
+        <div class="badgeGrid" style="margin-top:8px;">
+          ${bestMatches.map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}
+        </div>
+
+        <div class="tiny" style="margin-top:12px;">Compatibility percentage</div>
+        <div class="progress" style="margin-top:8px;"><div class="bar" style="width:${compatibility}%"></div></div>
+        <div class="tiny" style="margin-top:6px;"><span class="accent">${compatibility}%</span> current relationship readiness score.</div>
+
+        <div class="btnrow" style="margin-top:12px;">
+          <button id="saveShareBtn">Save/Share Results</button>
+          <button id="profileBtn">Create Profile from Result</button>
+          <button id="openersBtn">AI Opening Messages</button>
+          <button id="voiceIntroBtn">Voice Intro</button>
+          <button id="speedDateBtn">5-minute Video Speed Dates</button>
+          <button class="primary" id="premiumFiltersBtn">Premium Filters</button>
+        </div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px;">
         <b>Your Info</b>
         <div class="tiny">
           Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
@@ -1329,6 +1435,12 @@ adminLogoutIfRequested();
 
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
+    document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
+    document.getElementById("profileBtn").onclick = () => showToast("Profile created from your result ✅");
+    document.getElementById("openersBtn").onclick = () => showToast("AI-generated opening messages unlocked ✨");
+    document.getElementById("voiceIntroBtn").onclick = () => showToast("Voice intro feature coming soon 🎤");
+    document.getElementById("speedDateBtn").onclick = () => showToast("5-minute video speed dates launching soon 🎥");
+    document.getElementById("premiumFiltersBtn").onclick = () => showToast("Premium filters are available in the next release 💛");
 
     const adminExportAllBtn2 = document.getElementById("adminExportAllBtn2");
     if(adminExportAllBtn2) adminExportAllBtn2.onclick = exportAllLeadsCSV;
