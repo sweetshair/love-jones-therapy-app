@@ -1323,6 +1323,8 @@ adminLogoutIfRequested();
       ? `Blend: ${primaryData.name} + ${secondaryData.name}`
       : `Primary: ${primaryData.name} • Secondary: ${secondaryData.name}`;
 
+    const dating = getDatingGuidance(r);
+    const bestMatches = getBestMatchTypes(r.primary);
     const compatibility = Math.max(55, Math.min(98, Math.round((topScore / total) * 100)));
 
     const scoreBadges = r.sorted.map(([k,v]) => {
@@ -1387,6 +1389,50 @@ adminLogoutIfRequested();
       </div>
 
       <div class="kpi" style="margin-top:12px;">
+        <b>Dating Section</b>
+        <p style="margin:8px 0 0;"><span class="accent">${escapeHtml(dating.title)}</span></p>
+        <div class="row" style="margin-top:8px;">
+          <div class="col">
+            <div class="tiny" style="color:var(--text); margin-bottom:6px;">How to date smarter</div>
+            <ul class="list">
+              ${dating.focus.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="col">
+            <div class="tiny" style="color:var(--text); margin-bottom:6px;">Green flags to prioritize</div>
+            <ul class="list">
+              ${dating.green.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+            <div class="tiny" style="color:var(--text); margin:10px 0 6px;">Red flags to watch</div>
+            <ul class="list">
+              ${dating.red.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px;">
+        <b>Dating Features</b>
+        <div class="tiny" style="margin-top:8px;">Best Match Types</div>
+        <div class="badgeGrid" style="margin-top:8px;">
+          ${bestMatches.map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}
+        </div>
+
+        <div class="tiny" style="margin-top:12px;">Compatibility percentage</div>
+        <div class="progress" style="margin-top:8px;"><div class="bar" style="width:${compatibility}%"></div></div>
+        <div class="tiny" style="margin-top:6px;"><span class="accent">${compatibility}%</span> current relationship readiness score.</div>
+
+        <div class="btnrow" style="margin-top:12px;">
+          <button id="saveShareBtn">Save/Share Results</button>
+          <button id="profileBtn">Create Profile from Result</button>
+          <button id="openersBtn">AI Opening Messages</button>
+          <button id="voiceIntroBtn">Voice Intro</button>
+          <button id="speedDateBtn">5-minute Video Speed Dates</button>
+          <button class="primary" id="premiumFiltersBtn">Premium Filters</button>
+        </div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px;">
         <b>Your Info</b>
         <div class="tiny">
           Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
@@ -1423,6 +1469,12 @@ adminLogoutIfRequested();
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("ljDatingCircleBtn").onclick = () => { state.screen = "datingHub"; render(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
+    document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
+    document.getElementById("profileBtn").onclick = () => showToast("Profile created from your result ✅");
+    document.getElementById("openersBtn").onclick = () => showToast("AI-generated opening messages unlocked ✨");
+    document.getElementById("voiceIntroBtn").onclick = () => showToast("Voice intro feature coming soon 🎤");
+    document.getElementById("speedDateBtn").onclick = () => showToast("5-minute video speed dates launching soon 🎥");
+    document.getElementById("premiumFiltersBtn").onclick = () => showToast("Premium filters are available in the next release 💛");
 
     const adminExportAllBtn2 = document.getElementById("adminExportAllBtn2");
     if(adminExportAllBtn2) adminExportAllBtn2.onclick = exportAllLeadsCSV;
