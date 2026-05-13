@@ -616,7 +616,15 @@ adminLogoutIfRequested();
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
     installDismissed: "ljt_install_dismissed",
-    leadsKey: "ljt_relationship_iq_leads_v1"
+    leadsKey: "ljt_relationship_iq_leads_v1",
+    membershipKey: "ljt_membership_v1"
+  };
+  const STRIPE_LINKS = {
+    premiumMembership: "https://buy.stripe.com/7sYfZaf684vAeJA7ce7IY00",
+    extraMessages: "https://buy.stripe.com/4gM28kcY06DIgRIbsu7IY01",
+    extraVideoCalls: "https://buy.stripe.com/eVq5kwaPSbY29pg8gi7IY02",
+    extraVoiceCalls: "https://buy.stripe.com/fZu3co2jm8LQ44Wcwy7IY03",
+    earlyLocationChange: "https://buy.stripe.com/cNi9AM5vyaTY0SK7ce7IY04"
   };
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
@@ -625,7 +633,7 @@ adminLogoutIfRequested();
   function newScores(){ return Object.fromEntries(Object.keys(TYPES).map(k => [k, 0])); }
 
   let state = {
-    screen: "home", // home | quiz | result | couples
+    screen: "home", // home | quiz | result | couples | datingHub
     mode: Mode.SINGLE,
     idx: 0,
     scores: newScores(),
@@ -655,6 +663,21 @@ adminLogoutIfRequested();
     toastBox.textContent = msg;
     toastBox.style.display = "block";
     setTimeout(() => toastBox.style.display = "none", 2400);
+  }
+  function openExternalCheckout(url){
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  function loadMembership(){
+    try{
+      const raw = localStorage.getItem(STORAGE.membershipKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return { plan: parsed.plan === "premium" ? "premium" : "free" };
+    }catch{
+      return { plan:"free" };
+    }
+  }
+  function saveMembership(plan){
+    localStorage.setItem(STORAGE.membershipKey, JSON.stringify({ plan }));
   }
 
   function topTwoScores(scores){
@@ -1355,6 +1378,16 @@ adminLogoutIfRequested();
         <div class="badgeGrid">${scoreBadges}</div>
       </div>
 
+      <div class="kpi" style="margin-top:12px; text-align:center;">
+        <button id="ljDatingCircleBtn" aria-label="Open Love Jones Therapy Dating" style="
+          width:170px; height:170px; border-radius:999px; border:1px solid var(--accent);
+          background: radial-gradient(circle at 30% 30%, rgba(246,195,74,.28), rgba(246,195,74,.12));
+          color:var(--text); font-weight:900; line-height:1.3; margin:6px auto; display:inline-flex;
+          align-items:center; justify-content:center; padding:16px; text-align:center;
+        ">Love Jones Therapy Dating</button>
+        <div class="tiny" style="margin-top:8px;">Tap to enter the dating app with your Relationship IQ results.</div>
+      </div>
+
       <div class="kpi" style="margin-top:12px;">
         <b>Dating Section</b>
         <p style="margin:8px 0 0;"><span class="accent">${escapeHtml(dating.title)}</span></p>
@@ -1434,6 +1467,7 @@ adminLogoutIfRequested();
     `;
 
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
+    document.getElementById("ljDatingCircleBtn").onclick = () => { state.screen = "datingHub"; render(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
     document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
     document.getElementById("profileBtn").onclick = () => showToast("Profile created from your result ✅");
@@ -1469,6 +1503,30 @@ Blend: ${r.tie ? "Yes" : "No"}`;
 
     document.getElementById("retakeBtn").onclick = () => { state.screen = "quiz"; resetSingleQuiz(); render(); };
     document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+  }
+
+  function renderDatingHub(){
+    const r = computeResultFrom(state.scores);
+    const primaryData = TYPES[r.primary];
+    const secondaryData = TYPES[r.secondary];
+    const dating = getDatingGuidance(r);
+    const bestMatches = getBestMatchTypes(r.primary);
+    const compatibility = Math.max(55, Math.min(98, Math.round((state.scores[r.primary] / QUIZ.questions.length) * 100)));
+    const membership = loadMembership();
+    const isPremium = membership.plan === "premium";
+    app.innerHTML = `
+      <div class="topbar"><div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Love Jones Therapy Dating</div><div class="sub">Built from your Relationship IQ results</div></div></div>${headerRightPill()}</div>
+      <div class="kpi"><b>Your Pool</b><p style="margin-top:8px;">You are in the <span class="accent">${escapeHtml(primaryData.name)}</span> pool with similar ideologies.</p><div class="badgeGrid"><span class="badge"><strong>Primary:</strong> ${escapeHtml(primaryData.name)}</span><span class="badge"><strong>Secondary:</strong> ${escapeHtml(secondaryData.name)}</span><span class="badge"><strong>Readiness:</strong> ${compatibility}%</span>${isPremium ? `<span class="badge"><strong>⭐ Premium Badge</strong></span>` : ``}</div></div>
+      <div class="kpi" style="margin-top:12px;"><b>Dating Section</b><p style="margin:8px 0 0;"><span class="accent">${escapeHtml(dating.title)}</span></p><ul class="list">${dating.focus.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>
+      <div class="kpi" style="margin-top:12px;"><b>Dating Features</b><div class="badgeGrid">${bestMatches.map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}</div><div class="btnrow" style="margin-top:10px;"><button id="hubPremiumBtn" class="primary">Upgrade to Premium</button><button id="hubMsgBtn">Buy Extra Messages</button><button id="hubVideoBtn">Buy Extra Video Calls</button><button id="hubVoiceBtn">Buy Extra Voice Calls</button></div></div>
+      <div class="btnrow"><button id="hubBackBtn">Back to Results</button><button id="hubHomeBtn">Home</button></div>
+    `;
+    document.getElementById("hubPremiumBtn").onclick = () => { saveMembership("premium"); openExternalCheckout(STRIPE_LINKS.premiumMembership); renderDatingHub(); };
+    document.getElementById("hubMsgBtn").onclick = () => openExternalCheckout(STRIPE_LINKS.extraMessages);
+    document.getElementById("hubVideoBtn").onclick = () => openExternalCheckout(STRIPE_LINKS.extraVideoCalls);
+    document.getElementById("hubVoiceBtn").onclick = () => openExternalCheckout(STRIPE_LINKS.extraVoiceCalls);
+    document.getElementById("hubBackBtn").onclick = () => { state.screen = "result"; render(); };
+    document.getElementById("hubHomeBtn").onclick = () => { state.screen = "home"; render(); };
   }
 
   function renderCouples(){
@@ -1713,6 +1771,7 @@ Conversation starters:
       state.mode = Mode.COUPLES;
       return renderCouples();
     }
+    if(state.screen === "datingHub") return renderDatingHub();
 
     state.screen = "home";
     return renderHome();
