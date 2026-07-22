@@ -1,12 +1,13 @@
 // Love Jones Therapy • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "ljt-riq-v3";
+const VERSION = "ljt-riq-v4";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
   "./",
   "./index.html",
+  "./firebase-client.js",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"
