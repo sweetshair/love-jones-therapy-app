@@ -177,7 +177,7 @@
     }
     .badge strong{ color: var(--text); }
 
-    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input.in{
+    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], input.in, select.in, textarea.in{
       width:100%;
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.10);
@@ -186,7 +186,9 @@
       color: var(--text);
       outline: none;
     }
-    input:focus{ border-color: rgba(246,195,74,.55); box-shadow: var(--glowGold); }
+    select.in option{ color:#111; }
+    textarea.in{ min-height:110px; resize:vertical; font:inherit; }
+    input:focus, select:focus, textarea:focus{ border-color: rgba(246,195,74,.55); box-shadow: var(--glowGold); }
     .accountStatus{
       display:flex; align-items:center; justify-content:space-between;
       gap:10px; flex-wrap:wrap; margin-top:10px;
@@ -195,6 +197,9 @@
       background:rgba(72,209,138,.07);
     }
     .errorText{ color:var(--bad); min-height:18px; margin-top:8px; }
+    .matchGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin-top:12px; }
+    .matchCard{ border:1px solid rgba(255,255,255,.10); border-radius:16px; padding:14px; background:rgba(255,255,255,.035); }
+    .avatarInitial{ width:52px; height:52px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(246,195,74,.13); border:1px solid rgba(246,195,74,.32); color:var(--accent); font-weight:900; font-size:20px; }
     a{ color: var(--accent); text-decoration:none; }
     a:hover{ text-decoration: underline; }
 
@@ -373,6 +378,7 @@
         <li>Entries are validated for basic phone and email formatting.</li>
         <li>Your account and results are stored securely with Firebase.</li>
         <li>Your private account record is limited to your signed-in account.</li>
+        <li>Your dating display name, age, general location, preferences, bio, and Relationship IQ type can be seen by signed-in members when your profile is active.</li>
       </ul>
 
       <p class="tiny">
@@ -614,6 +620,14 @@
     accountMode: "register",
     profileLoaded: false,
     resultSaveStatus: "idle",
+    relationshipType: "",
+    secondaryType: "",
+    datingProfile: null,
+    datingProfileLoaded: false,
+    matches: [],
+    matchesLoading: false,
+    matchesLoaded: false,
+    matchesError: "",
 
     couplesStep: CouplesStep.SETUP,
     partnerA: { name:"", scores:newScores(), result:null },
@@ -999,6 +1013,8 @@
         <div class="errorText tiny" id="profileError"></div>
         <div class="btnrow">
           <button id="saveProfileBtn">Save Profile</button>
+          <button class="primary" id="datingProfileBtn">Dating Profile</button>
+          <button class="ok" id="matchesBtn">View Matches</button>
           ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
           <button class="danger" id="signOutBtn">Sign Out</button>
           <button id="privacyBtn">Privacy</button>
@@ -1197,6 +1213,19 @@
         resendVerificationBtn.disabled = false;
       }
     };
+
+    const datingProfileBtn = document.getElementById("datingProfileBtn");
+    if(datingProfileBtn) datingProfileBtn.onclick = () => {
+      state.screen = "datingProfile";
+      render();
+    };
+
+    const matchesBtn = document.getElementById("matchesBtn");
+    if(matchesBtn) matchesBtn.onclick = () => {
+      if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
+      state.screen = "matches";
+      render();
+    };
   }
 
   function renderSingleQuiz(){
@@ -1294,16 +1323,22 @@
     return playbook[result.primary] || playbook.SB;
   }
 
-  function getBestMatchTypes(primary){
+  function getBestMatchTypeKeys(primary){
     const matrix = {
       SB:["GR","IT","PP"], AC:["SB","GR","PP"], PA:["SB","IT","GR"], PP:["SB","GR","AC"],
       PR:["SB","GR","PP"], IT:["SB","GR","PA"], GR:["SB","IT","AC"]
     };
-    return (matrix[primary] || ["SB","GR","IT"]).map(k => TYPES[k]?.name || k);
+    return matrix[primary] || ["SB","GR","IT"];
+  }
+
+  function getBestMatchTypes(primary){
+    return getBestMatchTypeKeys(primary).map(k => TYPES[k]?.name || k);
   }
 
   function renderSingleResult(){
     const r = computeResultFrom(state.scores);
+    state.relationshipType = r.primary;
+    state.secondaryType = r.secondary;
 
     const primaryData = TYPES[r.primary];
     const secondaryData = TYPES[r.secondary];
@@ -1439,7 +1474,7 @@
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
     document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
-    document.getElementById("profileBtn").onclick = () => { state.screen = "home"; render(); };
+    document.getElementById("profileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
     if(state.resultSaveStatus === "idle"){
       state.resultSaveStatus = "saving";
       window.ljtFirebase.saveQuizResult({
@@ -1702,6 +1737,223 @@ Conversation starters:
     document.getElementById("viralShareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
   }
 
+  function renderDatingProfile(){
+    if(!state.authUser){ state.screen = "home"; return render(); }
+
+    if(!state.relationshipType){
+      app.innerHTML = `
+        <div class="topbar">
+          <div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Dating Profile</div><div class="sub">Love Jones Therapy</div></div></div>
+          ${headerRightPill()}
+        </div>
+        <div class="kpi">
+          <b>Complete Relationship IQ first</b>
+          <p>Your primary Relationship IQ type powers the matching system.</p>
+          <div class="btnrow"><button class="primary" id="takeQuizBtn">Take Relationship IQ</button><button id="homeBtn">Home</button></div>
+        </div>`;
+      document.getElementById("takeQuizBtn").onclick = () => { state.screen = "quiz"; resetSingleQuiz(); render(); };
+      document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+      return;
+    }
+
+    if(!state.datingProfileLoaded){
+      app.innerHTML = `<div class="kpi"><b>Loading your dating profile…</b></div>`;
+      window.ljtFirebase.getMyDatingProfile().then(profile => {
+        state.datingProfile = profile || {};
+        state.datingProfileLoaded = true;
+        if(state.screen === "datingProfile") render();
+      }).catch(error => {
+        state.datingProfile = {};
+        state.datingProfileLoaded = true;
+        showToast(error.message || "Could not load the dating profile");
+        if(state.screen === "datingProfile") render();
+      });
+      return;
+    }
+
+    const profile = state.datingProfile || {};
+    const firstName = (state.userName || "Member").trim().split(/\s+/)[0];
+    const current = (key, fallback="") => profile[key] ?? fallback;
+    const options = (items, selected) => items.map(item => {
+      const value = typeof item === "string" ? item : item[0];
+      const label = typeof item === "string" ? item : item[1];
+      return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"><b>LJ</b></div>
+          <div class="brandTxt"><div class="title">Your Dating Profile</div><div class="sub">Only your display name is shown to other members</div></div>
+        </div>
+        ${headerRightPill()}
+      </div>
+
+      <div class="kpi">
+        <b>Public Profile Details</b>
+        <p class="tiny">Your full name, phone number and email address remain private.</p>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">First name or display name</div><input class="in" id="displayNameInput" maxlength="30" value="${escapeAttr(current("displayName", firstName))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Age</div><input class="in" id="ageInput" type="number" min="18" max="99" value="${escapeAttr(current("age"))}" /></div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">City</div><input class="in" id="cityInput" maxlength="60" value="${escapeAttr(current("city"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">State or province</div><input class="in" id="regionInput" maxlength="60" value="${escapeAttr(current("region"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Country</div><input class="in" id="countryInput" maxlength="60" value="${escapeAttr(current("country", "United States"))}" /></div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">I identify as</div><select class="in" id="genderInput">${options(["Man","Woman","Nonbinary","Prefer to self describe"], current("gender"))}</select></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">I want to meet</div><select class="in" id="lookingForInput">${options(["Women","Men","Nonbinary people","Everyone"], current("lookingFor"))}</select></div>
+        </div>
+
+        <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">Relationship goal</div><select class="in" id="goalInput">${options(["Long term relationship","Marriage","Dating with intention","Friendship first"], current("relationshipGoal"))}</select></div>
+        <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">About me</div><textarea class="in" id="bioInput" maxlength="600" placeholder="Share what matters to you and what kind of connection you want.">${escapeHtml(current("bio"))}</textarea></div>
+
+        <div class="accountStatus">
+          <span class="tiny">Relationship IQ: <strong style="color:var(--text);">${escapeHtml(TYPES[state.relationshipType]?.name || state.relationshipType)}</strong></span>
+          <span class="tiny">Matched with compatible Relationship IQ types</span>
+        </div>
+
+        <label style="display:flex;gap:8px;margin-top:12px;">
+          <input type="checkbox" id="activeProfileChk" ${current("active", true) ? "checked" : ""} />
+          <span class="tiny">Show my dating profile to signed-in members.</span>
+        </label>
+        <div class="errorText tiny" id="datingProfileError"></div>
+        <div class="btnrow">
+          <button class="primary" id="saveDatingProfileBtn">Save Dating Profile</button>
+          <button class="ok" id="viewMatchesBtn">View Matches</button>
+          <button id="homeBtn">Home</button>
+        </div>
+      </div>`;
+
+    document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+    document.getElementById("viewMatchesBtn").onclick = () => { state.matchesLoaded = false; state.screen = "matches"; render(); };
+    document.getElementById("saveDatingProfileBtn").onclick = async () => {
+      const errorBox = document.getElementById("datingProfileError");
+      const button = document.getElementById("saveDatingProfileBtn");
+      const payload = {
+        displayName: document.getElementById("displayNameInput").value.trim(),
+        age: Number(document.getElementById("ageInput").value),
+        city: document.getElementById("cityInput").value.trim(),
+        region: document.getElementById("regionInput").value.trim(),
+        country: document.getElementById("countryInput").value.trim(),
+        gender: document.getElementById("genderInput").value,
+        lookingFor: document.getElementById("lookingForInput").value,
+        relationshipGoal: document.getElementById("goalInput").value,
+        bio: document.getElementById("bioInput").value.trim(),
+        relationshipType: state.relationshipType,
+        secondaryType: state.secondaryType,
+        active: document.getElementById("activeProfileChk").checked
+      };
+      errorBox.textContent = "";
+      if(payload.displayName.length < 2) return errorBox.textContent = "Enter a first name or display name.";
+      if(!Number.isInteger(payload.age) || payload.age < 18 || payload.age > 99) return errorBox.textContent = "Members must be 18 or older. Enter a valid age.";
+      if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, state or province, and country.";
+      if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
+      button.disabled = true;
+      try{
+        await window.ljtFirebase.saveDatingProfile(payload);
+        state.datingProfile = payload;
+        state.matchesLoaded = false;
+        showToast("Dating profile saved ✅");
+        button.disabled = false;
+      }catch(error){
+        errorBox.textContent = error.message || "Could not save the dating profile.";
+        button.disabled = false;
+      }
+    };
+  }
+
+  function preferenceAllows(preference, gender){
+    if(preference === "Everyone") return true;
+    if(preference === "Women") return gender === "Woman";
+    if(preference === "Men") return gender === "Man";
+    if(preference === "Nonbinary people") return gender === "Nonbinary" || gender === "Prefer to self describe";
+    return false;
+  }
+
+  function mutuallyCompatiblePreferences(own, candidate){
+    if(!own || !own.gender || !own.lookingFor) return true;
+    return preferenceAllows(own.lookingFor, candidate.gender)
+      && preferenceAllows(candidate.lookingFor, own.gender);
+  }
+
+  function renderMatches(){
+    if(!state.authUser){ state.screen = "home"; return render(); }
+    if(!state.relationshipType){ state.screen = "datingProfile"; return render(); }
+
+    if(!state.datingProfileLoaded){
+      app.innerHTML = `<div class="kpi"><b>Loading your matching preferences…</b></div>`;
+      window.ljtFirebase.getMyDatingProfile().then(profile => {
+        state.datingProfile = profile || {};
+        state.datingProfileLoaded = true;
+        if(!profile) state.screen = "datingProfile";
+        if(state.screen === "matches" || state.screen === "datingProfile") render();
+      }).catch(error => {
+        state.matchesError = error.message || "Could not load your dating profile.";
+        state.datingProfile = {};
+        state.datingProfileLoaded = true;
+        if(state.screen === "matches") render();
+      });
+      return;
+    }
+
+    if(!state.matchesLoaded && !state.matchesLoading){
+      state.matchesLoading = true;
+      state.matchesError = "";
+      window.ljtFirebase.findDatingProfiles(getBestMatchTypeKeys(state.relationshipType)).then(matches => {
+        state.matches = matches.filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile));
+        state.matchesLoaded = true;
+        state.matchesLoading = false;
+        if(state.screen === "matches") render();
+      }).catch(error => {
+        state.matches = [];
+        state.matchesLoaded = true;
+        state.matchesLoading = false;
+        state.matchesError = error.message || "Could not load matches.";
+        if(state.screen === "matches") render();
+      });
+    }
+
+    const cards = state.matches.map(profile => {
+      const name = profile.displayName || "Member";
+      const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
+      const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
+      return `
+        <div class="matchCard">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="avatarInitial">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+            <div><h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3><div class="tiny">${escapeHtml(location)}</div></div>
+          </div>
+          <div class="badgeGrid"><span class="badge"><strong>${escapeHtml(typeName)}</strong></span><span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span></div>
+          <p>${escapeHtml(profile.bio || "This member is still completing their profile.")}</p>
+          <div class="tiny">Looking to meet: ${escapeHtml(profile.lookingFor || "Not specified")}</div>
+          <div class="btnrow"><button disabled>Messaging • Next</button></div>
+        </div>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Your Matches</div><div class="sub">Based on Relationship IQ compatibility</div></div></div>
+        ${headerRightPill()}
+      </div>
+      <div class="kpi">
+        <b>Best match types for ${escapeHtml(TYPES[state.relationshipType]?.name || state.relationshipType)}</b>
+        <div class="badgeGrid">${getBestMatchTypes(state.relationshipType).map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}</div>
+      </div>
+      ${state.matchesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Looking for compatible members…</p></div>` : ``}
+      ${state.matchesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.matchesError)}</p></div>` : ``}
+      ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>No compatible members yet</b><p>Your profile is ready. Matches will appear here as other members join and complete Relationship IQ.</p></div>` : `<div class="matchGrid">${cards}</div>`}
+      <div class="btnrow"><button class="primary" id="editDatingProfileBtn">Edit Dating Profile</button><button id="refreshMatchesBtn">Refresh Matches</button><button id="homeBtn">Home</button></div>`;
+
+    document.getElementById("editDatingProfileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    document.getElementById("refreshMatchesBtn").onclick = () => { state.matchesLoaded = false; state.matchesLoading = false; render(); };
+    document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+  }
+
   // =================== ROUTER ===================
   function render(){
     if(state.screen === "home") return renderHome();
@@ -1719,6 +1971,9 @@ Conversation starters:
       state.mode = Mode.COUPLES;
       return renderCouples();
     }
+
+    if(state.screen === "datingProfile") return renderDatingProfile();
+    if(state.screen === "matches") return renderMatches();
 
     state.screen = "home";
     return renderHome();
@@ -1747,6 +2002,8 @@ Conversation starters:
           state.userName = profile.name || state.authUser.displayName || "";
           state.userPhone = profile.phone || "";
           state.consentOk = Boolean(profile.consent);
+          state.relationshipType = profile.relationshipType || "";
+          state.secondaryType = profile.secondaryType || "";
         }
       }catch(error){
         showToast("Signed in, but the profile could not load yet");
@@ -1758,6 +2015,12 @@ Conversation starters:
       state.userEmail = "";
       state.consentOk = false;
       state.resultSaveStatus = "idle";
+      state.relationshipType = "";
+      state.secondaryType = "";
+      state.datingProfile = null;
+      state.datingProfileLoaded = false;
+      state.matches = [];
+      state.matchesLoaded = false;
       if(state.screen !== "home") state.screen = "home";
     }
 
