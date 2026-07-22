@@ -999,6 +999,7 @@
         <div class="errorText tiny" id="profileError"></div>
         <div class="btnrow">
           <button id="saveProfileBtn">Save Profile</button>
+          ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
           <button class="danger" id="signOutBtn">Sign Out</button>
           <button id="privacyBtn">Privacy</button>
         </div>
@@ -1179,6 +1180,22 @@
     if(signOutBtn) signOutBtn.onclick = async () => {
       await window.ljtFirebase.signOut();
       showToast("Signed out");
+    };
+
+    const resendVerificationBtn = document.getElementById("resendVerificationBtn");
+    if(resendVerificationBtn) resendVerificationBtn.onclick = async () => {
+      const errorBox = document.getElementById("profileError");
+      resendVerificationBtn.disabled = true;
+      errorBox.textContent = "";
+      try{
+        await window.ljtFirebase.resendVerification();
+        showToast("New verification email sent ✅");
+      }catch(error){
+        errorBox.textContent = error.code === "auth/too-many-requests"
+          ? "Please wait a few minutes before requesting another email."
+          : (error.message || "Could not resend the verification email.");
+        resendVerificationBtn.disabled = false;
+      }
     };
   }
 
