@@ -84,6 +84,13 @@ async function resetPassword(email) {
   await sendPasswordResetEmail(auth, email);
 }
 
+async function resendVerification() {
+  const user = requireUser();
+  if (user.emailVerified) return false;
+  await sendEmailVerification(user);
+  return true;
+}
+
 async function getMyProfile() {
   const user = requireUser();
   const snapshot = await getDoc(doc(db, "users", user.uid));
@@ -154,6 +161,7 @@ window.ljtFirebase = {
   signIn,
   signOut: logOut,
   resetPassword,
+  resendVerification,
   getMyProfile,
   saveMyProfile,
   saveQuizResult,
