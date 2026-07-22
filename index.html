@@ -113,6 +113,22 @@
     .loveStep .stepNumber{ width:27px; height:27px; display:flex; align-items:center; justify-content:center; border-radius:999px; margin-bottom:10px; color:#17130a; background:var(--accent); font-size:12px; font-weight:950; }
     .loveStep strong{ display:block; font-size:14px; }
     .loveStep p{ margin:6px 0 0; font-size:12px; }
+    .storyBanner{
+      position:relative;
+      min-height:170px;
+      overflow:hidden;
+      margin:0 0 14px;
+      border:1px solid rgba(246,195,74,.18);
+      border-radius:16px;
+      background:#0f0e0d;
+      box-shadow:0 14px 34px rgba(0,0,0,.28);
+    }
+    .storyBanner img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 40%; }
+    .storyBanner::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(8,8,10,.95) 0%,rgba(8,8,10,.78) 42%,rgba(8,8,10,.12) 76%); }
+    .storyCopy{ position:relative; z-index:1; width:min(55%,500px); padding:25px 26px; }
+    .storyCopy .eyebrow{ color:var(--accent); font-size:10px; font-weight:900; letter-spacing:1.3px; text-transform:uppercase; }
+    .storyCopy strong{ display:block; margin-top:7px; font-size:clamp(20px,3vw,29px); line-height:1.08; }
+    .storyCopy p{ margin:7px 0 0; color:rgba(242,242,245,.80); font-size:13px; }
 
     @media (max-width:700px){
       .homeHero{ min-height:500px; }
@@ -123,6 +139,11 @@
       .heroContent p{ max-width:330px; }
       .lovePath{ grid-template-columns:1fr; }
       .loveStep{ min-height:0; }
+      .storyBanner{ min-height:190px; }
+      .storyBanner img{ object-position:66% center; }
+      .storyBanner::after{ background:linear-gradient(90deg,rgba(8,8,10,.94) 0%,rgba(8,8,10,.72) 58%,rgba(8,8,10,.20) 100%); }
+      .storyCopy{ width:72%; padding:22px 18px; }
+      .storyCopy strong{ font-size:23px; }
     }
 
     h1,h2,h3{ margin:8px 0; }
@@ -1038,6 +1059,18 @@
   }
 
   // =================== RENDERING ===================
+  function storyBanner(image, eyebrow, title, message, position="center 40%"){
+    return `
+      <section class="storyBanner" aria-label="${escapeAttr(title)}">
+        <img src="./assets/${escapeAttr(image)}" alt="" style="object-position:${escapeAttr(position)};" />
+        <div class="storyCopy">
+          <div class="eyebrow">${escapeHtml(eyebrow)}</div>
+          <strong>${escapeHtml(title)}</strong>
+          <p>${escapeHtml(message)}</p>
+        </div>
+      </section>`;
+  }
+
   function renderHome(){
     const signedIn = !!state.authUser;
     const accountPanel = !state.authReady ? `
@@ -1361,6 +1394,8 @@
         <div class="pill">${progress}%</div>
       </div>
 
+      ${storyBanner("hero-asian.webp", "Know your patterns", "Clarity is attractive.", "Answer honestly. Your Relationship IQ starts with knowing how you connect.")}
+
       <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
 
       <h2 style="margin-top:14px;">${escapeHtml(item.q)}</h2>
@@ -1487,6 +1522,8 @@
         </div>
         <div class="pill">${topScore}/${total}</div>
       </div>
+
+      ${storyBanner("hero-interracial.webp", "Your insight", "Turn self-awareness into better love.", "Your result is a starting point for more intentional conversations and choices.")}
 
       <h1>${escapeHtml(primaryData.name)}</h1>
       <p>${escapeHtml(primaryData.tagline)}</p>
@@ -1647,6 +1684,8 @@
         ${headerRightPill()}
       </div>
 
+      ${storyBanner("hero-latino.webp", "Stronger together", "Two stories. One honest conversation.", "Compare your patterns with curiosity, compassion, and room to grow.")}
+
       <div class="kpi">
         <b>Couples Setup</b>
         <div class="tiny">Enter names for both partners. (Lead info stays as the main contact above.)</div>
@@ -1720,6 +1759,8 @@
         </div>
         <div class="pill">${progress}%</div>
       </div>
+
+      ${storyBanner("hero-women.webp", "Take turns. Stay curious.", "Understanding begins with listening.", "Each partner answers privately, then you explore the results together.")}
 
       <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
 
@@ -1799,6 +1840,8 @@
         </div>
         ${headerRightPill()}
       </div>
+
+      ${storyBanner("hero-white.webp", "Your connection", "Celebrate the strengths. Grow through the differences.", "Use your comparison as a conversation starter—not a label.")}
 
       <div class="row">
         <div class="col kpi">
@@ -1905,6 +1948,8 @@ Conversation starters:
         </div>
         ${headerRightPill()}
       </div>
+
+      ${storyBanner("hero-couple.webp", "Be seen for who you are", "A thoughtful profile attracts thoughtful people.", "Share enough to start a real conversation while keeping your private information private.", "center 34%")}
 
       <div class="kpi">
         <b>Public Profile Details</b>
@@ -2138,6 +2183,7 @@ Conversation starters:
         <div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Your Matches</div><div class="sub">Based on Relationship IQ compatibility</div></div></div>
         ${headerRightPill()}
       </div>
+      ${storyBanner("hero-interracial.webp", "Compatibility with intention", "Meet people who value how you love.", "Your matches combine Relationship IQ compatibility with mutual dating preferences.")}
       <div class="kpi">
         <b>Best match types for ${escapeHtml(TYPES[state.relationshipType]?.name || state.relationshipType)}</b>
         <div class="badgeGrid">${getBestMatchTypes(state.relationshipType).map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}</div>
