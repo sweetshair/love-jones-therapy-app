@@ -37,6 +37,10 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const verificationSettings = {
+  url: window.location.origin,
+  handleCodeInApp: false
+};
 
 await setPersistence(auth, browserLocalPersistence);
 
@@ -67,7 +71,7 @@ async function signUp({ name, phone, email, password, consent }) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
-  await sendEmailVerification(user);
+  await sendEmailVerification(user, verificationSettings);
   return publicUser(user);
 }
 
@@ -87,7 +91,7 @@ async function resetPassword(email) {
 async function resendVerification() {
   const user = requireUser();
   if (user.emailVerified) return false;
-  await sendEmailVerification(user);
+  await sendEmailVerification(user, verificationSettings);
   return true;
 }
 
@@ -143,16 +147,17 @@ async function getMyDatingProfile() {
 async function findDatingProfiles(relationshipTypes = []) {
   const user = requireUser();
   const profiles = [];
-  if (relationshipTypes.length) {
-    const snapshot = await getDocs(query(
-      collection(db, "datingProfiles"),
-      where("relationshipType", "in", relationshipTypes.slice(0, 10)),
-      limit(40)
-    ));
-    snapshot.forEach(item => {
-      if (item.id !== user.uid) profiles.push({ id: item.id, ...item.data() });
-    });
-  }
+  const snapshot = await getDocs(query(
+    collection(db, "datingProfiles"),
+    where("active", "==", true),
+    limit(80)
+  ));
+  snapshot.forEach(item => {
+    const data = item.data();
+    if (item.id !== user.uid && relationshipTypes.includes(data.relationshipType)) {
+      profiles.push({ id: item.id, ...data });
+    }
+  });
   return profiles;
 }
 
