@@ -856,14 +856,6 @@
         });
       });
 
-      // optional auto-reload on controllerchange:
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        // Avoid infinite loops
-        if(window.__reloading) return;
-        window.__reloading = true;
-        window.location.reload();
-      });
-
     }catch(e){
       // still works online
     }
