@@ -24,6 +24,13 @@ import {
   setDoc,
   where
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import {
+  deleteObject,
+  getBlob,
+  getStorage,
+  ref as storageRef,
+  uploadBytes
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAd8Fj3RRYXEju1z1ZfdW6351IGlN88Ono",
@@ -37,6 +44,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const storage = getStorage(firebaseApp);
 const verificationSettings = {
   url: window.location.origin,
   handleCodeInApp: false
@@ -161,6 +169,39 @@ async function findDatingProfiles(relationshipTypes = []) {
   return profiles;
 }
 
+function photoExtension(contentType) {
+  const extensions = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp"
+  };
+  return extensions[contentType] || null;
+}
+
+async function uploadProfilePhoto(file) {
+  const user = requireUser();
+  const extension = photoExtension(file.type);
+  if (!extension) throw new Error("Choose a JPEG, PNG or WebP photo.");
+  if (file.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
+  const path = `profilePhotos/${user.uid}/${uniqueName}`;
+  await uploadBytes(storageRef(storage, path), file, { contentType: file.type });
+  return path;
+}
+
+async function loadProfilePhoto(path) {
+  requireUser();
+  const blob = await getBlob(storageRef(storage, path), 5 * 1024 * 1024);
+  return URL.createObjectURL(blob);
+}
+
+async function deleteProfilePhoto(path) {
+  const user = requireUser();
+  const ownerPrefix = `profilePhotos/${user.uid}/`;
+  if (!path.startsWith(ownerPrefix)) throw new Error("You can only delete your own photos.");
+  await deleteObject(storageRef(storage, path));
+}
+
 window.ljtFirebase = {
   signUp,
   signIn,
@@ -173,6 +214,9 @@ window.ljtFirebase = {
   saveDatingProfile,
   getMyDatingProfile,
   findDatingProfiles,
+  uploadProfilePhoto,
+  loadProfilePhoto,
+  deleteProfilePhoto,
   currentUser: () => publicUser(auth.currentUser)
 };
 
