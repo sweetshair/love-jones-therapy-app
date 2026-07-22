@@ -177,7 +177,7 @@
     }
     .badge strong{ color: var(--text); }
 
-    input[type="text"], input.in{
+    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input.in{
       width:100%;
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.10);
@@ -186,6 +186,15 @@
       color: var(--text);
       outline: none;
     }
+    input:focus{ border-color: rgba(246,195,74,.55); box-shadow: var(--glowGold); }
+    .accountStatus{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; margin-top:10px;
+      padding:10px 12px; border-radius:12px;
+      border:1px solid rgba(72,209,138,.25);
+      background:rgba(72,209,138,.07);
+    }
+    .errorText{ color:var(--bad); min-height:18px; margin-top:8px; }
     a{ color: var(--accent); text-decoration:none; }
     a:hover{ text-decoration: underline; }
 
@@ -356,14 +365,14 @@
         <div class="pill">Love Jones Therapy</div>
       </div>
 
-      <p><b>What we collect:</b> Name, phone number, email address, and your Relationship IQ results.</p>
-      <p><b>Why we collect it:</b> We use your info to send your Relationship IQ results and Love Jones Therapy updates.</p>
+      <p><b>What we collect:</b> Account details, contact information, consent choice, and your Relationship IQ results.</p>
+      <p><b>Why we collect it:</b> We use your information to provide your account, save your results, support matching features, and send Love Jones Therapy updates when you consent.</p>
 
       <p><b>How your data is handled in this app:</b></p>
       <ul class="list">
-        <li>Entries are validated (phone and email format).</li>
-        <li>Leads are stored locally on this device (in this browser) until the organizer exports.</li>
-        <li>This starter build does not include ads or third-party trackers.</li>
+        <li>Entries are validated for basic phone and email formatting.</li>
+        <li>Your account and results are stored securely with Firebase.</li>
+        <li>Your private account record is limited to your signed-in account.</li>
       </ul>
 
       <p class="tiny">
@@ -407,52 +416,18 @@
     </div>
   </div>
 
+<script type="module" src="./firebase-client.js"></script>
 <script>
 /**
  * Relationship IQ • Love Jones Therapy
- * Public-safe build:
- * - Admin-only export/copy behind URL key (?admin=...)
- * - Leads stored locally (this browser) until admin exports
+ * Firebase-connected build:
+ * - Email/password member accounts
+ * - Private profiles and Relationship IQ results stored in Firestore
  * - Premium splash
  * - SW update flow to avoid stale cached UI
  */
 
 (() => {
-  // =================== ADMIN GATE ===================
-  // NOTE: This is "privacy by obscurity" (client-side). For true security, use Netlify Identity + Functions.
-// =================== ADMIN GATE ===================
-// NOTE: Client-side admin is "privacy by obscurity". For true security use Netlify Identity + Functions.
-const ADMIN_PASS = "$Cla26swe";
-const ADMIN_STORE_KEY = "ljt_admin_unlocked_v1";
-
-function isAdmin(){
-  const url = new URL(window.location.href);
-
-  // If correct pass is present in URL, unlock and persist
-  if (url.searchParams.get("admin") === ADMIN_PASS) {
-    localStorage.setItem(ADMIN_STORE_KEY, "1");
-
-    // Optional: remove the admin param from the URL so nobody sees it if you screenshot/share
-    url.searchParams.delete("admin");
-    window.history.replaceState({}, "", url.toString());
-
-    return true;
-  }
-
-  return localStorage.getItem(ADMIN_STORE_KEY) === "1";
-}
-
-// Optional: allow you to lock it again manually by visiting ?admin=logout
-function adminLogoutIfRequested(){
-  const url = new URL(window.location.href);
-  if (url.searchParams.get("admin") === "logout") {
-    localStorage.removeItem(ADMIN_STORE_KEY);
-    url.searchParams.delete("admin");
-    window.history.replaceState({}, "", url.toString());
-  }
-}
-adminLogoutIfRequested();
-
   // =================== TYPES ===================
   const TYPES = {
     SB: { name:"Secure Builder", tagline:"Calm, clear, and consistent — you build trust over time.",
@@ -615,8 +590,7 @@ adminLogoutIfRequested();
   // =================== STATE ===================
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
-    installDismissed: "ljt_install_dismissed",
-    leadsKey: "ljt_relationship_iq_leads_v1"
+    installDismissed: "ljt_install_dismissed"
   };
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
@@ -635,6 +609,11 @@ adminLogoutIfRequested();
     userPhone: "",
     userEmail: "",
     consentOk: false,
+    authReady: false,
+    authUser: null,
+    accountMode: "register",
+    profileLoaded: false,
+    resultSaveStatus: "idle",
 
     couplesStep: CouplesStep.SETUP,
     partnerA: { name:"", scores:newScores(), result:null },
@@ -672,8 +651,7 @@ adminLogoutIfRequested();
 
   function headerRightPill(){
     const online = navigator.onLine;
-    const admin = isAdmin();
-    if(admin) return `<div class="pill admin">Admin • ${online ? "Online" : "Offline"}</div>`;
+    if(state.authUser) return `<div class="pill admin">Member • ${online ? "Online" : "Offline"}</div>`;
     return `<div class="pill">${online ? "Online" : "Offline"}</div>`;
   }
 
@@ -766,75 +744,6 @@ adminLogoutIfRequested();
     }
   }
 
-  // =================== LEADS (LOCAL) ===================
-  function loadLeads(){
-    try{
-      const raw = localStorage.getItem(STORAGE.leadsKey);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    }catch{
-      return [];
-    }
-  }
-
-  function saveLeads(arr){
-    localStorage.setItem(STORAGE.leadsKey, JSON.stringify(arr));
-  }
-
-  function addLead(singleResult){
-    const now = new Date();
-    const entry = {
-      timestamp: now.toISOString(),
-      name: state.userName || "",
-      phone: state.userPhone || "",
-      email: state.userEmail || "",
-      primary_type: TYPES[singleResult.primary].name,
-      secondary_type: TYPES[singleResult.secondary].name,
-      blend: singleResult.tie ? "yes" : "no",
-      score_primary: state.scores[singleResult.primary],
-      score_secondary: state.scores[singleResult.secondary],
-      total_questions: QUIZ.questions.length,
-      mode: "single"
-    };
-    const leads = loadLeads();
-    leads.push(entry);
-    saveLeads(leads);
-  }
-
-  function downloadTextFile(filename, text, mime="text/plain"){
-    const blob = new Blob([text], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  function csvEscape(v){
-    const s = String(v ?? "");
-    if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
-  }
-
-  function exportAllLeadsCSV(){
-    const leads = loadLeads();
-    if(!leads.length){
-      showToast("No leads saved on this device yet");
-      return;
-    }
-    const headers = Object.keys(leads[0]);
-    const lines = [
-      headers.join(","),
-      ...leads.map(row => headers.map(h => csvEscape(row[h])).join(","))
-    ];
-    const csv = lines.join("\n") + "\n";
-    const fileName = `LJT_relationship_iq_leads_${new Date().toISOString().slice(0,10)}.csv`;
-    downloadTextFile(fileName, csv, "text/csv");
-  }
-
   async function copyText(text){
     try{
       await navigator.clipboard.writeText(text);
@@ -860,6 +769,7 @@ adminLogoutIfRequested();
     state.idx = 0;
     state.scores = newScores();
     state.answers = [];
+    state.resultSaveStatus = "idle";
   }
 
   function pickAnswerSingle(typeKey, optionText){
@@ -1025,6 +935,76 @@ adminLogoutIfRequested();
 
   // =================== RENDERING ===================
   function renderHome(){
+    const signedIn = !!state.authUser;
+    const accountPanel = !state.authReady ? `
+      <div class="col kpi">
+        <b>Member Account</b>
+        <p class="tiny">Connecting securely to Love Jones Therapy…</p>
+      </div>
+    ` : !signedIn ? `
+      <div class="col kpi">
+        <b>${state.accountMode === "register" ? "Create Your Member Account" : "Sign In"}</b>
+        <div class="tiny" style="margin-top:8px;">
+          Your account saves your Relationship IQ result and prepares your dating profile.
+          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
+        </div>
+
+        ${state.accountMode === "register" ? `
+          <div class="row" style="margin-top:12px;">
+            <div class="col"><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
+            <div class="col"><input id="phoneInput" class="in" type="tel" autocomplete="tel" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
+          </div>
+        ` : ``}
+
+        <div style="margin-top:10px;">
+          <input id="emailInput" class="in" type="email" autocomplete="email" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
+        </div>
+        <div style="margin-top:10px;">
+          <input id="passwordInput" class="in" type="password" autocomplete="${state.accountMode === "register" ? "new-password" : "current-password"}" placeholder="Password" />
+        </div>
+
+        ${state.accountMode === "register" ? `
+          <label style="display:flex;gap:8px;margin-top:12px;">
+            <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
+            <span class="tiny">I agree to receive my results and Love Jones Therapy updates.</span>
+          </label>
+        ` : ``}
+
+        <div class="errorText tiny" id="authError"></div>
+        <div class="btnrow">
+          <button class="primary" id="authSubmitBtn">${state.accountMode === "register" ? "Create Account" : "Sign In"}</button>
+          <button id="authSwitchBtn">${state.accountMode === "register" ? "I Already Have an Account" : "Create a New Account"}</button>
+          ${state.accountMode === "signin" ? `<button id="resetPasswordBtn">Forgot Password</button>` : ``}
+        </div>
+      </div>
+    ` : `
+      <div class="col kpi">
+        <b>Your Member Profile</b>
+        <div class="accountStatus">
+          <span class="tiny">Signed in as <strong style="color:var(--text);">${escapeHtml(state.authUser.email)}</strong></span>
+          <span class="tiny">${state.authUser.emailVerified ? "Email verified" : "Verification email sent"}</span>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
+          <div class="col"><input id="phoneInput" class="in" type="tel" autocomplete="tel" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
+        </div>
+        <div style="margin-top:10px;">
+          <input id="emailInput" class="in" type="email" value="${escapeAttr(state.authUser.email)}" readonly />
+        </div>
+        <label style="display:flex;gap:8px;margin-top:12px;">
+          <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
+          <span class="tiny">I agree to receive my results and Love Jones Therapy updates.</span>
+        </label>
+        <div class="errorText tiny" id="profileError"></div>
+        <div class="btnrow">
+          <button id="saveProfileBtn">Save Profile</button>
+          <button class="danger" id="signOutBtn">Sign Out</button>
+          <button id="privacyBtn">Privacy</button>
+        </div>
+      </div>
+    `;
+
     app.innerHTML = `
       <div class="topbar">
         <div class="brand">
@@ -1042,53 +1022,16 @@ adminLogoutIfRequested();
 
       <div class="hr"></div>
 
-      <div class="col kpi">
-        <b>Your Details</b>
-        <div class="tiny" style="margin-top:10px;">Enter your details before choosing a mode.</div>
-
-        <div class="tiny" style="margin-top:8px;">
-          <span class="accent">We use your info to send your Relationship IQ results and Love Jones Therapy updates.</span>
-          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
-        </div>
-
-        <div class="row" style="margin-top:12px;">
-          <div class="col"><input id="nameInput" class="in" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
-          <div class="col"><input id="phoneInput" class="in" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <input id="emailInput" class="in" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
-        </div>
-
-        <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
-          <span class="tiny">I agree to receive my results and updates from Love Jones Therapy.</span>
-        </label>
-
-        <div class="btnrow" style="margin-top:12px;">
-          <button id="clearBtn">Clear</button>
-        </div>
-
-        ${isAdmin() ? `
-          <div class="hr"></div>
-          <div class="tiny">
-            <span class="accent">Admin tools:</span> Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
-          </div>
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="primary" id="adminExportAllBtn">Export All Leads (CSV)</button>
-            <button class="danger" id="adminClearAllBtn">Clear Leads On This Device</button>
-          </div>
-        ` : ``}
-      </div>
+      ${accountPanel}
 
       <div class="col kpi" style="margin-top:14px;">
         <b>Choose a Mode</b>
-        <div class="tiny" style="margin-top:8px;">Single mode gives your personal result. Couples mode compares two results side-by-side.</div>
+        <div class="tiny" style="margin-top:8px;">Create or sign in to your member account first. Single mode saves your personal result. Couples mode compares two results side-by-side.</div>
 
         <div class="btnrow" style="margin-top:12px;">
-          <button class="primary" id="singleBtn">Single Mode</button>
-          <button class="ok" id="couplesBtn">Couples Mode</button>
-          <button id="privacyBtn">Privacy</button>
+          <button class="primary" id="singleBtn" ${signedIn ? "" : "disabled"}>Single Mode</button>
+          <button class="ok" id="couplesBtn" ${signedIn ? "" : "disabled"}>Couples Mode</button>
+          ${signedIn ? `` : `<button id="privacyBtn">Privacy</button>`}
         </div>
 
         <div class="badgeGrid">
@@ -1106,13 +1049,13 @@ adminLogoutIfRequested();
     const phoneInput = document.getElementById("phoneInput");
     const emailInput = document.getElementById("emailInput");
     const consentChk = document.getElementById("consentChk");
-    const clearBtn = document.getElementById("clearBtn");
 
     function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||"").trim()); }
     function isValidPhone(v){ return (v||"").replace(/\D/g,"").length >= 10; }
 
     function canProceed(){
       return (
+        state.authUser &&
         (nameInput.value||"").trim().length >= 2 &&
         isValidPhone(phoneInput.value) &&
         isValidEmail(emailInput.value) &&
@@ -1121,56 +1064,121 @@ adminLogoutIfRequested();
     }
 
     function syncState(){
-      state.userName = nameInput.value.trim();
-      state.userPhone = phoneInput.value.trim();
-      state.userEmail = emailInput.value.trim();
-      state.consentOk = !!consentChk.checked;
+      if(nameInput) state.userName = nameInput.value.trim();
+      if(phoneInput) state.userPhone = phoneInput.value.trim();
+      if(emailInput) state.userEmail = emailInput.value.trim();
+      if(consentChk) state.consentOk = !!consentChk.checked;
 
-      const ok = canProceed();
-      singleBtn.disabled = !ok;
-      couplesBtn.disabled = !ok;
+      if(state.authUser && nameInput && phoneInput && consentChk){
+        const ok = canProceed();
+        singleBtn.disabled = !ok;
+        couplesBtn.disabled = !ok;
+      }
     }
 
-    [nameInput, phoneInput, emailInput].forEach(el => el.addEventListener("input", syncState));
-    consentChk.addEventListener("change", syncState);
+    [nameInput, phoneInput, emailInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
+    if(consentChk) consentChk.addEventListener("change", syncState);
     syncState();
 
-    singleBtn.onclick = () => {
-      if(!canProceed()) return showToast("Enter details + consent first");
+    async function saveProfile(){
+      syncState();
+      if(!canProceed()) throw new Error("Enter your name, a valid phone number, and consent first.");
+      await window.ljtFirebase.saveMyProfile({
+        name: state.userName,
+        phone: state.userPhone,
+        consent: state.consentOk
+      });
+    }
+
+    singleBtn.onclick = async () => {
+      if(!state.authUser) return showToast("Create an account or sign in first");
+      try{ await saveProfile(); }catch(error){ return showToast(error.message); }
       state.mode = Mode.SINGLE;
       state.screen = "quiz";
       resetSingleQuiz();
       render();
     };
 
-    couplesBtn.onclick = () => {
-      if(!canProceed()) return showToast("Enter details + consent first");
+    couplesBtn.onclick = async () => {
+      if(!state.authUser) return showToast("Create an account or sign in first");
+      try{ await saveProfile(); }catch(error){ return showToast(error.message); }
       state.mode = Mode.COUPLES;
       state.screen = "couples";
       resetCouples();
       render();
     };
 
-    clearBtn.onclick = () => {
-      state.userName = "";
-      state.userPhone = "";
-      state.userEmail = "";
-      state.consentOk = false;
-      render();
-    };
-
     if(privacyBtn) privacyBtn.onclick = openPrivacyModal;
     if(privacyLink) privacyLink.onclick = (e)=>{ e.preventDefault(); openPrivacyModal(); };
 
-    // Admin home tools
-    const adminExportAllBtn = document.getElementById("adminExportAllBtn");
-    const adminClearAllBtn = document.getElementById("adminClearAllBtn");
-    if(adminExportAllBtn) adminExportAllBtn.onclick = exportAllLeadsCSV;
-    if(adminClearAllBtn) adminClearAllBtn.onclick = () => {
-      if(!confirm("Clear all leads stored on this device/browser?")) return;
-      saveLeads([]);
-      showToast("Cleared ✅");
+    const authSwitchBtn = document.getElementById("authSwitchBtn");
+    if(authSwitchBtn) authSwitchBtn.onclick = () => {
+      syncState();
+      state.accountMode = state.accountMode === "register" ? "signin" : "register";
       render();
+    };
+
+    const authSubmitBtn = document.getElementById("authSubmitBtn");
+    if(authSubmitBtn) authSubmitBtn.onclick = async () => {
+      const errorBox = document.getElementById("authError");
+      const password = document.getElementById("passwordInput").value;
+      syncState();
+      errorBox.textContent = "";
+      authSubmitBtn.disabled = true;
+      try{
+        if(!window.ljtFirebase) throw new Error("Account service is still connecting. Try again in a moment.");
+        if(!isValidEmail(state.userEmail)) throw new Error("Enter a valid email address.");
+        if(password.length < 6) throw new Error("Your password must be at least 6 characters.");
+        if(state.accountMode === "register"){
+          if(state.userName.length < 2) throw new Error("Enter your full name.");
+          if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid 10-digit phone number.");
+          if(!state.consentOk) throw new Error("Please accept the consent box to continue.");
+          await window.ljtFirebase.signUp({
+            name: state.userName,
+            phone: state.userPhone,
+            email: state.userEmail,
+            password,
+            consent: state.consentOk
+          });
+          showToast("Account created. Check your email to verify it ✅");
+        }else{
+          await window.ljtFirebase.signIn(state.userEmail, password);
+          showToast("Signed in ✅");
+        }
+      }catch(error){
+        const messages = {
+          "auth/email-already-in-use":"That email already has an account. Choose Sign In.",
+          "auth/invalid-credential":"The email or password is incorrect.",
+          "auth/invalid-email":"Enter a valid email address.",
+          "auth/weak-password":"Choose a stronger password."
+        };
+        errorBox.textContent = messages[error.code] || error.message || "Could not complete that request.";
+        authSubmitBtn.disabled = false;
+      }
+    };
+
+    const resetPasswordBtn = document.getElementById("resetPasswordBtn");
+    if(resetPasswordBtn) resetPasswordBtn.onclick = async () => {
+      syncState();
+      const errorBox = document.getElementById("authError");
+      try{
+        if(!isValidEmail(state.userEmail)) throw new Error("Enter your email address first.");
+        await window.ljtFirebase.resetPassword(state.userEmail);
+        showToast("Password reset email sent ✅");
+      }catch(error){ errorBox.textContent = error.message; }
+    };
+
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+    if(saveProfileBtn) saveProfileBtn.onclick = async () => {
+      const errorBox = document.getElementById("profileError");
+      try{ await saveProfile(); showToast("Profile saved ✅"); }
+      catch(error){ errorBox.textContent = error.message; }
+    };
+
+    const signOutBtn = document.getElementById("signOutBtn");
+    if(signOutBtn) signOutBtn.onclick = async () => {
+      await window.ljtFirebase.signOut();
+      showToast("Signed out");
     };
   }
 
@@ -1280,15 +1288,6 @@ adminLogoutIfRequested();
   function renderSingleResult(){
     const r = computeResultFrom(state.scores);
 
-    // Save lead locally (only once per completion)
-    // Prevent double save if user refreshes result screen:
-    const completionKey = "ljt_last_completion_hash";
-    const hash = `${state.userName}|${state.userPhone}|${state.userEmail}|${r.primary}|${r.secondary}|${Object.values(state.scores).join(",")}`;
-    if(localStorage.getItem(completionKey) !== hash){
-      addLead(r);
-      localStorage.setItem(completionKey, hash);
-    }
-
     const primaryData = TYPES[r.primary];
     const secondaryData = TYPES[r.secondary];
 
@@ -1391,39 +1390,26 @@ adminLogoutIfRequested();
 
         <div class="btnrow" style="margin-top:12px;">
           <button id="saveShareBtn">Save/Share Results</button>
-          <button id="profileBtn">Create Profile from Result</button>
-          <button id="openersBtn">AI Opening Messages</button>
-          <button id="voiceIntroBtn">Voice Intro</button>
-          <button id="speedDateBtn">5-minute Video Speed Dates</button>
-          <button class="primary" id="premiumFiltersBtn">Premium Filters</button>
+          <button id="profileBtn">View Member Profile</button>
+          <button id="openersBtn" disabled>AI Opening Messages • Next</button>
+          <button id="voiceIntroBtn" disabled>Voice Intro • Next</button>
+          <button id="speedDateBtn" disabled>Video Speed Dates • Next</button>
+          <button class="primary" id="premiumFiltersBtn" disabled>Premium Filters • Next</button>
         </div>
       </div>
 
       <div class="kpi" style="margin-top:12px;">
-        <b>Your Info</b>
+        <b>Your Saved Member Result</b>
         <div class="tiny">
           Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
           Phone: <span style="color:var(--text);">${escapeHtml(state.userPhone)}</span><br/>
           Email: <span style="color:var(--text);">${escapeHtml(state.userEmail)}</span>
         </div>
-        <div class="tiny" style="margin-top:10px;">
-          We use your info to send your Relationship IQ results and Love Jones Therapy updates.
-          <a href="#" id="privacyLink2" style="margin-left:6px;">Privacy</a>
+        <div class="tiny" id="resultSaveStatus" style="margin-top:10px;">
+          Saving this result securely to your member account…
         </div>
+        <div class="tiny" style="margin-top:8px;"><a href="#" id="privacyLink2">Privacy</a></div>
       </div>
-
-      ${isAdmin() ? `
-        <div class="kpi" style="margin-top:12px;">
-          <b>Admin Tools</b>
-          <div class="tiny">
-            Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
-          </div>
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="primary" id="adminExportAllBtn2">Export All Leads (CSV)</button>
-            <button id="adminCopyLastBtn">Copy This Lead</button>
-          </div>
-        </div>
-      ` : ``}
 
       <div class="btnrow">
         <button id="shareBtn">Share Result</button>
@@ -1436,28 +1422,31 @@ adminLogoutIfRequested();
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
     document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
-    document.getElementById("profileBtn").onclick = () => showToast("Profile created from your result ✅");
-    document.getElementById("openersBtn").onclick = () => showToast("AI-generated opening messages unlocked ✨");
-    document.getElementById("voiceIntroBtn").onclick = () => showToast("Voice intro feature coming soon 🎤");
-    document.getElementById("speedDateBtn").onclick = () => showToast("5-minute video speed dates launching soon 🎥");
-    document.getElementById("premiumFiltersBtn").onclick = () => showToast("Premium filters are available in the next release 💛");
-
-    const adminExportAllBtn2 = document.getElementById("adminExportAllBtn2");
-    if(adminExportAllBtn2) adminExportAllBtn2.onclick = exportAllLeadsCSV;
-
-    const adminCopyLastBtn = document.getElementById("adminCopyLastBtn");
-    if(adminCopyLastBtn){
-      adminCopyLastBtn.onclick = async () => {
-        const text =
-`Relationship IQ Lead
-Name: ${state.userName}
-Phone: ${state.userPhone}
-Email: ${state.userEmail}
-Primary: ${TYPES[r.primary].name}
-Secondary: ${TYPES[r.secondary].name}
-Blend: ${r.tie ? "Yes" : "No"}`;
-        await copyText(text);
-      };
+    document.getElementById("profileBtn").onclick = () => { state.screen = "home"; render(); };
+    if(state.resultSaveStatus === "idle"){
+      state.resultSaveStatus = "saving";
+      window.ljtFirebase.saveQuizResult({
+        primaryType: r.primary,
+        primaryName: TYPES[r.primary].name,
+        secondaryType: r.secondary,
+        secondaryName: TYPES[r.secondary].name,
+        blend: r.tie,
+        scores: { ...state.scores },
+        totalQuestions: QUIZ.questions.length,
+        mode: "single"
+      }).then(() => {
+        state.resultSaveStatus = "saved";
+        const status = document.getElementById("resultSaveStatus");
+        if(status) status.textContent = "Saved securely to your member account ✅";
+      }).catch(error => {
+        state.resultSaveStatus = "error";
+        const status = document.getElementById("resultSaveStatus");
+        if(status) status.textContent = `Could not save yet: ${error.message}`;
+      });
+    }else{
+      const status = document.getElementById("resultSaveStatus");
+      if(status && state.resultSaveStatus === "saved") status.textContent = "Saved securely to your member account ✅";
+      if(status && state.resultSaveStatus === "error") status.textContent = "This result has not been saved yet. Return home and try again.";
     }
 
     document.getElementById("couplesQuickBtn").onclick = () => {
@@ -1721,6 +1710,42 @@ Conversation starters:
   // =================== CONNECTIVITY EVENTS ===================
   window.addEventListener("online", () => showToast("Back online ✅"));
   window.addEventListener("offline", () => showToast("Offline mode ✅"));
+
+  // =================== FIREBASE ACCOUNT EVENTS ===================
+  window.addEventListener("ljt-firebase-ready", () => {
+    state.authReady = true;
+    if(state.screen === "home") render();
+  });
+
+  window.addEventListener("ljt-auth-change", async (event) => {
+    state.authReady = true;
+    state.authUser = event.detail.user;
+    state.profileLoaded = false;
+
+    if(state.authUser){
+      state.userEmail = state.authUser.email;
+      try{
+        const profile = await window.ljtFirebase.getMyProfile();
+        if(profile){
+          state.userName = profile.name || state.authUser.displayName || "";
+          state.userPhone = profile.phone || "";
+          state.consentOk = Boolean(profile.consent);
+        }
+      }catch(error){
+        showToast("Signed in, but the profile could not load yet");
+      }
+      state.profileLoaded = true;
+    }else{
+      state.userName = "";
+      state.userPhone = "";
+      state.userEmail = "";
+      state.consentOk = false;
+      state.resultSaveStatus = "idle";
+      if(state.screen !== "home") state.screen = "home";
+    }
+
+    if(state.screen === "home") render();
+  });
 
   // =================== SPLASH ===================
   function removeSplash(){
