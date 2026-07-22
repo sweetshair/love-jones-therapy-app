@@ -19,7 +19,8 @@ service cloud.firestore {
     }
 
     match /datingProfiles/{userId} {
-      allow read: if signedIn();
+      allow read: if owns(userId)
+        || (signedIn() && resource.data.active == true);
       allow create, update: if owns(userId)
         && request.resource.data.ownerId == userId;
       allow delete: if owns(userId);
