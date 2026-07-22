@@ -1,7 +1,7 @@
 // Love Jones Therapy • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "ljt-riq-v4";
+const VERSION = "ljt-riq-v5";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
