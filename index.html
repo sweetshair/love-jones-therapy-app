@@ -108,8 +108,9 @@
     .moodPlayer{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; }
     .moodPlayer button{ padding:9px 12px; background:rgba(10,10,12,.62); border-color:rgba(246,195,74,.34); box-shadow:0 8px 24px rgba(0,0,0,.28); }
     .moodPlayer button[aria-pressed="true"]{ color:#17130a; background:var(--accent); border-color:var(--accent); }
-    .moodVolumeWrap{ display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; background:rgba(10,10,12,.58); border:1px solid rgba(255,255,255,.12); color:rgba(242,242,245,.76); font-size:10px; }
+    .moodVolumeWrap,.moodSelectWrap{ display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; background:rgba(10,10,12,.58); border:1px solid rgba(255,255,255,.12); color:rgba(242,242,245,.76); font-size:10px; }
     .moodVolumeWrap input{ width:76px; accent-color:var(--accent); }
+    .moodSelectWrap select{ max-width:145px; border:0; outline:0; color:var(--text); background:#17171d; font-size:11px; }
     .moodStatus{ width:100%; color:rgba(242,242,245,.62); font-size:10px; }
     .heroDots{ position:absolute; z-index:2; right:16px; bottom:14px; display:flex; gap:7px; padding:8px; border-radius:999px; background:rgba(9,9,11,.48); backdrop-filter:blur(8px); }
     .heroDot{ width:9px; height:9px; min-width:0; padding:0; border-radius:999px; border:1px solid rgba(255,255,255,.55); background:rgba(255,255,255,.18); box-shadow:none; }
@@ -719,12 +720,24 @@
 
   // Original ambient soundscape generated in the browser. It never autoplays
   // on a fresh visit and does not use third-party or copyrighted audio files.
-  const moodChords = [
-    [130.81,164.81,196.00,246.94],
-    [110.00,130.81,164.81,196.00],
-    [87.31,110.00,130.81,164.81],
-    [98.00,123.47,146.83,196.00]
-  ];
+  const moodStyles = {
+    romantic: {
+      label:"Romantic Glow", interval:4900, release:5.35, attack:1.25, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,246.94],[110.00,130.81,164.81,196.00],[87.31,110.00,130.81,164.81],[98.00,123.47,146.83,196.00]]
+    },
+    soulful: {
+      label:"Soulful Night", interval:4200, release:4.7, attack:.82, wave:"triangle", bassWave:"sine",
+      chords:[[116.54,146.83,174.61,220.00],[98.00,116.54,146.83,174.61],[103.83,130.81,155.56,196.00],[116.54,146.83,174.61,233.08]]
+    },
+    calm: {
+      label:"Calm Connection", interval:6100, release:6.55, attack:1.9, wave:"sine", bassWave:"sine",
+      chords:[[146.83,185.00,220.00,277.18],[110.00,146.83,185.00,220.00],[123.47,146.83,185.00,246.94],[98.00,123.47,146.83,196.00]]
+    },
+    fresh: {
+      label:"Fresh Start", interval:3500, release:3.95, attack:.45, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,261.63],[98.00,123.47,146.83,196.00],[110.00,130.81,164.81,220.00],[87.31,110.00,130.81,174.61]]
+    }
+  };
   let moodAudioContext = null;
   let moodMasterGain = null;
   let moodTimer = null;
@@ -732,23 +745,25 @@
   let moodPlaying = false;
   let moodWanted = localStorage.getItem("ljt_mood_enabled") === "true";
   let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("ljt_mood_volume") || .30)));
+  let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "romantic";
 
   function playMoodChord(){
     if(!moodAudioContext || !moodMasterGain || !moodPlaying) return;
+    const style = moodStyles[moodStyleKey];
     const now = moodAudioContext.currentTime + .03;
-    const chord = moodChords[moodChordIndex++ % moodChords.length];
+    const chord = style.chords[moodChordIndex++ % style.chords.length];
     chord.forEach((frequency, index) => {
       const oscillator = moodAudioContext.createOscillator();
       const voiceGain = moodAudioContext.createGain();
-      oscillator.type = index === 0 ? "triangle" : "sine";
+      oscillator.type = index === 0 ? style.bassWave : style.wave;
       oscillator.frequency.setValueAtTime(frequency, now);
       oscillator.detune.setValueAtTime(index % 2 ? 3 : -3, now);
       voiceGain.gain.setValueAtTime(.0001, now);
-      voiceGain.gain.exponentialRampToValueAtTime(index === 0 ? .055 : .038, now + 1.25);
-      voiceGain.gain.exponentialRampToValueAtTime(.0001, now + 5.35);
+      voiceGain.gain.exponentialRampToValueAtTime(index === 0 ? .055 : .038, now + style.attack);
+      voiceGain.gain.exponentialRampToValueAtTime(.0001, now + style.release);
       oscillator.connect(voiceGain).connect(moodMasterGain);
       oscillator.start(now);
-      oscillator.stop(now + 5.45);
+      oscillator.stop(now + style.release + .12);
     });
   }
 
@@ -762,9 +777,10 @@
     moodMasterGain.connect(moodAudioContext.destination);
     await moodAudioContext.resume();
     moodPlaying = true;
+    moodChordIndex = 0;
     moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .7);
     playMoodChord();
-    moodTimer = setInterval(playMoodChord, 4900);
+    moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
     if(remember){ moodWanted = true; localStorage.setItem("ljt_mood_enabled", "true"); }
     updateMoodControls();
   }
@@ -791,15 +807,23 @@
     if(!button || !label || !status) return;
     button.setAttribute("aria-pressed", String(moodPlaying));
     label.textContent = moodPlaying ? "Pause the mood" : "Set the mood";
-    status.textContent = moodPlaying ? "Original soft instrumental • Playing" : "Original soft instrumental • Off by default";
+    status.textContent = `${moodStyles[moodStyleKey].label} • Original instrumental • ${moodPlaying ? "Playing" : "Off by default"}`;
   }
 
   function setupMoodControls(){
     const button = document.getElementById("moodToggleBtn");
     const volume = document.getElementById("moodVolume");
-    if(!button || !volume) return;
+    const style = document.getElementById("moodStyle");
+    if(!button || !volume || !style) return;
     volume.value = String(Math.round(moodVolume * 100));
+    style.value = moodStyleKey;
     button.onclick = () => moodPlaying ? stopMood(true) : startMood(true);
+    style.onchange = () => {
+      moodStyleKey = style.value;
+      localStorage.setItem("ljt_mood_style", moodStyleKey);
+      if(moodPlaying){ stopMood(false); moodWanted = true; startMood(false); }
+      else updateMoodControls();
+    };
     volume.oninput = () => {
       moodVolume = Number(volume.value) / 100;
       localStorage.setItem("ljt_mood_volume", String(moodVolume));
@@ -1271,8 +1295,14 @@
           <div class="heroSlogan">Better insight. Better conversations. Better love.</div>
           <div class="moodPlayer" aria-label="Homepage music controls">
             <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Set the mood</span></button>
+            <label class="moodSelectWrap" for="moodStyle">Mood <select id="moodStyle">
+              <option value="romantic">Romantic Glow</option>
+              <option value="soulful">Soulful Night</option>
+              <option value="calm">Calm Connection</option>
+              <option value="fresh">Fresh Start</option>
+            </select></label>
             <label class="moodVolumeWrap" for="moodVolume">Volume <input id="moodVolume" type="range" min="0" max="100" step="1" value="30" /></label>
-            <span class="moodStatus" id="moodStatus">Original soft instrumental • Off by default</span>
+            <span class="moodStatus" id="moodStatus">Romantic Glow • Original instrumental • Off by default</span>
           </div>
         </div>
       </section>
