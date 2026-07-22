@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow create, read, update, delete: if owns(userId);
+
+      match /results/{resultId} {
+        allow create, read, update, delete: if owns(userId);
+      }
+    }
+
+    match /datingProfiles/{userId} {
+      allow read: if signedIn();
+      allow create, update: if owns(userId)
+        && request.resource.data.ownerId == userId;
+      allow delete: if owns(userId);
+    }
+  }
+}
