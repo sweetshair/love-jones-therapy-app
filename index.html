@@ -6,7 +6,7 @@
   <title>Relationship IQ • Love Jones Therapy</title>
 
   <meta name="theme-color" content="#111111" />
-  <meta name="description" content="Relationship IQ by Love Jones Therapy. Scenario-based quiz with 7 outcomes, couples mode, and offline support." />
+  <meta name="description" content="Know yourself and choose love with intention. Discover your Relationship IQ, build a thoughtful dating profile, and meet compatible people." />
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -86,6 +86,72 @@
       box-shadow: var(--glowGold);
     }
     .accent{ color: var(--accent); font-weight:900; }
+
+    .homeHero{
+      position:relative;
+      min-height:390px;
+      overflow:hidden;
+      border:1px solid rgba(246,195,74,.20);
+      border-radius:20px;
+      background:#0f0e0d;
+      box-shadow:0 22px 55px rgba(0,0,0,.42);
+    }
+    .homeHero img.heroSlide{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; opacity:0; transition:opacity .9s ease; }
+    .homeHero img.heroSlide.active{ opacity:1; }
+    .homeHero::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(9,9,11,.98) 0%,rgba(9,9,11,.90) 35%,rgba(9,9,11,.32) 67%,rgba(9,9,11,.08) 100%); }
+    .heroContent{ position:relative; z-index:1; max-width:53%; padding:44px 34px; }
+    .heroEyebrow{ color:var(--accent); font-size:12px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; }
+    .heroContent h1{ margin:12px 0; font-size:clamp(34px,5vw,54px); line-height:1.03; letter-spacing:-1.4px; }
+    .heroContent h1 span{ color:var(--accent); }
+    .heroContent p{ max-width:480px; font-size:16px; color:rgba(242,242,245,.82); }
+    .heroSlogan{ display:inline-flex; margin-top:12px; padding:8px 12px; border-radius:999px; border:1px solid rgba(246,195,74,.30); background:rgba(246,195,74,.10); color:#f8df9b; font-size:12px; font-weight:800; }
+    .moodPlayer{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .moodPlayer button{ padding:9px 12px; background:rgba(10,10,12,.62); border-color:rgba(246,195,74,.34); box-shadow:0 8px 24px rgba(0,0,0,.28); }
+    .moodPlayer button[aria-pressed="true"]{ color:#17130a; background:var(--accent); border-color:var(--accent); }
+    .moodVolumeWrap,.moodSelectWrap{ display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; background:rgba(10,10,12,.58); border:1px solid rgba(255,255,255,.12); color:rgba(242,242,245,.76); font-size:10px; }
+    .moodVolumeWrap input{ width:76px; accent-color:var(--accent); }
+    .moodSelectWrap select{ max-width:145px; border:0; outline:0; color:var(--text); background:#17171d; font-size:11px; }
+    .moodStatus{ width:100%; color:rgba(242,242,245,.62); font-size:10px; }
+    .heroDots{ position:absolute; z-index:2; right:16px; bottom:14px; display:flex; gap:7px; padding:8px; border-radius:999px; background:rgba(9,9,11,.48); backdrop-filter:blur(8px); }
+    .heroDot{ width:9px; height:9px; min-width:0; padding:0; border-radius:999px; border:1px solid rgba(255,255,255,.55); background:rgba(255,255,255,.18); box-shadow:none; }
+    .heroDot.active{ width:24px; background:var(--accent); border-color:var(--accent); }
+    .lovePath{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:14px 0; }
+    .loveStep{ min-height:128px; padding:15px; border-radius:15px; border:1px solid rgba(255,255,255,.09); background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.022)); }
+    .loveStep .stepNumber{ width:27px; height:27px; display:flex; align-items:center; justify-content:center; border-radius:999px; margin-bottom:10px; color:#17130a; background:var(--accent); font-size:12px; font-weight:950; }
+    .loveStep strong{ display:block; font-size:14px; }
+    .loveStep p{ margin:6px 0 0; font-size:12px; }
+    .storyBanner{
+      position:relative;
+      min-height:170px;
+      overflow:hidden;
+      margin:0 0 14px;
+      border:1px solid rgba(246,195,74,.18);
+      border-radius:16px;
+      background:#0f0e0d;
+      box-shadow:0 14px 34px rgba(0,0,0,.28);
+    }
+    .storyBanner img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 40%; }
+    .storyBanner::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(8,8,10,.95) 0%,rgba(8,8,10,.78) 42%,rgba(8,8,10,.12) 76%); }
+    .storyCopy{ position:relative; z-index:1; width:min(55%,500px); padding:25px 26px; }
+    .storyCopy .eyebrow{ color:var(--accent); font-size:10px; font-weight:900; letter-spacing:1.3px; text-transform:uppercase; }
+    .storyCopy strong{ display:block; margin-top:7px; font-size:clamp(20px,3vw,29px); line-height:1.08; }
+    .storyCopy p{ margin:7px 0 0; color:rgba(242,242,245,.80); font-size:13px; }
+
+    @media (max-width:700px){
+      .homeHero{ min-height:500px; }
+      .homeHero img.heroSlide{ object-position:68% center; }
+      .homeHero::after{ background:linear-gradient(180deg,rgba(9,9,11,.92) 0%,rgba(9,9,11,.64) 50%,rgba(9,9,11,.93) 100%); }
+      .heroContent{ max-width:100%; padding:30px 22px; }
+      .heroContent h1{ max-width:360px; font-size:38px; }
+      .heroContent p{ max-width:330px; }
+      .lovePath{ grid-template-columns:1fr; }
+      .loveStep{ min-height:0; }
+      .storyBanner{ min-height:190px; }
+      .storyBanner img{ object-position:66% center; }
+      .storyBanner::after{ background:linear-gradient(90deg,rgba(8,8,10,.94) 0%,rgba(8,8,10,.72) 58%,rgba(8,8,10,.20) 100%); }
+      .storyCopy{ width:72%; padding:22px 18px; }
+      .storyCopy strong{ font-size:23px; }
+    }
 
     h1,h2,h3{ margin:8px 0; }
     h1{ font-size:26px; }
@@ -177,7 +243,7 @@
     }
     .badge strong{ color: var(--text); }
 
-    input[type="text"], input.in{
+    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], input.in, select.in, textarea.in{
       width:100%;
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.10);
@@ -186,6 +252,28 @@
       color: var(--text);
       outline: none;
     }
+    select.in option{ color:#111; }
+    textarea.in{ min-height:110px; resize:vertical; font:inherit; }
+    input:focus, select:focus, textarea:focus{ border-color: rgba(246,195,74,.55); box-shadow: var(--glowGold); }
+    .accountStatus{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; margin-top:10px;
+      padding:10px 12px; border-radius:12px;
+      border:1px solid rgba(72,209,138,.25);
+      background:rgba(72,209,138,.07);
+    }
+    .errorText{ color:var(--bad); min-height:18px; margin-top:8px; }
+    .matchGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin-top:12px; }
+    .matchCard{ border:1px solid rgba(255,255,255,.10); border-radius:16px; padding:14px; background:rgba(255,255,255,.035); }
+    .avatarInitial{ width:52px; height:52px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(246,195,74,.13); border:1px solid rgba(246,195,74,.32); color:var(--accent); font-weight:900; font-size:20px; }
+    .photoGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(125px,180px)); gap:10px; margin-top:10px; justify-content:start; }
+    .photoCard{ position:relative; border:1px solid rgba(255,255,255,.10); border-radius:14px; overflow:hidden; background:rgba(255,255,255,.035); }
+    .profilePhoto{ width:100%; aspect-ratio:4/5; display:block; object-fit:cover; background:rgba(255,255,255,.04); }
+    .matchPhoto{ width:64px; height:64px; border-radius:14px; object-fit:cover; border:1px solid rgba(246,195,74,.28); background:rgba(255,255,255,.04); }
+    .photoActions{ display:flex; gap:6px; flex-wrap:wrap; padding:8px; }
+    .photoActions button{ padding:7px 9px; font-size:11px; }
+    .mainPhotoTag{ position:absolute; top:7px; left:7px; padding:5px 8px; border-radius:999px; color:#17130a; background:var(--accent); font-size:10px; font-weight:900; }
+    .filePicker{ width:100%; margin-top:10px; padding:10px; border:1px dashed rgba(246,195,74,.35); border-radius:12px; color:var(--muted); background:rgba(255,255,255,.025); }
     a{ color: var(--accent); text-decoration:none; }
     a:hover{ text-decoration: underline; }
 
@@ -356,14 +444,15 @@
         <div class="pill">Love Jones Therapy</div>
       </div>
 
-      <p><b>What we collect:</b> Name, phone number, email address, and your Relationship IQ results.</p>
-      <p><b>Why we collect it:</b> We use your info to send your Relationship IQ results and Love Jones Therapy updates.</p>
+      <p><b>What we collect:</b> Account details, contact information, consent choice, and your Relationship IQ results.</p>
+      <p><b>Why we collect it:</b> We use your information to provide your account, save your results, support matching features, and send Love Jones Therapy updates when you consent.</p>
 
       <p><b>How your data is handled in this app:</b></p>
       <ul class="list">
-        <li>Entries are validated (phone and email format).</li>
-        <li>Leads are stored locally on this device (in this browser) until the organizer exports.</li>
-        <li>This starter build does not include ads or third-party trackers.</li>
+        <li>Entries are validated for basic phone and email formatting.</li>
+        <li>Your account and results are stored securely with Firebase.</li>
+        <li>Your private account record is limited to your signed-in account.</li>
+        <li>Your dating display name, photos, age, general location, preferences, bio, and Relationship IQ type can be seen by signed-in members when your profile is active.</li>
       </ul>
 
       <p class="tiny">
@@ -407,52 +496,18 @@
     </div>
   </div>
 
+<script type="module" src="./firebase-client.js"></script>
 <script>
 /**
  * Relationship IQ • Love Jones Therapy
- * Public-safe build:
- * - Admin-only export/copy behind URL key (?admin=...)
- * - Leads stored locally (this browser) until admin exports
+ * Firebase-connected build:
+ * - Email/password member accounts
+ * - Private profiles and Relationship IQ results stored in Firestore
  * - Premium splash
  * - SW update flow to avoid stale cached UI
  */
 
 (() => {
-  // =================== ADMIN GATE ===================
-  // NOTE: This is "privacy by obscurity" (client-side). For true security, use Netlify Identity + Functions.
-// =================== ADMIN GATE ===================
-// NOTE: Client-side admin is "privacy by obscurity". For true security use Netlify Identity + Functions.
-const ADMIN_PASS = "$Cla26swe";
-const ADMIN_STORE_KEY = "ljt_admin_unlocked_v1";
-
-function isAdmin(){
-  const url = new URL(window.location.href);
-
-  // If correct pass is present in URL, unlock and persist
-  if (url.searchParams.get("admin") === ADMIN_PASS) {
-    localStorage.setItem(ADMIN_STORE_KEY, "1");
-
-    // Optional: remove the admin param from the URL so nobody sees it if you screenshot/share
-    url.searchParams.delete("admin");
-    window.history.replaceState({}, "", url.toString());
-
-    return true;
-  }
-
-  return localStorage.getItem(ADMIN_STORE_KEY) === "1";
-}
-
-// Optional: allow you to lock it again manually by visiting ?admin=logout
-function adminLogoutIfRequested(){
-  const url = new URL(window.location.href);
-  if (url.searchParams.get("admin") === "logout") {
-    localStorage.removeItem(ADMIN_STORE_KEY);
-    url.searchParams.delete("admin");
-    window.history.replaceState({}, "", url.toString());
-  }
-}
-adminLogoutIfRequested();
-
   // =================== TYPES ===================
   const TYPES = {
     SB: { name:"Secure Builder", tagline:"Calm, clear, and consistent — you build trust over time.",
@@ -615,8 +670,7 @@ adminLogoutIfRequested();
   // =================== STATE ===================
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
-    installDismissed: "ljt_install_dismissed",
-    leadsKey: "ljt_relationship_iq_leads_v1"
+    installDismissed: "ljt_install_dismissed"
   };
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
@@ -635,6 +689,19 @@ adminLogoutIfRequested();
     userPhone: "",
     userEmail: "",
     consentOk: false,
+    authReady: false,
+    authUser: null,
+    accountMode: "register",
+    profileLoaded: false,
+    resultSaveStatus: "idle",
+    relationshipType: "",
+    secondaryType: "",
+    datingProfile: null,
+    datingProfileLoaded: false,
+    matches: [],
+    matchesLoading: false,
+    matchesLoaded: false,
+    matchesError: "",
 
     couplesStep: CouplesStep.SETUP,
     partnerA: { name:"", scores:newScores(), result:null },
@@ -651,10 +718,171 @@ adminLogoutIfRequested();
   function escapeAttr(s){ return String(s ?? "").replace(/"/g, "&quot;"); }
   function pct(n, d){ return Math.max(0, Math.min(100, Math.round((n/d)*100))); }
 
+  // Original ambient soundscape generated in the browser. It never autoplays
+  // on a fresh visit and does not use third-party or copyrighted audio files.
+  const moodStyles = {
+    romantic: {
+      label:"Romantic Glow", interval:4900, release:5.35, attack:1.25, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,246.94],[110.00,130.81,164.81,196.00],[87.31,110.00,130.81,164.81],[98.00,123.47,146.83,196.00]]
+    },
+    soulful: {
+      label:"Soulful Night", interval:4200, release:4.7, attack:.82, wave:"triangle", bassWave:"sine",
+      chords:[[116.54,146.83,174.61,220.00],[98.00,116.54,146.83,174.61],[103.83,130.81,155.56,196.00],[116.54,146.83,174.61,233.08]]
+    },
+    calm: {
+      label:"Calm Connection", interval:6100, release:6.55, attack:1.9, wave:"sine", bassWave:"sine",
+      chords:[[146.83,185.00,220.00,277.18],[110.00,146.83,185.00,220.00],[123.47,146.83,185.00,246.94],[98.00,123.47,146.83,196.00]]
+    },
+    fresh: {
+      label:"Fresh Start", interval:3500, release:3.95, attack:.45, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,261.63],[98.00,123.47,146.83,196.00],[110.00,130.81,164.81,220.00],[87.31,110.00,130.81,174.61]]
+    }
+  };
+  let moodAudioContext = null;
+  let moodMasterGain = null;
+  let moodTimer = null;
+  let moodChordIndex = 0;
+  let moodPlaying = false;
+  let moodWanted = localStorage.getItem("ljt_mood_enabled") === "true";
+  let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("ljt_mood_volume") || .30)));
+  let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "romantic";
+
+  function playMoodChord(){
+    if(!moodAudioContext || !moodMasterGain || !moodPlaying) return;
+    const style = moodStyles[moodStyleKey];
+    const now = moodAudioContext.currentTime + .03;
+    const chord = style.chords[moodChordIndex++ % style.chords.length];
+    chord.forEach((frequency, index) => {
+      const oscillator = moodAudioContext.createOscillator();
+      const voiceGain = moodAudioContext.createGain();
+      oscillator.type = index === 0 ? style.bassWave : style.wave;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      oscillator.detune.setValueAtTime(index % 2 ? 3 : -3, now);
+      voiceGain.gain.setValueAtTime(.0001, now);
+      voiceGain.gain.exponentialRampToValueAtTime(index === 0 ? .055 : .038, now + style.attack);
+      voiceGain.gain.exponentialRampToValueAtTime(.0001, now + style.release);
+      oscillator.connect(voiceGain).connect(moodMasterGain);
+      oscillator.start(now);
+      oscillator.stop(now + style.release + .12);
+    });
+  }
+
+  async function startMood(remember=true){
+    if(moodPlaying) return;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(!AudioContextClass) return showToast("Music is not supported in this browser");
+    moodAudioContext = new AudioContextClass();
+    moodMasterGain = moodAudioContext.createGain();
+    moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
+    moodMasterGain.connect(moodAudioContext.destination);
+    await moodAudioContext.resume();
+    moodPlaying = true;
+    moodChordIndex = 0;
+    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .7);
+    playMoodChord();
+    moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
+    if(remember){ moodWanted = true; localStorage.setItem("ljt_mood_enabled", "true"); }
+    updateMoodControls();
+  }
+
+  function stopMood(remember=true){
+    if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    moodPlaying = false;
+    const contextToClose = moodAudioContext;
+    if(moodMasterGain && contextToClose){
+      moodMasterGain.gain.cancelScheduledValues(contextToClose.currentTime);
+      moodMasterGain.gain.setTargetAtTime(.0001, contextToClose.currentTime, .12);
+      setTimeout(() => contextToClose.close().catch(()=>{}), 700);
+    }
+    moodAudioContext = null;
+    moodMasterGain = null;
+    if(remember){ moodWanted = false; localStorage.setItem("ljt_mood_enabled", "false"); }
+    updateMoodControls();
+  }
+
+  function updateMoodControls(){
+    const button = document.getElementById("moodToggleBtn");
+    const label = document.getElementById("moodToggleLabel");
+    const status = document.getElementById("moodStatus");
+    if(!button || !label || !status) return;
+    button.setAttribute("aria-pressed", String(moodPlaying));
+    label.textContent = moodPlaying ? "Pause the mood" : "Set the mood";
+    status.textContent = `${moodStyles[moodStyleKey].label} • Original instrumental • ${moodPlaying ? "Playing" : "Off by default"}`;
+  }
+
+  function setupMoodControls(){
+    const button = document.getElementById("moodToggleBtn");
+    const volume = document.getElementById("moodVolume");
+    const style = document.getElementById("moodStyle");
+    if(!button || !volume || !style) return;
+    volume.value = String(Math.round(moodVolume * 100));
+    style.value = moodStyleKey;
+    button.onclick = () => moodPlaying ? stopMood(true) : startMood(true);
+    style.onchange = () => {
+      moodStyleKey = style.value;
+      localStorage.setItem("ljt_mood_style", moodStyleKey);
+      if(moodPlaying){ stopMood(false); moodWanted = true; startMood(false); }
+      else updateMoodControls();
+    };
+    volume.oninput = () => {
+      moodVolume = Number(volume.value) / 100;
+      localStorage.setItem("ljt_mood_volume", String(moodVolume));
+      if(moodMasterGain && moodAudioContext){
+        moodMasterGain.gain.setTargetAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime, .08);
+      }
+    };
+    updateMoodControls();
+    if(moodWanted && navigator.userActivation?.hasBeenActive) startMood(false);
+  }
+
   function showToast(msg){
     toastBox.textContent = msg;
     toastBox.style.display = "block";
     setTimeout(() => toastBox.style.display = "none", 2400);
+  }
+
+  function getPhotoPaths(profile){
+    return Array.isArray(profile?.photoPaths)
+      ? profile.photoPaths.filter(path => typeof path === "string").slice(0, 5)
+      : [];
+  }
+
+  async function hydrateProfilePhotos(){
+    const images = [...document.querySelectorAll("img[data-photo-path]")];
+    await Promise.all(images.map(async image => {
+      try{
+        const objectUrl = await window.ljtFirebase.loadProfilePhoto(image.dataset.photoPath);
+        image.onload = () => URL.revokeObjectURL(objectUrl);
+        image.onerror = () => URL.revokeObjectURL(objectUrl);
+        image.src = objectUrl;
+      }catch(error){
+        image.alt = "Photo unavailable";
+      }
+    }));
+  }
+
+  let heroCarouselTimer = null;
+  function setupHeroCarousel(){
+    clearInterval(heroCarouselTimer);
+    const slides = [...document.querySelectorAll(".heroSlide")];
+    const dots = [...document.querySelectorAll(".heroDot")];
+    if(slides.length < 2) return;
+    let current = 0;
+    const show = index => {
+      current = index;
+      slides.forEach((slide, i) => slide.classList.toggle("active", i === current));
+      dots.forEach((dot, i) => {
+        dot.classList.toggle("active", i === current);
+        dot.setAttribute("aria-current", i === current ? "true" : "false");
+      });
+    };
+    dots.forEach((dot, index) => dot.onclick = () => show(index));
+    if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+      heroCarouselTimer = setInterval(() => {
+        if(!document.body.contains(slides[0])) return clearInterval(heroCarouselTimer);
+        show((current + 1) % slides.length);
+      }, 5500);
+    }
   }
 
   function topTwoScores(scores){
@@ -672,8 +900,7 @@ adminLogoutIfRequested();
 
   function headerRightPill(){
     const online = navigator.onLine;
-    const admin = isAdmin();
-    if(admin) return `<div class="pill admin">Admin • ${online ? "Online" : "Offline"}</div>`;
+    if(state.authUser) return `<div class="pill admin">Member • ${online ? "Online" : "Offline"}</div>`;
     return `<div class="pill">${online ? "Online" : "Offline"}</div>`;
   }
 
@@ -753,86 +980,9 @@ adminLogoutIfRequested();
         });
       });
 
-      // optional auto-reload on controllerchange:
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        // Avoid infinite loops
-        if(window.__reloading) return;
-        window.__reloading = true;
-        window.location.reload();
-      });
-
     }catch(e){
       // still works online
     }
-  }
-
-  // =================== LEADS (LOCAL) ===================
-  function loadLeads(){
-    try{
-      const raw = localStorage.getItem(STORAGE.leadsKey);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    }catch{
-      return [];
-    }
-  }
-
-  function saveLeads(arr){
-    localStorage.setItem(STORAGE.leadsKey, JSON.stringify(arr));
-  }
-
-  function addLead(singleResult){
-    const now = new Date();
-    const entry = {
-      timestamp: now.toISOString(),
-      name: state.userName || "",
-      phone: state.userPhone || "",
-      email: state.userEmail || "",
-      primary_type: TYPES[singleResult.primary].name,
-      secondary_type: TYPES[singleResult.secondary].name,
-      blend: singleResult.tie ? "yes" : "no",
-      score_primary: state.scores[singleResult.primary],
-      score_secondary: state.scores[singleResult.secondary],
-      total_questions: QUIZ.questions.length,
-      mode: "single"
-    };
-    const leads = loadLeads();
-    leads.push(entry);
-    saveLeads(leads);
-  }
-
-  function downloadTextFile(filename, text, mime="text/plain"){
-    const blob = new Blob([text], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  function csvEscape(v){
-    const s = String(v ?? "");
-    if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
-  }
-
-  function exportAllLeadsCSV(){
-    const leads = loadLeads();
-    if(!leads.length){
-      showToast("No leads saved on this device yet");
-      return;
-    }
-    const headers = Object.keys(leads[0]);
-    const lines = [
-      headers.join(","),
-      ...leads.map(row => headers.map(h => csvEscape(row[h])).join(","))
-    ];
-    const csv = lines.join("\n") + "\n";
-    const fileName = `LJT_relationship_iq_leads_${new Date().toISOString().slice(0,10)}.csv`;
-    downloadTextFile(fileName, csv, "text/csv");
   }
 
   async function copyText(text){
@@ -860,6 +1010,7 @@ adminLogoutIfRequested();
     state.idx = 0;
     state.scores = newScores();
     state.answers = [];
+    state.resultSaveStatus = "idle";
   }
 
   function pickAnswerSingle(typeKey, optionText){
@@ -1024,7 +1175,92 @@ adminLogoutIfRequested();
   }
 
   // =================== RENDERING ===================
+  function storyBanner(image, eyebrow, title, message, position="center 40%"){
+    return `
+      <section class="storyBanner" aria-label="${escapeAttr(title)}">
+        <img src="./assets/${escapeAttr(image)}" alt="" style="object-position:${escapeAttr(position)};" />
+        <div class="storyCopy">
+          <div class="eyebrow">${escapeHtml(eyebrow)}</div>
+          <strong>${escapeHtml(title)}</strong>
+          <p>${escapeHtml(message)}</p>
+        </div>
+      </section>`;
+  }
+
   function renderHome(){
+    const signedIn = !!state.authUser;
+    const accountPanel = !state.authReady ? `
+      <div class="col kpi">
+        <b>Member Account</b>
+        <p class="tiny">Connecting securely to Love Jones Therapy…</p>
+      </div>
+    ` : !signedIn ? `
+      <div class="col kpi">
+        <b>${state.accountMode === "register" ? "Create Your Member Account" : "Sign In"}</b>
+        <div class="tiny" style="margin-top:8px;">
+          Your account saves your Relationship IQ result and prepares your dating profile.
+          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
+        </div>
+
+        ${state.accountMode === "register" ? `
+          <div class="row" style="margin-top:12px;">
+            <div class="col"><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
+            <div class="col"><input id="phoneInput" class="in" type="tel" autocomplete="tel" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
+          </div>
+        ` : ``}
+
+        <div style="margin-top:10px;">
+          <input id="emailInput" class="in" type="email" autocomplete="email" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
+        </div>
+        <div style="margin-top:10px;">
+          <input id="passwordInput" class="in" type="password" autocomplete="${state.accountMode === "register" ? "new-password" : "current-password"}" placeholder="Password" />
+        </div>
+
+        ${state.accountMode === "register" ? `
+          <label style="display:flex;gap:8px;margin-top:12px;">
+            <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
+            <span class="tiny">I agree to receive my results and Love Jones Therapy updates.</span>
+          </label>
+        ` : ``}
+
+        <div class="errorText tiny" id="authError"></div>
+        <div class="btnrow">
+          <button class="primary" id="authSubmitBtn">${state.accountMode === "register" ? "Create Account" : "Sign In"}</button>
+          <button id="authSwitchBtn">${state.accountMode === "register" ? "I Already Have an Account" : "Create a New Account"}</button>
+          ${state.accountMode === "signin" ? `<button id="resetPasswordBtn">Forgot Password</button>` : ``}
+        </div>
+      </div>
+    ` : `
+      <div class="col kpi">
+        <b>Your Member Profile</b>
+        <div class="accountStatus">
+          <span class="tiny">Signed in as <strong style="color:var(--text);">${escapeHtml(state.authUser.email)}</strong></span>
+          <span class="tiny">${state.authUser.emailVerified ? "Email verified" : "Verification email sent"}</span>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
+          <div class="col"><input id="phoneInput" class="in" type="tel" autocomplete="tel" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
+        </div>
+        <div style="margin-top:10px;">
+          <input id="emailInput" class="in" type="email" value="${escapeAttr(state.authUser.email)}" readonly />
+        </div>
+        <label style="display:flex;gap:8px;margin-top:12px;">
+          <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
+          <span class="tiny">I agree to receive my results and Love Jones Therapy updates.</span>
+        </label>
+        <div class="errorText tiny" id="profileError"></div>
+        <div class="btnrow">
+          <button id="saveProfileBtn">Save Profile</button>
+          <button class="primary" id="datingProfileBtn">Dating Profile</button>
+          <button class="ok" id="matchesBtn">View Matches</button>
+          ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
+          <button class="danger" id="signOutBtn">Sign Out</button>
+          <button id="privacyBtn">Privacy</button>
+        </div>
+      </div>
+    `;
+
     app.innerHTML = `
       <div class="topbar">
         <div class="brand">
@@ -1037,58 +1273,56 @@ adminLogoutIfRequested();
         ${headerRightPill()}
       </div>
 
-      <h1>Find your Relationship IQ outcome</h1>
-      <p>Scenario-based multiple choice. No “right answers.” Your pattern creates your outcome — and your growth path.</p>
-
-      <div class="hr"></div>
-
-      <div class="col kpi">
-        <b>Your Details</b>
-        <div class="tiny" style="margin-top:10px;">Enter your details before choosing a mode.</div>
-
-        <div class="tiny" style="margin-top:8px;">
-          <span class="accent">We use your info to send your Relationship IQ results and Love Jones Therapy updates.</span>
-          <a href="#" id="privacyLink" style="margin-left:6px;">Privacy</a>
+      <section class="homeHero" aria-label="Love Jones Therapy introduction">
+        <img class="heroSlide active" src="./assets/hero-couple.webp" alt="" />
+        <img class="heroSlide" src="./assets/hero-interracial.webp" alt="" />
+        <img class="heroSlide" src="./assets/hero-asian.webp" alt="" />
+        <img class="heroSlide" src="./assets/hero-latino.webp" alt="" />
+        <img class="heroSlide" src="./assets/hero-white.webp" alt="" />
+        <img class="heroSlide" src="./assets/hero-women.webp" alt="" />
+        <div class="heroDots" aria-label="Choose a couple image">
+          <button class="heroDot active" type="button" aria-label="Show couple image 1" aria-current="true"></button>
+          <button class="heroDot" type="button" aria-label="Show couple image 2" aria-current="false"></button>
+          <button class="heroDot" type="button" aria-label="Show couple image 3" aria-current="false"></button>
+          <button class="heroDot" type="button" aria-label="Show couple image 4" aria-current="false"></button>
+          <button class="heroDot" type="button" aria-label="Show couple image 5" aria-current="false"></button>
+          <button class="heroDot" type="button" aria-label="Show couple image 6" aria-current="false"></button>
         </div>
-
-        <div class="row" style="margin-top:12px;">
-          <div class="col"><input id="nameInput" class="in" placeholder="Full name" value="${escapeAttr(state.userName)}" /></div>
-          <div class="col"><input id="phoneInput" class="in" placeholder="Phone number" value="${escapeAttr(state.userPhone)}" /></div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <input id="emailInput" class="in" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
-        </div>
-
-        <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
-          <span class="tiny">I agree to receive my results and updates from Love Jones Therapy.</span>
-        </label>
-
-        <div class="btnrow" style="margin-top:12px;">
-          <button id="clearBtn">Clear</button>
-        </div>
-
-        ${isAdmin() ? `
-          <div class="hr"></div>
-          <div class="tiny">
-            <span class="accent">Admin tools:</span> Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
+        <div class="heroContent">
+          <div class="heroEyebrow">Love has many stories</div>
+          <h1>Know yourself.<br/><span>Choose love with intention.</span></h1>
+          <p>Discover your Relationship IQ, understand how you connect, and meet people who complement the way you love.</p>
+          <div class="heroSlogan">Better insight. Better conversations. Better love.</div>
+          <div class="moodPlayer" aria-label="Homepage music controls">
+            <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Set the mood</span></button>
+            <label class="moodSelectWrap" for="moodStyle">Mood <select id="moodStyle">
+              <option value="romantic">Romantic Glow</option>
+              <option value="soulful">Soulful Night</option>
+              <option value="calm">Calm Connection</option>
+              <option value="fresh">Fresh Start</option>
+            </select></label>
+            <label class="moodVolumeWrap" for="moodVolume">Volume <input id="moodVolume" type="range" min="0" max="100" step="1" value="30" /></label>
+            <span class="moodStatus" id="moodStatus">Romantic Glow • Original instrumental • Off by default</span>
           </div>
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="primary" id="adminExportAllBtn">Export All Leads (CSV)</button>
-            <button class="danger" id="adminClearAllBtn">Clear Leads On This Device</button>
-          </div>
-        ` : ``}
+        </div>
+      </section>
+
+      <div class="lovePath" aria-label="How Love Jones Therapy works">
+        <div class="loveStep"><div class="stepNumber">1</div><strong>Discover your pattern</strong><p>Learn your Relationship IQ through real-life scenarios with no wrong answers.</p></div>
+        <div class="loveStep"><div class="stepNumber">2</div><strong>Build with purpose</strong><p>Create a thoughtful profile shaped by your values, goals, and relationship style.</p></div>
+        <div class="loveStep"><div class="stepNumber">3</div><strong>Connect intentionally</strong><p>Meet compatible members and begin with deeper, more meaningful insight.</p></div>
       </div>
+
+      ${accountPanel}
 
       <div class="col kpi" style="margin-top:14px;">
         <b>Choose a Mode</b>
-        <div class="tiny" style="margin-top:8px;">Single mode gives your personal result. Couples mode compares two results side-by-side.</div>
+        <div class="tiny" style="margin-top:8px;">Create or sign in to your member account first. Single mode saves your personal result. Couples mode compares two results side-by-side.</div>
 
         <div class="btnrow" style="margin-top:12px;">
-          <button class="primary" id="singleBtn">Single Mode</button>
-          <button class="ok" id="couplesBtn">Couples Mode</button>
-          <button id="privacyBtn">Privacy</button>
+          <button class="primary" id="singleBtn" ${signedIn ? "" : "disabled"}>Single Mode</button>
+          <button class="ok" id="couplesBtn" ${signedIn ? "" : "disabled"}>Couples Mode</button>
+          ${signedIn ? `` : `<button id="privacyBtn">Privacy</button>`}
         </div>
 
         <div class="badgeGrid">
@@ -1098,6 +1332,8 @@ adminLogoutIfRequested();
     `;
 
     const singleBtn = document.getElementById("singleBtn");
+    setupHeroCarousel();
+    setupMoodControls();
     const couplesBtn = document.getElementById("couplesBtn");
     const privacyBtn = document.getElementById("privacyBtn");
     const privacyLink = document.getElementById("privacyLink");
@@ -1106,13 +1342,13 @@ adminLogoutIfRequested();
     const phoneInput = document.getElementById("phoneInput");
     const emailInput = document.getElementById("emailInput");
     const consentChk = document.getElementById("consentChk");
-    const clearBtn = document.getElementById("clearBtn");
 
     function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||"").trim()); }
     function isValidPhone(v){ return (v||"").replace(/\D/g,"").length >= 10; }
 
     function canProceed(){
       return (
+        state.authUser &&
         (nameInput.value||"").trim().length >= 2 &&
         isValidPhone(phoneInput.value) &&
         isValidEmail(emailInput.value) &&
@@ -1121,55 +1357,149 @@ adminLogoutIfRequested();
     }
 
     function syncState(){
-      state.userName = nameInput.value.trim();
-      state.userPhone = phoneInput.value.trim();
-      state.userEmail = emailInput.value.trim();
-      state.consentOk = !!consentChk.checked;
+      if(nameInput) state.userName = nameInput.value.trim();
+      if(phoneInput) state.userPhone = phoneInput.value.trim();
+      if(emailInput) state.userEmail = emailInput.value.trim();
+      if(consentChk) state.consentOk = !!consentChk.checked;
 
-      const ok = canProceed();
-      singleBtn.disabled = !ok;
-      couplesBtn.disabled = !ok;
+      if(state.authUser && nameInput && phoneInput && consentChk){
+        const ok = canProceed();
+        singleBtn.disabled = !ok;
+        couplesBtn.disabled = !ok;
+      }
     }
 
-    [nameInput, phoneInput, emailInput].forEach(el => el.addEventListener("input", syncState));
-    consentChk.addEventListener("change", syncState);
+    [nameInput, phoneInput, emailInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
+    if(consentChk) consentChk.addEventListener("change", syncState);
     syncState();
 
-    singleBtn.onclick = () => {
-      if(!canProceed()) return showToast("Enter details + consent first");
+    async function saveProfile(){
+      syncState();
+      if(!canProceed()) throw new Error("Enter your name, a valid phone number, and consent first.");
+      await window.ljtFirebase.saveMyProfile({
+        name: state.userName,
+        phone: state.userPhone,
+        consent: state.consentOk
+      });
+    }
+
+    singleBtn.onclick = async () => {
+      if(!state.authUser) return showToast("Create an account or sign in first");
+      try{ await saveProfile(); }catch(error){ return showToast(error.message); }
       state.mode = Mode.SINGLE;
       state.screen = "quiz";
       resetSingleQuiz();
       render();
     };
 
-    couplesBtn.onclick = () => {
-      if(!canProceed()) return showToast("Enter details + consent first");
+    couplesBtn.onclick = async () => {
+      if(!state.authUser) return showToast("Create an account or sign in first");
+      try{ await saveProfile(); }catch(error){ return showToast(error.message); }
       state.mode = Mode.COUPLES;
       state.screen = "couples";
       resetCouples();
       render();
     };
 
-    clearBtn.onclick = () => {
-      state.userName = "";
-      state.userPhone = "";
-      state.userEmail = "";
-      state.consentOk = false;
-      render();
-    };
-
     if(privacyBtn) privacyBtn.onclick = openPrivacyModal;
     if(privacyLink) privacyLink.onclick = (e)=>{ e.preventDefault(); openPrivacyModal(); };
 
-    // Admin home tools
-    const adminExportAllBtn = document.getElementById("adminExportAllBtn");
-    const adminClearAllBtn = document.getElementById("adminClearAllBtn");
-    if(adminExportAllBtn) adminExportAllBtn.onclick = exportAllLeadsCSV;
-    if(adminClearAllBtn) adminClearAllBtn.onclick = () => {
-      if(!confirm("Clear all leads stored on this device/browser?")) return;
-      saveLeads([]);
-      showToast("Cleared ✅");
+    const authSwitchBtn = document.getElementById("authSwitchBtn");
+    if(authSwitchBtn) authSwitchBtn.onclick = () => {
+      syncState();
+      state.accountMode = state.accountMode === "register" ? "signin" : "register";
+      render();
+    };
+
+    const authSubmitBtn = document.getElementById("authSubmitBtn");
+    if(authSubmitBtn) authSubmitBtn.onclick = async () => {
+      const errorBox = document.getElementById("authError");
+      const password = document.getElementById("passwordInput").value;
+      syncState();
+      errorBox.textContent = "";
+      authSubmitBtn.disabled = true;
+      try{
+        if(!window.ljtFirebase) throw new Error("Account service is still connecting. Try again in a moment.");
+        if(!isValidEmail(state.userEmail)) throw new Error("Enter a valid email address.");
+        if(password.length < 6) throw new Error("Your password must be at least 6 characters.");
+        if(state.accountMode === "register"){
+          if(state.userName.length < 2) throw new Error("Enter your full name.");
+          if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid 10-digit phone number.");
+          if(!state.consentOk) throw new Error("Please accept the consent box to continue.");
+          await window.ljtFirebase.signUp({
+            name: state.userName,
+            phone: state.userPhone,
+            email: state.userEmail,
+            password,
+            consent: state.consentOk
+          });
+          showToast("Account created. Check your email to verify it ✅");
+        }else{
+          await window.ljtFirebase.signIn(state.userEmail, password);
+          showToast("Signed in ✅");
+        }
+      }catch(error){
+        const messages = {
+          "auth/email-already-in-use":"That email already has an account. Choose Sign In.",
+          "auth/invalid-credential":"The email or password is incorrect.",
+          "auth/invalid-email":"Enter a valid email address.",
+          "auth/weak-password":"Choose a stronger password."
+        };
+        errorBox.textContent = messages[error.code] || error.message || "Could not complete that request.";
+        authSubmitBtn.disabled = false;
+      }
+    };
+
+    const resetPasswordBtn = document.getElementById("resetPasswordBtn");
+    if(resetPasswordBtn) resetPasswordBtn.onclick = async () => {
+      syncState();
+      const errorBox = document.getElementById("authError");
+      try{
+        if(!isValidEmail(state.userEmail)) throw new Error("Enter your email address first.");
+        await window.ljtFirebase.resetPassword(state.userEmail);
+        showToast("Password reset email sent ✅");
+      }catch(error){ errorBox.textContent = error.message; }
+    };
+
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+    if(saveProfileBtn) saveProfileBtn.onclick = async () => {
+      const errorBox = document.getElementById("profileError");
+      try{ await saveProfile(); showToast("Profile saved ✅"); }
+      catch(error){ errorBox.textContent = error.message; }
+    };
+
+    const signOutBtn = document.getElementById("signOutBtn");
+    if(signOutBtn) signOutBtn.onclick = async () => {
+      await window.ljtFirebase.signOut();
+      showToast("Signed out");
+    };
+
+    const resendVerificationBtn = document.getElementById("resendVerificationBtn");
+    if(resendVerificationBtn) resendVerificationBtn.onclick = async () => {
+      const errorBox = document.getElementById("profileError");
+      resendVerificationBtn.disabled = true;
+      errorBox.textContent = "";
+      try{
+        await window.ljtFirebase.resendVerification();
+        showToast("New verification email sent ✅");
+      }catch(error){
+        errorBox.textContent = error.code === "auth/too-many-requests"
+          ? "Please wait a few minutes before requesting another email."
+          : (error.message || "Could not resend the verification email.");
+        resendVerificationBtn.disabled = false;
+      }
+    };
+
+    const datingProfileBtn = document.getElementById("datingProfileBtn");
+    if(datingProfileBtn) datingProfileBtn.onclick = () => {
+      state.screen = "datingProfile";
+      render();
+    };
+
+    const matchesBtn = document.getElementById("matchesBtn");
+    if(matchesBtn) matchesBtn.onclick = () => {
+      if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
+      state.screen = "matches";
       render();
     };
   }
@@ -1191,6 +1521,8 @@ adminLogoutIfRequested();
         </div>
         <div class="pill">${progress}%</div>
       </div>
+
+      ${storyBanner("hero-asian.webp", "Know your patterns", "Clarity is attractive.", "Answer honestly. Your Relationship IQ starts with knowing how you connect.")}
 
       <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
 
@@ -1269,25 +1601,22 @@ adminLogoutIfRequested();
     return playbook[result.primary] || playbook.SB;
   }
 
-  function getBestMatchTypes(primary){
+  function getBestMatchTypeKeys(primary){
     const matrix = {
       SB:["GR","IT","PP"], AC:["SB","GR","PP"], PA:["SB","IT","GR"], PP:["SB","GR","AC"],
       PR:["SB","GR","PP"], IT:["SB","GR","PA"], GR:["SB","IT","AC"]
     };
-    return (matrix[primary] || ["SB","GR","IT"]).map(k => TYPES[k]?.name || k);
+    return matrix[primary] || ["SB","GR","IT"];
+  }
+
+  function getBestMatchTypes(primary){
+    return getBestMatchTypeKeys(primary).map(k => TYPES[k]?.name || k);
   }
 
   function renderSingleResult(){
     const r = computeResultFrom(state.scores);
-
-    // Save lead locally (only once per completion)
-    // Prevent double save if user refreshes result screen:
-    const completionKey = "ljt_last_completion_hash";
-    const hash = `${state.userName}|${state.userPhone}|${state.userEmail}|${r.primary}|${r.secondary}|${Object.values(state.scores).join(",")}`;
-    if(localStorage.getItem(completionKey) !== hash){
-      addLead(r);
-      localStorage.setItem(completionKey, hash);
-    }
+    state.relationshipType = r.primary;
+    state.secondaryType = r.secondary;
 
     const primaryData = TYPES[r.primary];
     const secondaryData = TYPES[r.secondary];
@@ -1321,6 +1650,8 @@ adminLogoutIfRequested();
         </div>
         <div class="pill">${topScore}/${total}</div>
       </div>
+
+      ${storyBanner("hero-interracial.webp", "Your insight", "Turn self-awareness into better love.", "Your result is a starting point for more intentional conversations and choices.")}
 
       <h1>${escapeHtml(primaryData.name)}</h1>
       <p>${escapeHtml(primaryData.tagline)}</p>
@@ -1391,39 +1722,26 @@ adminLogoutIfRequested();
 
         <div class="btnrow" style="margin-top:12px;">
           <button id="saveShareBtn">Save/Share Results</button>
-          <button id="profileBtn">Create Profile from Result</button>
-          <button id="openersBtn">AI Opening Messages</button>
-          <button id="voiceIntroBtn">Voice Intro</button>
-          <button id="speedDateBtn">5-minute Video Speed Dates</button>
-          <button class="primary" id="premiumFiltersBtn">Premium Filters</button>
+          <button id="profileBtn">View Member Profile</button>
+          <button id="openersBtn" disabled>AI Opening Messages • Next</button>
+          <button id="voiceIntroBtn" disabled>Voice Intro • Next</button>
+          <button id="speedDateBtn" disabled>Video Speed Dates • Next</button>
+          <button class="primary" id="premiumFiltersBtn" disabled>Premium Filters • Next</button>
         </div>
       </div>
 
       <div class="kpi" style="margin-top:12px;">
-        <b>Your Info</b>
+        <b>Your Saved Member Result</b>
         <div class="tiny">
           Name: <span style="color:var(--text);">${escapeHtml(state.userName)}</span><br/>
           Phone: <span style="color:var(--text);">${escapeHtml(state.userPhone)}</span><br/>
           Email: <span style="color:var(--text);">${escapeHtml(state.userEmail)}</span>
         </div>
-        <div class="tiny" style="margin-top:10px;">
-          We use your info to send your Relationship IQ results and Love Jones Therapy updates.
-          <a href="#" id="privacyLink2" style="margin-left:6px;">Privacy</a>
+        <div class="tiny" id="resultSaveStatus" style="margin-top:10px;">
+          Saving this result securely to your member account…
         </div>
+        <div class="tiny" style="margin-top:8px;"><a href="#" id="privacyLink2">Privacy</a></div>
       </div>
-
-      ${isAdmin() ? `
-        <div class="kpi" style="margin-top:12px;">
-          <b>Admin Tools</b>
-          <div class="tiny">
-            Leads saved on this device: <b style="color:var(--text);">${loadLeads().length}</b>
-          </div>
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="primary" id="adminExportAllBtn2">Export All Leads (CSV)</button>
-            <button id="adminCopyLastBtn">Copy This Lead</button>
-          </div>
-        </div>
-      ` : ``}
 
       <div class="btnrow">
         <button id="shareBtn">Share Result</button>
@@ -1436,28 +1754,31 @@ adminLogoutIfRequested();
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
     document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
-    document.getElementById("profileBtn").onclick = () => showToast("Profile created from your result ✅");
-    document.getElementById("openersBtn").onclick = () => showToast("AI-generated opening messages unlocked ✨");
-    document.getElementById("voiceIntroBtn").onclick = () => showToast("Voice intro feature coming soon 🎤");
-    document.getElementById("speedDateBtn").onclick = () => showToast("5-minute video speed dates launching soon 🎥");
-    document.getElementById("premiumFiltersBtn").onclick = () => showToast("Premium filters are available in the next release 💛");
-
-    const adminExportAllBtn2 = document.getElementById("adminExportAllBtn2");
-    if(adminExportAllBtn2) adminExportAllBtn2.onclick = exportAllLeadsCSV;
-
-    const adminCopyLastBtn = document.getElementById("adminCopyLastBtn");
-    if(adminCopyLastBtn){
-      adminCopyLastBtn.onclick = async () => {
-        const text =
-`Relationship IQ Lead
-Name: ${state.userName}
-Phone: ${state.userPhone}
-Email: ${state.userEmail}
-Primary: ${TYPES[r.primary].name}
-Secondary: ${TYPES[r.secondary].name}
-Blend: ${r.tie ? "Yes" : "No"}`;
-        await copyText(text);
-      };
+    document.getElementById("profileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    if(state.resultSaveStatus === "idle"){
+      state.resultSaveStatus = "saving";
+      window.ljtFirebase.saveQuizResult({
+        primaryType: r.primary,
+        primaryName: TYPES[r.primary].name,
+        secondaryType: r.secondary,
+        secondaryName: TYPES[r.secondary].name,
+        blend: r.tie,
+        scores: { ...state.scores },
+        totalQuestions: QUIZ.questions.length,
+        mode: "single"
+      }).then(() => {
+        state.resultSaveStatus = "saved";
+        const status = document.getElementById("resultSaveStatus");
+        if(status) status.textContent = "Saved securely to your member account ✅";
+      }).catch(error => {
+        state.resultSaveStatus = "error";
+        const status = document.getElementById("resultSaveStatus");
+        if(status) status.textContent = `Could not save yet: ${error.message}`;
+      });
+    }else{
+      const status = document.getElementById("resultSaveStatus");
+      if(status && state.resultSaveStatus === "saved") status.textContent = "Saved securely to your member account ✅";
+      if(status && state.resultSaveStatus === "error") status.textContent = "This result has not been saved yet. Return home and try again.";
     }
 
     document.getElementById("couplesQuickBtn").onclick = () => {
@@ -1490,6 +1811,8 @@ Blend: ${r.tie ? "Yes" : "No"}`;
         </div>
         ${headerRightPill()}
       </div>
+
+      ${storyBanner("hero-latino.webp", "Stronger together", "Two stories. One honest conversation.", "Compare your patterns with curiosity, compassion, and room to grow.")}
 
       <div class="kpi">
         <b>Couples Setup</b>
@@ -1564,6 +1887,8 @@ Blend: ${r.tie ? "Yes" : "No"}`;
         </div>
         <div class="pill">${progress}%</div>
       </div>
+
+      ${storyBanner("hero-women.webp", "Take turns. Stay curious.", "Understanding begins with listening.", "Each partner answers privately, then you explore the results together.")}
 
       <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
 
@@ -1644,6 +1969,8 @@ Blend: ${r.tie ? "Yes" : "No"}`;
         ${headerRightPill()}
       </div>
 
+      ${storyBanner("hero-white.webp", "Your connection", "Celebrate the strengths. Grow through the differences.", "Use your comparison as a conversation starter—not a label.")}
+
       <div class="row">
         <div class="col kpi">
           <b>${escapeHtml(A.name)}</b>
@@ -1696,8 +2023,313 @@ Conversation starters:
     document.getElementById("viralShareBtn").onclick = ()=> shareText("Love Jones Therapy • Couples Compare", summary);
   }
 
+  function renderDatingProfile(){
+    if(!state.authUser){ state.screen = "home"; return render(); }
+
+    if(!state.relationshipType){
+      app.innerHTML = `
+        <div class="topbar">
+          <div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Dating Profile</div><div class="sub">Love Jones Therapy</div></div></div>
+          ${headerRightPill()}
+        </div>
+        <div class="kpi">
+          <b>Complete Relationship IQ first</b>
+          <p>Your primary Relationship IQ type powers the matching system.</p>
+          <div class="btnrow"><button class="primary" id="takeQuizBtn">Take Relationship IQ</button><button id="homeBtn">Home</button></div>
+        </div>`;
+      document.getElementById("takeQuizBtn").onclick = () => { state.screen = "quiz"; resetSingleQuiz(); render(); };
+      document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+      return;
+    }
+
+    if(!state.datingProfileLoaded){
+      app.innerHTML = `<div class="kpi"><b>Loading your dating profile…</b></div>`;
+      window.ljtFirebase.getMyDatingProfile().then(profile => {
+        state.datingProfile = profile || {};
+        state.datingProfileLoaded = true;
+        if(state.screen === "datingProfile") render();
+      }).catch(error => {
+        state.datingProfile = {};
+        state.datingProfileLoaded = true;
+        showToast(error.message || "Could not load the dating profile");
+        if(state.screen === "datingProfile") render();
+      });
+      return;
+    }
+
+    const profile = state.datingProfile || {};
+    const photoPaths = getPhotoPaths(profile);
+    const profileExists = Boolean(profile.ownerId);
+    const firstName = (state.userName || "Member").trim().split(/\s+/)[0];
+    const current = (key, fallback="") => profile[key] ?? fallback;
+    const options = (items, selected) => items.map(item => {
+      const value = typeof item === "string" ? item : item[0];
+      const label = typeof item === "string" ? item : item[1];
+      return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"><b>LJ</b></div>
+          <div class="brandTxt"><div class="title">Your Dating Profile</div><div class="sub">Only your display name is shown to other members</div></div>
+        </div>
+        ${headerRightPill()}
+      </div>
+
+      ${storyBanner("hero-couple.webp", "Be seen for who you are", "A thoughtful profile attracts thoughtful people.", "Share enough to start a real conversation while keeping your private information private.", "center 34%")}
+
+      <div class="kpi">
+        <b>Public Profile Details</b>
+        <p class="tiny">Your full name, phone number and email address remain private.</p>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">First name or display name</div><input class="in" id="displayNameInput" maxlength="30" value="${escapeAttr(current("displayName", firstName))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Age</div><input class="in" id="ageInput" type="number" min="18" max="99" value="${escapeAttr(current("age"))}" /></div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">City</div><input class="in" id="cityInput" maxlength="60" value="${escapeAttr(current("city"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">State or province</div><input class="in" id="regionInput" maxlength="60" value="${escapeAttr(current("region"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Country</div><input class="in" id="countryInput" maxlength="60" value="${escapeAttr(current("country", "United States"))}" /></div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">I identify as</div><select class="in" id="genderInput">${options(["Man","Woman","Nonbinary","Prefer to self describe"], current("gender"))}</select></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">I want to meet</div><select class="in" id="lookingForInput">${options(["Women","Men","Nonbinary people","Everyone"], current("lookingFor"))}</select></div>
+        </div>
+
+        <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">Relationship goal</div><select class="in" id="goalInput">${options(["Long term relationship","Marriage","Dating with intention","Friendship first"], current("relationshipGoal"))}</select></div>
+        <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">About me</div><textarea class="in" id="bioInput" maxlength="600" placeholder="Share what matters to you and what kind of connection you want.">${escapeHtml(current("bio"))}</textarea></div>
+
+        <div class="hr"></div>
+        <b>Profile Photos</b>
+        <p class="tiny">Add up to five JPEG, PNG or WebP photos. Each photo must be under 5 MB. Your first photo is your main photo.</p>
+        ${photoPaths.length ? `<div class="photoGrid">${photoPaths.map((path, index) => `
+          <div class="photoCard">
+            ${index === 0 ? `<span class="mainPhotoTag">Main photo</span>` : ``}
+            <img class="profilePhoto" data-photo-path="${escapeAttr(path)}" alt="Dating profile photo ${index + 1}" />
+            <div class="photoActions">
+              ${index > 0 ? `<button type="button" data-photo-action="main" data-photo-path="${escapeAttr(path)}">Make Main</button>` : ``}
+              <button type="button" data-photo-action="delete" data-photo-path="${escapeAttr(path)}">Remove</button>
+            </div>
+          </div>`).join("")}</div>` : `<p class="tiny">No photos added yet.</p>`}
+        ${profileExists && photoPaths.length < 5 ? `
+          <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+          <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
+        ${!profileExists ? `<p class="tiny">Save your dating profile details first. Then the photo uploader will appear.</p>` : ``}
+        <div class="errorText tiny" id="photoError"></div>
+
+        <div class="accountStatus">
+          <span class="tiny">Relationship IQ: <strong style="color:var(--text);">${escapeHtml(TYPES[state.relationshipType]?.name || state.relationshipType)}</strong></span>
+          <span class="tiny">Matched with compatible Relationship IQ types</span>
+        </div>
+
+        <label style="display:flex;gap:8px;margin-top:12px;">
+          <input type="checkbox" id="activeProfileChk" ${current("active", true) ? "checked" : ""} />
+          <span class="tiny">Show my dating profile to signed-in members.</span>
+        </label>
+        <div class="errorText tiny" id="datingProfileError"></div>
+        <div class="btnrow">
+          <button class="primary" id="saveDatingProfileBtn">Save Dating Profile</button>
+          <button class="ok" id="viewMatchesBtn">View Matches</button>
+          <button id="homeBtn">Home</button>
+        </div>
+      </div>`;
+
+    document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+    document.getElementById("viewMatchesBtn").onclick = () => { state.matchesLoaded = false; state.screen = "matches"; render(); };
+    hydrateProfilePhotos();
+
+    const uploadButton = document.getElementById("uploadPhotosBtn");
+    if(uploadButton) uploadButton.onclick = async () => {
+      const input = document.getElementById("photoInput");
+      const errorBox = document.getElementById("photoError");
+      const files = [...(input.files || [])];
+      const remaining = 5 - photoPaths.length;
+      errorBox.textContent = "";
+      if(!files.length) return errorBox.textContent = "Choose at least one photo.";
+      if(files.length > remaining) return errorBox.textContent = `You can add ${remaining} more photo${remaining === 1 ? "" : "s"}.`;
+      uploadButton.disabled = true;
+      uploadButton.textContent = "Uploading…";
+      const uploadedPaths = [];
+      try{
+        for(const file of files){
+          uploadedPaths.push(await window.ljtFirebase.uploadProfilePhoto(file));
+        }
+        const nextPaths = [...photoPaths, ...uploadedPaths];
+        await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+        state.datingProfile = { ...profile, photoPaths: nextPaths };
+        state.matchesLoaded = false;
+        showToast("Photos uploaded ✅");
+        render();
+      }catch(error){
+        await Promise.allSettled(uploadedPaths.map(path => window.ljtFirebase.deleteProfilePhoto(path)));
+        errorBox.textContent = error.message || "Could not upload the photos.";
+        uploadButton.disabled = false;
+        uploadButton.textContent = "Upload Selected Photos";
+      }
+    };
+
+    document.querySelectorAll("[data-photo-action]").forEach(button => {
+      button.onclick = async () => {
+        const action = button.dataset.photoAction;
+        const path = button.dataset.photoPath;
+        const errorBox = document.getElementById("photoError");
+        errorBox.textContent = "";
+        button.disabled = true;
+        try{
+          if(action === "main"){
+            const nextPaths = [path, ...photoPaths.filter(item => item !== path)];
+            await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+            state.datingProfile = { ...profile, photoPaths: nextPaths };
+            state.matchesLoaded = false;
+            showToast("Main photo updated ✅");
+          }else{
+            const nextPaths = photoPaths.filter(item => item !== path);
+            await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+            try{ await window.ljtFirebase.deleteProfilePhoto(path); }catch(error){ console.warn("Unused photo could not be deleted", error); }
+            state.datingProfile = { ...profile, photoPaths: nextPaths };
+            state.matchesLoaded = false;
+            showToast("Photo removed ✅");
+          }
+          render();
+        }catch(error){
+          errorBox.textContent = error.message || "Could not update the photo.";
+          button.disabled = false;
+        }
+      };
+    });
+
+    document.getElementById("saveDatingProfileBtn").onclick = async () => {
+      const errorBox = document.getElementById("datingProfileError");
+      const button = document.getElementById("saveDatingProfileBtn");
+      const payload = {
+        displayName: document.getElementById("displayNameInput").value.trim(),
+        age: Number(document.getElementById("ageInput").value),
+        city: document.getElementById("cityInput").value.trim(),
+        region: document.getElementById("regionInput").value.trim(),
+        country: document.getElementById("countryInput").value.trim(),
+        gender: document.getElementById("genderInput").value,
+        lookingFor: document.getElementById("lookingForInput").value,
+        relationshipGoal: document.getElementById("goalInput").value,
+        bio: document.getElementById("bioInput").value.trim(),
+        relationshipType: state.relationshipType,
+        secondaryType: state.secondaryType,
+        active: document.getElementById("activeProfileChk").checked
+      };
+      errorBox.textContent = "";
+      if(payload.displayName.length < 2) return errorBox.textContent = "Enter a first name or display name.";
+      if(!Number.isInteger(payload.age) || payload.age < 18 || payload.age > 99) return errorBox.textContent = "Members must be 18 or older. Enter a valid age.";
+      if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, state or province, and country.";
+      if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
+      button.disabled = true;
+      try{
+        await window.ljtFirebase.saveDatingProfile(payload);
+        state.datingProfile = { ...profile, ...payload, ownerId: state.authUser.uid };
+        state.matchesLoaded = false;
+        showToast("Dating profile saved ✅");
+        render();
+      }catch(error){
+        errorBox.textContent = error.message || "Could not save the dating profile.";
+        button.disabled = false;
+      }
+    };
+  }
+
+  function preferenceAllows(preference, gender){
+    if(preference === "Everyone") return true;
+    if(preference === "Women") return gender === "Woman";
+    if(preference === "Men") return gender === "Man";
+    if(preference === "Nonbinary people") return gender === "Nonbinary" || gender === "Prefer to self describe";
+    return false;
+  }
+
+  function mutuallyCompatiblePreferences(own, candidate){
+    if(!own || !own.gender || !own.lookingFor) return true;
+    return preferenceAllows(own.lookingFor, candidate.gender)
+      && preferenceAllows(candidate.lookingFor, own.gender);
+  }
+
+  function renderMatches(){
+    if(!state.authUser){ state.screen = "home"; return render(); }
+    if(!state.relationshipType){ state.screen = "datingProfile"; return render(); }
+
+    if(!state.datingProfileLoaded){
+      app.innerHTML = `<div class="kpi"><b>Loading your matching preferences…</b></div>`;
+      window.ljtFirebase.getMyDatingProfile().then(profile => {
+        state.datingProfile = profile || {};
+        state.datingProfileLoaded = true;
+        if(!profile) state.screen = "datingProfile";
+        if(state.screen === "matches" || state.screen === "datingProfile") render();
+      }).catch(error => {
+        state.matchesError = error.message || "Could not load your dating profile.";
+        state.datingProfile = {};
+        state.datingProfileLoaded = true;
+        if(state.screen === "matches") render();
+      });
+      return;
+    }
+
+    if(!state.matchesLoaded && !state.matchesLoading){
+      state.matchesLoading = true;
+      state.matchesError = "";
+      window.ljtFirebase.findDatingProfiles(getBestMatchTypeKeys(state.relationshipType)).then(matches => {
+        state.matches = matches.filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile));
+        state.matchesLoaded = true;
+        state.matchesLoading = false;
+        if(state.screen === "matches") render();
+      }).catch(error => {
+        state.matches = [];
+        state.matchesLoaded = true;
+        state.matchesLoading = false;
+        state.matchesError = error.message || "Could not load matches.";
+        if(state.screen === "matches") render();
+      });
+    }
+
+    const cards = state.matches.map(profile => {
+      const name = profile.displayName || "Member";
+      const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
+      const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
+      const mainPhoto = getPhotoPaths(profile)[0];
+      return `
+        <div class="matchCard">
+          <div style="display:flex;align-items:center;gap:12px;">
+            ${mainPhoto ? `<img class="matchPhoto" data-photo-path="${escapeAttr(mainPhoto)}" alt="${escapeAttr(name)} profile photo" />` : `<div class="avatarInitial">${escapeHtml(name.charAt(0).toUpperCase())}</div>`}
+            <div><h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3><div class="tiny">${escapeHtml(location)}</div></div>
+          </div>
+          <div class="badgeGrid"><span class="badge"><strong>${escapeHtml(typeName)}</strong></span><span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span></div>
+          <p>${escapeHtml(profile.bio || "This member is still completing their profile.")}</p>
+          <div class="tiny">Looking to meet: ${escapeHtml(profile.lookingFor || "Not specified")}</div>
+          <div class="btnrow"><button disabled>Messaging • Next</button></div>
+        </div>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="brand"><div class="logo"><b>LJ</b></div><div class="brandTxt"><div class="title">Your Matches</div><div class="sub">Based on Relationship IQ compatibility</div></div></div>
+        ${headerRightPill()}
+      </div>
+      ${storyBanner("hero-interracial.webp", "Compatibility with intention", "Meet people who value how you love.", "Your matches combine Relationship IQ compatibility with mutual dating preferences.")}
+      <div class="kpi">
+        <b>Best match types for ${escapeHtml(TYPES[state.relationshipType]?.name || state.relationshipType)}</b>
+        <div class="badgeGrid">${getBestMatchTypes(state.relationshipType).map(name => `<span class="badge"><strong>${escapeHtml(name)}</strong></span>`).join("")}</div>
+      </div>
+      ${state.matchesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Looking for compatible members…</p></div>` : ``}
+      ${state.matchesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.matchesError)}</p></div>` : ``}
+      ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>No compatible members yet</b><p>Your profile is ready. Matches will appear here as other members join and complete Relationship IQ.</p></div>` : `<div class="matchGrid">${cards}</div>`}
+      <div class="btnrow"><button class="primary" id="editDatingProfileBtn">Edit Dating Profile</button><button id="refreshMatchesBtn">Refresh Matches</button><button id="homeBtn">Home</button></div>`;
+
+    document.getElementById("editDatingProfileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    document.getElementById("refreshMatchesBtn").onclick = () => { state.matchesLoaded = false; state.matchesLoading = false; render(); };
+    document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+    hydrateProfilePhotos();
+  }
+
   // =================== ROUTER ===================
   function render(){
+    if(state.screen !== "home" && moodPlaying) stopMood(false);
     if(state.screen === "home") return renderHome();
 
     if(state.screen === "quiz"){
@@ -1714,6 +2346,9 @@ Conversation starters:
       return renderCouples();
     }
 
+    if(state.screen === "datingProfile") return renderDatingProfile();
+    if(state.screen === "matches") return renderMatches();
+
     state.screen = "home";
     return renderHome();
   }
@@ -1721,6 +2356,50 @@ Conversation starters:
   // =================== CONNECTIVITY EVENTS ===================
   window.addEventListener("online", () => showToast("Back online ✅"));
   window.addEventListener("offline", () => showToast("Offline mode ✅"));
+
+  // =================== FIREBASE ACCOUNT EVENTS ===================
+  window.addEventListener("ljt-firebase-ready", () => {
+    state.authReady = true;
+    if(state.screen === "home") render();
+  });
+
+  window.addEventListener("ljt-auth-change", async (event) => {
+    state.authReady = true;
+    state.authUser = event.detail.user;
+    state.profileLoaded = false;
+
+    if(state.authUser){
+      state.userEmail = state.authUser.email;
+      try{
+        const profile = await window.ljtFirebase.getMyProfile();
+        if(profile){
+          state.userName = profile.name || state.authUser.displayName || "";
+          state.userPhone = profile.phone || "";
+          state.consentOk = Boolean(profile.consent);
+          state.relationshipType = profile.relationshipType || "";
+          state.secondaryType = profile.secondaryType || "";
+        }
+      }catch(error){
+        showToast("Signed in, but the profile could not load yet");
+      }
+      state.profileLoaded = true;
+    }else{
+      state.userName = "";
+      state.userPhone = "";
+      state.userEmail = "";
+      state.consentOk = false;
+      state.resultSaveStatus = "idle";
+      state.relationshipType = "";
+      state.secondaryType = "";
+      state.datingProfile = null;
+      state.datingProfileLoaded = false;
+      state.matches = [];
+      state.matchesLoaded = false;
+      if(state.screen !== "home") state.screen = "home";
+    }
+
+    if(state.screen === "home") render();
+  });
 
   // =================== SPLASH ===================
   function removeSplash(){
