@@ -1,11 +1,11 @@
 {
-  "name": "Relationship IQ • Love Jones Therapy",
-  "short_name": "Relationship IQ",
+  "name": "First Option Dating • Relationship IQ",
+  "short_name": "First Option",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0b0b0e",
   "theme_color": "#111111",
-  "description": "Relationship IQ by Love Jones Therapy. Scenario-based quiz with 7 outcomes, couples mode, and offline support.",
+  "description": "First Option Dating helps members make the right choice through Relationship IQ, thoughtful profiles, and compatible matches.",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }

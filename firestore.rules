@@ -1,0 +1,178 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function eligibleMember() {
+      return verified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.ageConfirmed == true
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.termsAcceptedAt != null;
+    }
+
+    function noBlockBetween(userId) {
+      return eligibleMember()
+        && !exists(/databases/$(database)/documents/blocks/$(request.auth.uid + "_" + userId))
+        && !exists(/databases/$(database)/documents/blocks/$(userId + "_" + request.auth.uid));
+    }
+
+    function matchMember(matchId) {
+      let matchData = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      let otherId = matchData.memberIds[0] == request.auth.uid
+        ? matchData.memberIds[1]
+        : matchData.memberIds[0];
+      return signedIn()
+        && request.auth.uid in matchData.memberIds
+        && matchData.status == "active"
+        && noBlockBetween(otherId);
+    }
+
+    function validDatingProfile(userId) {
+      return request.resource.data.ownerId == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2
+        && request.resource.data.displayName.size() <= 30
+        && request.resource.data.age is int
+        && request.resource.data.age >= 18
+        && request.resource.data.age <= 99
+        && request.resource.data.termsAccepted == true
+        && request.resource.data.photoPaths is list
+        && request.resource.data.photoPaths.size() <= 5
+        && (request.resource.data.active != true
+          || request.resource.data.photoPaths.size() >= 1);
+    }
+
+    match /users/{userId} {
+      allow create, read, update, delete: if owns(userId);
+
+      match /results/{resultId} {
+        allow create, read, update, delete: if owns(userId);
+      }
+    }
+
+    match /datingProfiles/{userId} {
+      allow read: if owns(userId)
+        || (verified()
+          && eligibleMember()
+          && resource.data.active == true);
+      allow create, update: if owns(userId)
+        && eligibleMember()
+        && validDatingProfile(userId);
+      allow delete: if owns(userId);
+    }
+
+    match /swipes/{swipeId} {
+      allow read: if eligibleMember()
+        && (resource.data.fromId == request.auth.uid
+          || resource.data.toId == request.auth.uid);
+      allow create: if eligibleMember()
+        && request.resource.data.fromId == request.auth.uid
+        && request.resource.data.toId != request.auth.uid
+        && exists(/databases/$(database)/documents/datingProfiles/$(request.resource.data.toId))
+        && get(/databases/$(database)/documents/datingProfiles/$(request.resource.data.toId)).data.active == true
+        && noBlockBetween(request.resource.data.toId)
+        && request.resource.data.decision in ["like", "pass"]
+        && request.resource.data.keys()
+          .hasOnly(["fromId", "toId", "decision", "createdAt", "updatedAt"])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && swipeId == request.resource.data.fromId + "_" + request.resource.data.toId;
+      allow update: if eligibleMember()
+        && resource.data.fromId == request.auth.uid
+        && request.resource.data.fromId == resource.data.fromId
+        && request.resource.data.toId == resource.data.toId
+        && noBlockBetween(resource.data.toId)
+        && request.resource.data.decision in ["like", "pass"]
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["decision", "updatedAt"]);
+    }
+
+    match /matches/{matchId} {
+      allow read: if eligibleMember() && request.auth.uid in resource.data.memberIds;
+      allow create: if eligibleMember()
+        && request.resource.data.memberIds.size() == 2
+        && request.auth.uid in request.resource.data.memberIds
+        && request.resource.data.keys()
+          .hasOnly(["memberIds", "status", "profileSnapshots", "createdAt", "updatedAt"])
+        && matchId == request.resource.data.memberIds[0] + "_" + request.resource.data.memberIds[1]
+        && request.resource.data.memberIds[0] != request.resource.data.memberIds[1]
+        && request.resource.data.status == "active"
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && noBlockBetween(request.resource.data.memberIds[0] == request.auth.uid
+          ? request.resource.data.memberIds[1]
+          : request.resource.data.memberIds[0])
+        && get(/databases/$(database)/documents/swipes/$(request.resource.data.memberIds[0] + "_" + request.resource.data.memberIds[1])).data.decision == "like"
+        && get(/databases/$(database)/documents/swipes/$(request.resource.data.memberIds[1] + "_" + request.resource.data.memberIds[0])).data.decision == "like";
+      allow update: if eligibleMember()
+        && request.auth.uid in resource.data.memberIds
+        && request.resource.data.memberIds == resource.data.memberIds
+        && request.resource.data.status == "closed"
+        && request.resource.data.closedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "closedBy", "updatedAt"]);
+
+      match /messages/{messageId} {
+        allow read: if matchMember(matchId);
+        allow create: if matchMember(matchId)
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.keys()
+            .hasOnly(["senderId", "text", "createdAt"]);
+      }
+    }
+
+    match /blocks/{blockId} {
+      allow read: if eligibleMember()
+        && (resource.data.blockerId == request.auth.uid
+          || resource.data.blockedId == request.auth.uid);
+      allow create: if eligibleMember()
+        && request.resource.data.blockerId == request.auth.uid
+        && request.resource.data.blockedId != request.auth.uid
+        && exists(/databases/$(database)/documents/datingProfiles/$(request.resource.data.blockedId))
+        && request.resource.data.keys()
+          .hasOnly(["blockerId", "blockedId", "createdAt"])
+        && request.resource.data.createdAt == request.time
+        && blockId == request.resource.data.blockerId + "_" + request.resource.data.blockedId;
+      allow delete: if eligibleMember() && resource.data.blockerId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow create: if eligibleMember()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetId != request.auth.uid
+        && exists(/databases/$(database)/documents/datingProfiles/$(request.resource.data.targetId))
+        && request.resource.data.reason is string
+        && request.resource.data.reason in [
+          "Fake profile",
+          "Harassment",
+          "Inappropriate content",
+          "Underage concern",
+          "Spam or scam",
+          "Other"
+        ]
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 1000
+        && request.resource.data.status == "new"
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys()
+          .hasOnly(["reporterId", "targetId", "matchId", "reason", "details", "status", "createdAt"]);
+    }
+  }
+}

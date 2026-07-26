@@ -1,12 +1,19 @@
-// Love Jones Therapy • Relationship IQ
+// First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "ljt-riq-v3";
+const VERSION = "fod-riq-v17";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
   "./",
   "./index.html",
+  "./firebase-client.js",
+  "./hero-couple.webp",
+  "./hero-interracial.webp",
+  "./hero-asian.webp",
+  "./hero-latino.webp",
+  "./hero-white.webp",
+  "./hero-women.webp",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"
@@ -21,7 +28,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k.includes("ljt-riq-") && k !== CACHE_NAME) ? caches.delete(k) : null))
+      Promise.all(keys.map((k) => (
+        (k.includes("ljt-riq-") || k.includes("fod-riq-")) && k !== CACHE_NAME
+      ) ? caches.delete(k) : null))
     ).then(() => self.clients.claim())
   );
 });
