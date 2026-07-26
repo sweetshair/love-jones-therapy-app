@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function noBlockBetween(userId) {
+      return verified()
+        && !firestore.exists(/databases/(default)/documents/blocks/$(request.auth.uid + "_" + userId))
+        && !firestore.exists(/databases/(default)/documents/blocks/$(userId + "_" + request.auth.uid));
+    }
+
+    match /profilePhotos/{userId}/{fileName} {
+      allow read: if verified()
+        && (request.auth.uid == userId || noBlockBetween(userId));
+
+      allow create, update: if verified()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      allow delete: if verified()
+        && request.auth.uid == userId;
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "origin": [
+      "https://firstoptiondating.com",
+      "https://www.firstoptiondating.com",
+      "https://firstoptiondating.ca",
+      "https://www.firstoptiondating.ca",
+      "https://love-jones-therapy-app.netlify.app",
+      "https://deploy-preview-3--love-jones-therapy-app.netlify.app",
+      "https://lovejonestherapy.com",
+      "https://www.lovejonestherapy.com",
+      "http://localhost:8000"
+    ],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]
