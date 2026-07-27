@@ -136,6 +136,114 @@ service cloud.firestore {
           && request.resource.data.keys()
             .hasOnly(["senderId", "text", "createdAt"]);
       }
+
+      match /calls/{callId} {
+        allow read: if matchMember(matchId);
+        allow create: if matchMember(matchId)
+          && request.resource.data.callerId == request.auth.uid
+          && request.resource.data.calleeId != request.auth.uid
+          && request.resource.data.calleeId in get(
+            /databases/$(database)/documents/matches/$(matchId)
+          ).data.memberIds
+          && request.resource.data.mode in ["audio", "video"]
+          && request.resource.data.status == "ringing"
+          && request.resource.data.offer is map
+          && request.resource.data.offer.type == "offer"
+          && request.resource.data.offer.sdp is string
+          && request.resource.data.offer.sdp.size() > 0
+          && request.resource.data.offer.sdp.size() <= 20000
+          && request.resource.data.offer.keys().hasOnly(["type", "sdp"])
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.keys().hasOnly([
+            "callerId",
+            "calleeId",
+            "mode",
+            "status",
+            "offer",
+            "createdAt",
+            "updatedAt"
+          ]);
+        allow update: if matchMember(matchId)
+          && request.resource.data.callerId == resource.data.callerId
+          && request.resource.data.calleeId == resource.data.calleeId
+          && request.resource.data.mode == resource.data.mode
+          && request.resource.data.offer == resource.data.offer
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedAt == request.time
+          && (
+            (
+              request.auth.uid == resource.data.calleeId
+              && resource.data.status == "ringing"
+              && request.resource.data.status == "active"
+              && request.resource.data.answer is map
+              && request.resource.data.answer.type == "answer"
+              && request.resource.data.answer.sdp is string
+              && request.resource.data.answer.sdp.size() > 0
+              && request.resource.data.answer.sdp.size() <= 20000
+              && request.resource.data.answer.keys().hasOnly(["type", "sdp"])
+              && request.resource.data.answeredAt == request.time
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(["answer", "status", "answeredAt", "updatedAt"])
+            )
+            || (
+              request.resource.data.endedAt == request.time
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(["status", "endedAt", "updatedAt"])
+              && (
+                (
+                  request.resource.data.status == "declined"
+                  && resource.data.status == "ringing"
+                  && request.auth.uid == resource.data.calleeId
+                )
+                || (
+                  request.resource.data.status in ["ended", "failed"]
+                  && resource.data.status in ["ringing", "active"]
+                )
+              )
+            )
+          );
+
+        match /callerCandidates/{candidateId} {
+          allow read: if matchMember(matchId);
+          allow create: if matchMember(matchId)
+            && request.resource.data.ownerId == request.auth.uid
+            && request.auth.uid == get(
+              /databases/$(database)/documents/matches/$(matchId)/calls/$(callId)
+            ).data.callerId
+            && request.resource.data.candidate is string
+            && request.resource.data.candidate.size() > 0
+            && request.resource.data.candidate.size() <= 4096
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.keys().hasOnly([
+              "ownerId",
+              "candidate",
+              "sdpMid",
+              "sdpMLineIndex",
+              "createdAt"
+            ]);
+        }
+
+        match /calleeCandidates/{candidateId} {
+          allow read: if matchMember(matchId);
+          allow create: if matchMember(matchId)
+            && request.resource.data.ownerId == request.auth.uid
+            && request.auth.uid == get(
+              /databases/$(database)/documents/matches/$(matchId)/calls/$(callId)
+            ).data.calleeId
+            && request.resource.data.candidate is string
+            && request.resource.data.candidate.size() > 0
+            && request.resource.data.candidate.size() <= 4096
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.keys().hasOnly([
+              "ownerId",
+              "candidate",
+              "sdpMid",
+              "sdpMLineIndex",
+              "createdAt"
+            ]);
+        }
+      }
     }
 
     match /blocks/{blockId} {
