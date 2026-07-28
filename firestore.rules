@@ -197,6 +197,11 @@ service cloud.firestore {
                   && request.auth.uid == resource.data.calleeId
                 )
                 || (
+                  request.resource.data.status == "missed"
+                  && resource.data.status == "ringing"
+                  && request.time >= resource.data.createdAt + duration.value(20, "s")
+                )
+                || (
                   request.resource.data.status in ["ended", "failed"]
                   && resource.data.status in ["ringing", "active"]
                 )

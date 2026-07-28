@@ -796,6 +796,9 @@
     callCameraOff: false,
     pendingLocalCallCandidates: [],
     pendingRemoteCallCandidates: [],
+    callRingDeadline: 0,
+    callRingTimer: null,
+    callRingExpiring: false,
     callDeadline: 0,
     callTimer: null,
     callWarningMinuteShown: false,
@@ -2776,6 +2779,7 @@ Conversation starters:
   }
 
   const FREE_CALL_SECONDS = 5 * 60;
+  const CALL_RING_SECONDS = 20;
   const CALL_ICE_SERVERS = [
     { urls:"stun:stun.l.google.com:19302" },
     { urls:"stun:stun1.l.google.com:19302" }
@@ -2800,6 +2804,50 @@ Conversation starters:
       <p>Paid call-time packages will be added through a secure checkout before anyone can be charged.</p>
       <p class="tiny">For now, you can continue the conversation by message or begin another preview when available.</p>`;
     document.getElementById("privacyBackdrop").style.display = "flex";
+  }
+
+  function stopRingTimer(){
+    if(state.callRingTimer) clearTimeout(state.callRingTimer);
+    state.callRingTimer = null;
+    state.callRingDeadline = 0;
+    state.callRingExpiring = false;
+  }
+
+  function scheduleRingTimeout(call){
+    const conversation = state.activeConversation;
+    if(!conversation || !call || call.status !== "ringing"){
+      stopRingTimer();
+      return;
+    }
+    const createdAt = call.createdAt?.toMillis
+      ? call.createdAt.toMillis()
+      : (call.createdAtMs || Date.now());
+    const deadline = createdAt + (CALL_RING_SECONDS * 1000);
+    if(state.callRingTimer && state.callRingDeadline === deadline) return;
+    if(state.callRingTimer) clearTimeout(state.callRingTimer);
+    state.callRingDeadline = deadline;
+    const expire = async () => {
+      state.callRingTimer = null;
+      if(
+        state.callRingExpiring
+        || state.call?.id !== call.id
+        || state.call?.status !== "ringing"
+      ) return;
+      state.callRingExpiring = true;
+      try{
+        const expired = await window.ljtFirebase.expireCallSignal(conversation.matchId, call.id);
+        if(!expired && state.call?.id === call.id && state.call?.status === "ringing"){
+          state.callRingTimer = setTimeout(expire, 1000);
+        }
+      }catch(error){
+        if(state.call?.id === call.id && state.call?.status === "ringing"){
+          state.callRingTimer = setTimeout(expire, 1000);
+        }
+      }finally{
+        state.callRingExpiring = false;
+      }
+    };
+    state.callRingTimer = setTimeout(expire, Math.max(0, deadline - Date.now()));
   }
 
   function stopCallTimer(){
@@ -2850,6 +2898,7 @@ Conversation starters:
   }
 
   function cleanupCallMedia(){
+    stopRingTimer();
     stopCallTimer();
     if(typeof state.callCandidateUnsubscribe === "function") state.callCandidateUnsubscribe();
     state.callCandidateUnsubscribe = null;
@@ -3006,8 +3055,10 @@ Conversation starters:
         callerId:state.authUser.uid,
         calleeId:conversation.memberId,
         mode,
+        createdAtMs:Date.now(),
         status:"ringing"
       };
+      scheduleRingTimeout(state.call);
       watchRemoteCallCandidates(conversation, state.activeCallId, "callee");
       await flushLocalCallCandidates(conversation);
     }catch(error){
@@ -3054,6 +3105,8 @@ Conversation starters:
     const previous = state.call;
     state.call = call;
     if(!call) return;
+    if(call.status === "ringing") scheduleRingTimeout(call);
+    else stopRingTimer();
     if(
       call.id === state.activeCallId
       && state.callRole === "caller"
@@ -3068,11 +3121,18 @@ Conversation starters:
     if(call.id === state.activeCallId && call.status === "active") startCallTimer(call);
     if(
       call.id === state.activeCallId
-      && ["declined", "ended", "failed"].includes(call.status)
+      && ["declined", "ended", "failed", "missed"].includes(call.status)
     ){
       cleanupCallMedia();
       if(previous?.status !== call.status){
-        showToast(call.status === "declined" ? "The call was declined." : "The call ended.");
+        const terminalMessage = call.status === "declined"
+          ? "The call was declined."
+          : call.status === "missed"
+            ? (call.callerId === state.authUser?.uid
+                ? "No answer. The call ended after 20 seconds."
+                : "You missed a call.")
+            : "The call ended.";
+        showToast(terminalMessage);
       }
     }
   }
@@ -3101,7 +3161,7 @@ Conversation starters:
       return `
         <div class="incomingCall">
           <b>Incoming ${call.mode === "video" ? "video" : "voice"} call from ${escapeHtml(state.activeConversation.name)}</b>
-          <p class="tiny">The free call preview lasts 5 minutes. Answer only when you feel comfortable.</p>
+          <p class="tiny">Answer within 20 seconds. Once connected, the free call preview lasts 5 minutes.</p>
           <div class="btnrow">
             <button class="ok" id="answerCallBtn">Answer</button>
             <button class="danger" id="declineCallBtn">Decline</button>
@@ -3116,7 +3176,12 @@ Conversation starters:
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
             <div>
               <div class="callStatus">${interrupted ? "Call interrupted" : (connected ? "Connected" : `Calling ${escapeHtml(state.activeConversation.name)}…`)}</div>
-              <div class="tiny">${interrupted ? "This page was refreshed. End this attempt and start again." : `5-minute preview • <span id="callCountdown">${connected ? callTimeText() : "5:00"}</span> remaining • Calls are not recorded by First Option Dating`}</div>
+              <div class="tiny">${interrupted
+                ? "This page was refreshed. End this attempt and start again."
+                : connected
+                  ? `5-minute preview • <span id="callCountdown">${callTimeText()}</span> remaining • Calls are not recorded by First Option Dating`
+                  : "Waiting for an answer • up to 20 seconds"
+              }</div>
             </div>
             <button id="hangupCallBtn" class="danger">${interrupted ? "Close call attempt" : "Hang up"}</button>
           </div>

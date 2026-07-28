@@ -22,6 +22,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   where
@@ -371,6 +372,25 @@ async function updateCallStatus(matchId, callId, status) {
   }, { merge: true });
 }
 
+async function expireCallSignal(matchId, callId) {
+  requireUser();
+  const callRef = doc(db, "matches", matchId, "calls", callId);
+  return runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists()) return false;
+    const call = snapshot.data();
+    if (call.status !== "ringing") return false;
+    const createdAt = call.createdAt?.toMillis?.();
+    if (createdAt && Date.now() < createdAt + 20000) return false;
+    transaction.update(callRef, {
+      status: "missed",
+      endedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  });
+}
+
 async function addCallCandidate(matchId, callId, role, candidate) {
   const user = requireUser();
   if (!["caller", "callee"].includes(role)) throw new Error("The call role is invalid.");
@@ -488,6 +508,7 @@ window.ljtFirebase = {
   createCallSignal,
   answerCallSignal,
   updateCallStatus,
+  expireCallSignal,
   addCallCandidate,
   watchCallCandidates,
   unmatch,
