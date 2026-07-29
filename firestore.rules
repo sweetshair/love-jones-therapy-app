@@ -73,7 +73,15 @@ service cloud.firestore {
     }
 
     match /swipes/{swipeId} {
-      allow read: if eligibleMember()
+      // A first-time swipe checks a deterministic document before creating it.
+      // Permit only the harmless "not found" get, then keep existing swipe
+      // documents and list results private to their participants.
+      allow get: if eligibleMember()
+        && !exists(/databases/$(database)/documents/swipes/$(swipeId));
+      allow get: if eligibleMember()
+        && (resource.data.fromId == request.auth.uid
+          || resource.data.toId == request.auth.uid);
+      allow list: if eligibleMember()
         && (resource.data.fromId == request.auth.uid
           || resource.data.toId == request.auth.uid);
       allow create: if eligibleMember()
