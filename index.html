@@ -2358,7 +2358,8 @@ Conversation starters:
         ${profileExists && photoPaths.length < 5 ? `
           <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
           <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
-        ${!profileExists ? `<p class="tiny">Save your dating profile details first. Then the photo uploader will appear.</p>` : ``}
+        ${!profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
+        ${profileExists && !photoPaths.length ? `<p class="tiny">Your profile is private. Upload at least one photo, then turn on profile visibility and save again.</p>` : ``}
         <div class="errorText tiny" id="photoError"></div>
 
         <div class="accountStatus">
@@ -2483,13 +2484,16 @@ Conversation starters:
       if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, state or province, and country.";
       if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
       if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.";
-      if(payload.active && !photoPaths.length) return errorBox.textContent = "Add at least one profile photo before making your profile visible.";
+      const savePrivatelyUntilPhoto = payload.active && !photoPaths.length;
+      if(savePrivatelyUntilPhoto) payload.active = false;
       button.disabled = true;
       try{
         await window.ljtFirebase.saveDatingProfile(payload);
         state.datingProfile = { ...profile, ...payload, ownerId: state.authUser.uid };
         state.matchesLoaded = false;
-        showToast("Dating profile saved ✅");
+        showToast(savePrivatelyUntilPhoto
+          ? "Profile saved privately. Add a photo, then turn on visibility."
+          : "Dating profile saved ✅");
         render();
       }catch(error){
         errorBox.textContent = error.message || "Could not save the dating profile.";
