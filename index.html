@@ -1835,6 +1835,18 @@
     return matrix[primary] || ["SB","GR","IT"];
   }
 
+  function relationshipTypesAreCompatible(firstType, secondType){
+    if(!firstType || !secondType || firstType === secondType) return false;
+    return getBestMatchTypeKeys(firstType).includes(secondType)
+      || getBestMatchTypeKeys(secondType).includes(firstType);
+  }
+
+  function getCompatibleMatchTypeKeys(primary){
+    return Object.keys(TYPES).filter(typeKey =>
+      relationshipTypesAreCompatible(primary, typeKey)
+    );
+  }
+
   function getBestMatchTypes(primary){
     return getBestMatchTypeKeys(primary).map(k => TYPES[k]?.name || k);
   }
@@ -2557,8 +2569,11 @@ Conversation starters:
     }else if(!state.matchesLoaded && !state.matchesLoading){
       state.matchesLoading = true;
       state.matchesError = "";
-      window.ljtFirebase.findDatingProfiles(getBestMatchTypeKeys(state.relationshipType)).then(matches => {
-        state.matches = matches.filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile));
+      window.ljtFirebase.findDatingProfiles(getCompatibleMatchTypeKeys(state.relationshipType)).then(matches => {
+        state.matches = matches.filter(profile =>
+          relationshipTypesAreCompatible(state.relationshipType, profile.relationshipType)
+          && mutuallyCompatiblePreferences(state.datingProfile, profile)
+        );
         state.matchesLoaded = true;
         state.matchesLoading = false;
         if(state.screen === "matches" && state.matchView === "discover") render();
