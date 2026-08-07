@@ -2569,11 +2569,20 @@ Conversation starters:
     }else if(!state.matchesLoaded && !state.matchesLoading){
       state.matchesLoading = true;
       state.matchesError = "";
-      window.ljtFirebase.findDatingProfiles(getCompatibleMatchTypeKeys(state.relationshipType)).then(matches => {
-        state.matches = matches.filter(profile =>
-          relationshipTypesAreCompatible(state.relationshipType, profile.relationshipType)
-          && mutuallyCompatiblePreferences(state.datingProfile, profile)
-        );
+      window.ljtFirebase.findDatingProfiles().then(matches => {
+        state.matches = matches
+          .filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile))
+          .sort((first, second) => {
+            const scoreDifference = compatibilityScore(
+              state.relationshipType,
+              second.relationshipType
+            ).score - compatibilityScore(
+              state.relationshipType,
+              first.relationshipType
+            ).score;
+            if(scoreDifference) return scoreDifference;
+            return String(first.displayName || "").localeCompare(String(second.displayName || ""));
+          });
         state.matchesLoaded = true;
         state.matchesLoading = false;
         if(state.screen === "matches" && state.matchView === "discover") render();
@@ -2665,7 +2674,7 @@ Conversation starters:
       ${state.matchView === "discover" ? `
         ${state.matchesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Looking for compatible members…</p></div>` : ``}
         ${state.matchesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.matchesError)}</p></div>` : ``}
-        ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>You are caught up</b><p>There are no new compatible profiles right now. Check back as more members join.</p></div>` : discoveryCard}
+        ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>You are caught up</b><p>There are no new profiles matching your dating preferences right now. Check back as more members join.</p></div>` : discoveryCard}
       ` : `
         ${state.connectionsLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading your mutual matches…</p></div>` : ``}
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}

@@ -191,8 +191,7 @@ async function findDatingProfiles(relationshipTypes = []) {
   seenSnapshot.forEach(item => seen.add(item.data().toId));
   const snapshot = await getDocs(query(
     collection(db, "datingProfiles"),
-    where("active", "==", true),
-    limit(80)
+    where("active", "==", true)
   ));
   snapshot.forEach(item => {
     const data = item.data();
@@ -200,7 +199,7 @@ async function findDatingProfiles(relationshipTypes = []) {
       item.id !== user.uid
       && !seen.has(item.id)
       && !blocked.has(item.id)
-      && relationshipTypes.includes(data.relationshipType)
+      && (!relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
     ) {
       profiles.push({ id: item.id, ...data });
     }
