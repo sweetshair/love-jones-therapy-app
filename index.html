@@ -853,6 +853,7 @@
   };
   let moodAudioContext = null;
   let moodMasterGain = null;
+  let moodLimiter = null;
   let moodBand = null;
   let moodLibraryPromise = null;
   let moodTimer = null;
@@ -865,6 +866,8 @@
   let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("ljt_mood_volume") || .30)));
   let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "velvet";
   localStorage.removeItem("ljt_mood_enabled");
+
+  function moodOutputLevel(){ return Math.max(.0001, .72 * moodVolume); }
 
   function loadMoodLibrary(){
     if(!moodLibraryPromise){
@@ -999,8 +1002,14 @@
     try{
       moodAudioContext = new AudioContextClass();
       moodMasterGain = moodAudioContext.createGain();
-      moodMasterGain.gain.setValueAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime);
-      moodMasterGain.connect(moodAudioContext.destination);
+      moodLimiter = moodAudioContext.createDynamicsCompressor();
+      moodLimiter.threshold.setValueAtTime(-14, moodAudioContext.currentTime);
+      moodLimiter.knee.setValueAtTime(18, moodAudioContext.currentTime);
+      moodLimiter.ratio.setValueAtTime(5, moodAudioContext.currentTime);
+      moodLimiter.attack.setValueAtTime(.006, moodAudioContext.currentTime);
+      moodLimiter.release.setValueAtTime(.22, moodAudioContext.currentTime);
+      moodMasterGain.gain.setValueAtTime(moodOutputLevel(), moodAudioContext.currentTime);
+      moodMasterGain.connect(moodLimiter).connect(moodAudioContext.destination);
       await moodAudioContext.resume();
       const band = await createMoodBand(moodStyles[moodStyleKey]);
       if(loadToken !== moodLoadToken){
@@ -1022,6 +1031,7 @@
       const failedContext = moodAudioContext;
       moodAudioContext = null;
       moodMasterGain = null;
+      moodLimiter = null;
       failedContext?.close().catch(() => {});
       updateMoodControls();
       showToast("The instrumental could not load. Check your connection and try again.");
@@ -1043,6 +1053,7 @@
     }
     moodAudioContext = null;
     moodMasterGain = null;
+    moodLimiter = null;
     moodPausedForCall = false;
     if(remember) moodWanted = false;
     updateMoodControls();
@@ -1084,7 +1095,7 @@
     moodPlaying = true;
     moodMasterGain.gain.cancelScheduledValues(moodAudioContext.currentTime);
     moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
-    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime + .45);
+    moodMasterGain.gain.exponentialRampToValueAtTime(moodOutputLevel(), moodAudioContext.currentTime + .45);
     startMoodLoop();
     updateMoodControls();
   }
@@ -1119,7 +1130,7 @@
       moodVolume = Number(volume.value) / 100;
       localStorage.setItem("ljt_mood_volume", String(moodVolume));
       if(moodMasterGain && moodAudioContext){
-        moodMasterGain.gain.setTargetAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime, .08);
+        moodMasterGain.gain.setTargetAtTime(moodOutputLevel(), moodAudioContext.currentTime, .08);
       }
     };
     updateMoodControls();
