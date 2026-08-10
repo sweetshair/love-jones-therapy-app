@@ -119,6 +119,8 @@
     .moodVolumeWrap input{ width:76px; accent-color:var(--accent); }
     .moodSelectWrap select{ max-width:145px; border:0; outline:0; color:var(--text); background:#17171d; font-size:11px; }
     .moodStatus{ width:100%; color:rgba(242,242,245,.62); font-size:10px; }
+    .moodCredit{ width:100%; color:rgba(242,242,245,.46); font-size:9px; }
+    .moodCredit a{ color:inherit; }
     .heroDots{ position:absolute; z-index:2; right:16px; bottom:14px; display:flex; gap:7px; padding:8px; border-radius:999px; background:rgba(9,9,11,.48); backdrop-filter:blur(8px); }
     .heroDot{ width:9px; height:9px; min-width:0; padding:0; border-radius:999px; border:1px solid rgba(255,255,255,.55); background:rgba(255,255,255,.18); box-shadow:none; }
     .heroDot.active{ width:24px; background:var(--accent); border-color:var(--accent); }
@@ -820,34 +822,43 @@
   function escapeAttr(s){ return String(s ?? "").replace(/"/g, "&quot;"); }
   function pct(n, d){ return Math.max(0, Math.min(100, Math.round((n/d)*100))); }
 
-  // Original ambient soundscape generated in the browser. It never autoplays
-  // on a fresh visit and does not use third-party or copyrighted audio files.
+  // Original sample-based genre arrangements. Recorded instrument samples are
+  // loaded only after the listener presses play; commercial songs are not used.
   const moodStyles = {
     velvet: {
-      label:"Velvet R&B", interval:3800, release:4.35, attack:.68, wave:"triangle", bassWave:"sine",
-      chords:[[103.83,130.81,155.56,196.00],[116.54,146.83,174.61,220.00],[98.00,123.47,155.56,196.00],[87.31,116.54,146.83,174.61]]
+      label:"Velvet R&B", description:"Electric piano, bass, sax, and slow drums", bpm:72,
+      band:{ harmony:"electric_piano_1", bass:"electric_bass_finger", lead:"tenor_sax", drums:"TR-808", hat:"hihat-close" },
+      chords:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,64]]
     },
     champagne: {
-      label:"Champagne Jazz", interval:4450, release:4.95, attack:.95, wave:"sine", bassWave:"triangle",
-      chords:[[130.81,164.81,196.00,246.94],[146.83,174.61,220.00,261.63],[123.47,155.56,185.00,233.08],[110.00,138.59,164.81,207.65]]
+      label:"Champagne Jazz", description:"Grand piano, walking bass, sax, and swing drums", bpm:108,
+      band:{ harmony:"acoustic_grand_piano", bass:"acoustic_bass", lead:"alto_sax", drums:"LM-2", hat:"hhclosed" },
+      chords:[[50,53,57,60],[43,47,50,53],[48,52,55,59],[45,49,52,55]]
     },
     rock: {
-      label:"Rock and Roll", interval:2250, release:2.55, attack:.08, wave:"sawtooth", bassWave:"square",
-      chords:[[82.41,123.47,164.81,207.65],[98.00,146.83,196.00,246.94],[110.00,164.81,220.00,277.18],[73.42,110.00,146.83,185.00]]
+      label:"Rock and Roll", description:"Distorted guitar, picked bass, organ, and driving drums", bpm:132,
+      band:{ harmony:"distortion_guitar", bass:"electric_bass_pick", lead:"rock_organ", drums:"LM-2", hat:"hhclosed" },
+      chords:[[40,47,52],[43,50,55],[45,52,57],[38,45,50]]
     },
     country: {
-      label:"Country", interval:2850, release:3.15, attack:.18, wave:"triangle", bassWave:"square",
-      chords:[[98.00,123.47,146.83,196.00],[130.81,164.81,196.00,261.63],[146.83,185.00,220.00,293.66],[110.00,138.59,164.81,220.00]]
+      label:"Country", description:"Steel-string guitar, upright bass, fiddle, and country rhythm", bpm:104,
+      band:{ harmony:"acoustic_guitar_steel", bass:"acoustic_bass", lead:"fiddle", drums:"Casio-RZ1", hat:"hihat" },
+      chords:[[55,59,62],[48,52,55],[50,54,57],[55,59,62]]
     },
     pop: {
-      label:"Pop", interval:2450, release:2.9, attack:.12, wave:"sine", bassWave:"triangle",
-      chords:[[130.81,164.81,196.00,261.63],[98.00,123.47,146.83,196.00],[110.00,138.59,164.81,220.00],[87.31,110.00,130.81,174.61]]
+      label:"Pop", description:"Bright piano, clean guitar, bass, and pop drums", bpm:118,
+      band:{ harmony:"bright_acoustic_piano", bass:"synth_bass_1", lead:"electric_guitar_clean", drums:"TR-808", hat:"hihat-close" },
+      chords:[[48,52,55,60],[45,48,52,57],[41,45,48,53],[43,47,50,55]]
     }
   };
   let moodAudioContext = null;
   let moodMasterGain = null;
+  let moodBand = null;
+  let moodLibraryPromise = null;
   let moodTimer = null;
-  let moodChordIndex = 0;
+  let moodBarIndex = 0;
+  let moodLoadToken = 0;
+  let moodLoading = false;
   let moodPlaying = false;
   let moodWanted = false;
   let moodPausedForCall = false;
@@ -855,28 +866,124 @@
   let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "velvet";
   localStorage.removeItem("ljt_mood_enabled");
 
-  function playMoodChord(){
-    if(!moodAudioContext || !moodMasterGain || !moodPlaying) return;
+  function loadMoodLibrary(){
+    if(!moodLibraryPromise){
+      moodLibraryPromise = import("https://unpkg.com/smplr@1.0.0/dist/index.mjs");
+    }
+    return moodLibraryPromise;
+  }
+
+  async function createMoodBand(style){
+    const { Soundfont, DrumMachine } = await loadMoodLibrary();
+    const destination = moodMasterGain;
+    const kit = "FluidR3_GM";
+    const band = {
+      harmony:Soundfont(moodAudioContext, { instrument:style.band.harmony, kit, destination, volume:72, extraGain:1.25 }),
+      bass:Soundfont(moodAudioContext, { instrument:style.band.bass, kit, destination, volume:76, extraGain:1.1 }),
+      lead:Soundfont(moodAudioContext, { instrument:style.band.lead, kit, destination, volume:62, extraGain:1 }),
+      drums:DrumMachine(moodAudioContext, { instrument:style.band.drums, destination, volume:68 })
+    };
+    await Promise.all(Object.values(band).map(instrument => instrument.ready));
+    return band;
+  }
+
+  function bandNote(part, note, time, duration, velocity=70){
+    moodBand?.[part]?.start({ note, time, duration, velocity });
+  }
+
+  function drum(note, time, velocity=72){
+    moodBand?.drums?.start({ note, time, velocity });
+  }
+
+  function chordNotes(notes, time, duration, velocity=62, strum=0){
+    notes.forEach((note, index) => bandNote("harmony", note, time + (index * strum), duration, velocity));
+  }
+
+  function playVelvetBar(style, chord, start){
+    const beat = 60 / style.bpm;
+    chordNotes(chord.slice(1), start, beat * 1.72, 58, .018);
+    chordNotes(chord.slice(1), start + (beat * 2), beat * 1.72, 55, .02);
+    [0,1.5,2.5].forEach((offset,index) => bandNote("bass", index === 1 ? chord[2] - 12 : chord[0] - 12, start + (beat * offset), beat * .68, 72));
+    drum("kick", start, 80); drum("kick", start + (beat * 2.5), 68);
+    drum("snare", start + beat, 64); drum("snare", start + (beat * 3), 70);
+    for(let step=0; step<8; step++) drum(style.band.hat, start + (step * beat / 2), step % 2 ? 42 : 52);
+    [chord[2]+12,chord[3]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (.72 + index * 1.08)), beat * .44, 45));
+  }
+
+  function playChampagneBar(style, chord, start){
+    const beat = 60 / style.bpm;
+    const bassLine = [chord[0]-12,chord[1]-12,chord[2]-12,chord[3]-12];
+    bassLine.forEach((note,index) => bandNote("bass", note, start + (beat * index), beat * .8, 72));
+    chordNotes(chord.slice(1), start + (beat * .08), beat * .62, 61, .012);
+    chordNotes(chord.slice(1), start + (beat * 2.58), beat * .72, 64, .014);
+    drum("kick", start, 48); drum("kick", start + (beat * 2), 44);
+    drum("snare", start + beat, 48); drum("snare", start + (beat * 3), 52);
+    for(let step=0; step<4; step++){
+      drum(style.band.hat, start + (step * beat), step === 0 ? 58 : 46);
+      drum(style.band.hat, start + (beat * (step + .67)), 38);
+    }
+    [chord[3]+12,chord[2]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (1.25 + index * .84)), beat * .48, 51));
+  }
+
+  function playRockBar(style, chord, start){
+    const beat = 60 / style.bpm;
+    for(let step=0; step<8; step++){
+      const when = start + (step * beat / 2);
+      chordNotes(chord, when, beat * .43, step % 2 ? 60 : 74);
+      bandNote("bass", chord[0]-12, when, beat * .4, step % 2 ? 66 : 78);
+      drum(style.band.hat, when, step % 2 ? 52 : 66);
+    }
+    [0,2,2.5].forEach((offset,index) => drum("kick", start + (beat * offset), index ? 75 : 90));
+    drum("snare", start + beat, 86); drum("snare", start + (beat * 3), 90);
+    [chord[1]+12,chord[2]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (.5 + index * 1.15)), beat * .48, 56));
+  }
+
+  function playCountryBar(style, chord, start){
+    const beat = 60 / style.bpm;
+    bandNote("bass", chord[0]-12, start, beat * .72, 74);
+    bandNote("bass", chord[2]-12, start + (beat * 2), beat * .72, 70);
+    chordNotes(chord, start + beat, beat * .52, 66, .026);
+    chordNotes(chord, start + (beat * 3), beat * .52, 70, .026);
+    drum("kick", start, 76); drum("kick", start + (beat * 2), 72);
+    drum("snare", start + beat, 64); drum("snare", start + (beat * 3), 68);
+    for(let step=1; step<8; step+=2) drum(style.band.hat, start + (step * beat / 2), 40);
+    [chord[2]+12,chord[1]+12,chord[2]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (.48 + index * 1.08)), beat * .38, 58));
+  }
+
+  function playPopBar(style, chord, start){
+    const beat = 60 / style.bpm;
+    chordNotes(chord.slice(1), start, beat * 1.82, 57, .012);
+    chordNotes(chord.slice(1), start + (beat * 2), beat * 1.82, 57, .012);
+    for(let step=0; step<4; step++){
+      bandNote("bass", chord[0]-12, start + (beat * step), beat * .72, step === 0 ? 78 : 68);
+      drum("kick", start + (beat * step), step === 0 ? 86 : 72);
+    }
+    drum("snare", start + beat, 72); drum("snare", start + (beat * 3), 76);
+    for(let step=0; step<8; step++){
+      drum(style.band.hat, start + (step * beat / 2), step % 2 ? 44 : 58);
+      const note = chord[1 + (step % (chord.length - 1))] + (step > 3 ? 12 : 0);
+      bandNote("lead", note, start + (step * beat / 2), beat * .34, 50);
+    }
+  }
+
+  const moodArrangements = { velvet:playVelvetBar, champagne:playChampagneBar, rock:playRockBar, country:playCountryBar, pop:playPopBar };
+
+  function playMoodBar(){
+    if(!moodAudioContext || !moodBand || !moodPlaying) return;
     const style = moodStyles[moodStyleKey];
-    const now = moodAudioContext.currentTime + .03;
-    const chord = style.chords[moodChordIndex++ % style.chords.length];
-    chord.forEach((frequency, index) => {
-      const oscillator = moodAudioContext.createOscillator();
-      const voiceGain = moodAudioContext.createGain();
-      oscillator.type = index === 0 ? style.bassWave : style.wave;
-      oscillator.frequency.setValueAtTime(frequency, now);
-      oscillator.detune.setValueAtTime(index % 2 ? 3 : -3, now);
-      voiceGain.gain.setValueAtTime(.0001, now);
-      voiceGain.gain.exponentialRampToValueAtTime(index === 0 ? .055 : .038, now + style.attack);
-      voiceGain.gain.exponentialRampToValueAtTime(.0001, now + style.release);
-      oscillator.connect(voiceGain).connect(moodMasterGain);
-      oscillator.start(now);
-      oscillator.stop(now + style.release + .12);
-    });
+    const chord = style.chords[moodBarIndex++ % style.chords.length];
+    moodArrangements[moodStyleKey](style, chord, moodAudioContext.currentTime + .08);
+  }
+
+  function startMoodLoop(){
+    moodBarIndex = 0;
+    playMoodBar();
+    const barMilliseconds = (60 / moodStyles[moodStyleKey].bpm) * 4000;
+    moodTimer = setInterval(playMoodBar, barMilliseconds);
   }
 
   async function startMood(remember=true){
-    if(moodPlaying) return;
+    if(moodPlaying || moodLoading) return;
     if(callIsOpen()){
       if(remember) moodWanted = true;
       moodPausedForCall = moodWanted;
@@ -885,23 +992,48 @@
     }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if(!AudioContextClass) return showToast("Music is not supported in this browser");
-    moodAudioContext = new AudioContextClass();
-    moodMasterGain = moodAudioContext.createGain();
-    moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
-    moodMasterGain.connect(moodAudioContext.destination);
-    await moodAudioContext.resume();
-    moodPlaying = true;
-    moodChordIndex = 0;
-    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .7);
-    playMoodChord();
-    moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
-    moodPausedForCall = false;
     if(remember) moodWanted = true;
+    const loadToken = ++moodLoadToken;
+    moodLoading = true;
     updateMoodControls();
+    try{
+      moodAudioContext = new AudioContextClass();
+      moodMasterGain = moodAudioContext.createGain();
+      moodMasterGain.gain.setValueAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime);
+      moodMasterGain.connect(moodAudioContext.destination);
+      await moodAudioContext.resume();
+      const band = await createMoodBand(moodStyles[moodStyleKey]);
+      if(loadToken !== moodLoadToken){
+        Object.values(band).forEach(instrument => instrument.stop());
+        return;
+      }
+      moodBand = band;
+      moodLoading = false;
+      moodPlaying = true;
+      moodPausedForCall = false;
+      startMoodLoop();
+      updateMoodControls();
+    }catch(error){
+      if(loadToken !== moodLoadToken) return;
+      moodLoading = false;
+      moodPlaying = false;
+      moodWanted = false;
+      moodBand = null;
+      const failedContext = moodAudioContext;
+      moodAudioContext = null;
+      moodMasterGain = null;
+      failedContext?.close().catch(() => {});
+      updateMoodControls();
+      showToast("The instrumental could not load. Check your connection and try again.");
+    }
   }
 
   function stopMood(remember=true){
+    moodLoadToken++;
     if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    if(moodBand) Object.values(moodBand).forEach(instrument => instrument.stop());
+    moodBand = null;
+    moodLoading = false;
     moodPlaying = false;
     const contextToClose = moodAudioContext;
     if(moodMasterGain && contextToClose){
@@ -917,8 +1049,16 @@
   }
 
   function pauseMoodForCall(){
+    if(moodLoading){
+      const shouldResume = moodWanted;
+      stopMood(false);
+      moodWanted = shouldResume;
+      moodPausedForCall = shouldResume;
+      return;
+    }
     if(!moodPlaying || !moodAudioContext || !moodMasterGain) return;
     if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    if(moodBand) Object.values(moodBand).forEach(instrument => instrument.stop());
     const contextToPause = moodAudioContext;
     moodPlaying = false;
     moodPausedForCall = moodWanted;
@@ -933,16 +1073,19 @@
   }
 
   async function resumeMoodAfterCall(){
-    if(!moodPausedForCall || !moodWanted || !moodAudioContext || !moodMasterGain || callIsOpen()) return;
+    if(!moodPausedForCall || !moodWanted || callIsOpen()) return;
+    if(!moodAudioContext || !moodMasterGain || !moodBand){
+      moodPausedForCall = false;
+      await startMood(false);
+      return;
+    }
     moodPausedForCall = false;
     await moodAudioContext.resume();
     moodPlaying = true;
-    moodChordIndex = 0;
     moodMasterGain.gain.cancelScheduledValues(moodAudioContext.currentTime);
     moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
-    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .45);
-    playMoodChord();
-    moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
+    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime + .45);
+    startMoodLoop();
     updateMoodControls();
   }
 
@@ -951,10 +1094,11 @@
     const label = document.getElementById("moodToggleLabel");
     const status = document.getElementById("moodStatus");
     if(!button || !label || !status) return;
+    button.disabled = moodLoading;
     button.setAttribute("aria-pressed", String(moodPlaying));
-    label.textContent = moodPlaying ? "Pause the mood" : "Set the mood";
-    const playbackStatus = moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default");
-    status.textContent = `${moodStyles[moodStyleKey].label} • Original instrumental • ${playbackStatus}`;
+    label.textContent = moodLoading ? "Loading instruments…" : (moodPlaying ? "Pause the music" : "Play instrumental");
+    const playbackStatus = moodLoading ? "Loading recorded instruments" : (moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default"));
+    status.textContent = `${moodStyles[moodStyleKey].label} • ${moodStyles[moodStyleKey].description} • ${playbackStatus}`;
   }
 
   function setupMoodControls(){
@@ -968,14 +1112,14 @@
     style.onchange = () => {
       moodStyleKey = style.value;
       localStorage.setItem("ljt_mood_style", moodStyleKey);
-      if(moodPlaying){ stopMood(false); moodWanted = true; startMood(false); }
+      if(moodPlaying || moodLoading){ stopMood(false); moodWanted = true; startMood(false); }
       else updateMoodControls();
     };
     volume.oninput = () => {
       moodVolume = Number(volume.value) / 100;
       localStorage.setItem("ljt_mood_volume", String(moodVolume));
       if(moodMasterGain && moodAudioContext){
-        moodMasterGain.gain.setTargetAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime, .08);
+        moodMasterGain.gain.setTargetAtTime(Math.max(.0001, .42 * moodVolume), moodAudioContext.currentTime, .08);
       }
     };
     updateMoodControls();
@@ -1553,7 +1697,7 @@
           <p>Discover your Relationship IQ, understand how you connect, and meet people who complement the way you love.</p>
           <div class="heroSlogan">Better insight. Better conversations. Make the right choice.</div>
           <div class="moodPlayer" aria-label="Homepage music controls">
-            <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Set the mood</span></button>
+            <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Play instrumental</span></button>
             <label class="moodSelectWrap" for="moodStyle">Mood <select id="moodStyle">
               <option value="velvet">Velvet R&amp;B</option>
               <option value="champagne">Champagne Jazz</option>
@@ -1562,7 +1706,8 @@
               <option value="pop">Pop</option>
             </select></label>
             <label class="moodVolumeWrap" for="moodVolume">Volume <input id="moodVolume" type="range" min="0" max="100" step="1" value="30" /></label>
-            <span class="moodStatus" id="moodStatus">Velvet R&amp;B • Original instrumental • Off by default</span>
+            <span class="moodStatus" id="moodStatus">Velvet R&amp;B • Electric piano, bass, sax, and slow drums • Off by default</span>
+            <span class="moodCredit">Instrument samples: <a href="https://github.com/gleitz/midi-js-soundfonts/tree/gh-pages/FluidR3_GM" target="_blank" rel="noopener">FluidR3 GM</a> under <a href="https://creativecommons.org/licenses/by/3.0/us/" target="_blank" rel="noopener">CC BY 3.0</a>; drum samples are public domain.</span>
           </div>
         </div>
       </section>
