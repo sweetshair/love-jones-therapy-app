@@ -826,29 +826,34 @@
   // loaded only after the listener presses play; commercial songs are not used.
   const moodStyles = {
     velvet: {
-      label:"Velvet R&B", description:"Electric piano, bass, sax, and slow drums", bpm:72,
+      label:"Velvet R&B", description:"Electric piano, bass, sax, and slow drums", bpm:72, tempoRange:[68,76],
       band:{ harmony:"electric_piano_1", bass:"electric_bass_finger", lead:"tenor_sax", drums:"TR-808", hat:"hihat-close" },
-      chords:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,64]]
+      chords:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,64],[50,53,57,60],[52,55,59,62],[52,56,59,62],[55,59,62,65]],
+      progressions:[[0,1,2,3,0,1,4,6],[0,4,1,3,5,4,1,6],[2,5,4,3,0,1,7,6],[0,3,4,1,2,5,1,6]]
     },
     champagne: {
-      label:"Champagne Jazz", description:"Grand piano, walking bass, sax, and swing drums", bpm:108,
+      label:"Champagne Jazz", description:"Grand piano, walking bass, sax, and swing drums", bpm:108, tempoRange:[102,116],
       band:{ harmony:"acoustic_grand_piano", bass:"acoustic_bass", lead:"alto_sax", drums:"LM-2", hat:"hhclosed", ride:"ride" },
-      chords:[[50,53,57,60],[43,47,50,53],[48,52,55,59],[45,49,52,55]]
+      chords:[[50,53,57,60],[43,47,50,53],[48,52,55,59],[45,49,52,55],[52,55,59,62],[45,48,52,55],[53,57,60,64],[47,50,53,57]],
+      progressions:[[0,1,2,3,0,1,2,2],[4,3,0,1,2,5,0,1],[6,7,4,3,0,1,2,3],[5,0,1,2,4,3,0,1]]
     },
     rock: {
-      label:"Rock and Roll", description:"Distorted guitar, picked bass, organ, and driving drums", bpm:132,
+      label:"Rock and Roll", description:"Distorted guitar, picked bass, organ, and driving drums", bpm:132, tempoRange:[126,140],
       band:{ harmony:"distortion_guitar", bass:"electric_bass_pick", lead:"rock_organ", drums:"LM-2", hat:"hhclosed" },
-      chords:[[40,47,52],[43,50,55],[45,52,57],[38,45,50]]
+      chords:[[40,47,52],[43,50,55],[45,52,57],[38,45,50],[36,43,48],[47,54,59]],
+      progressions:[[0,1,2,0,4,1,3,2],[0,4,1,3,0,4,2,5],[2,1,0,3,2,4,1,5],[0,3,2,4,0,1,2,5]]
     },
     country: {
-      label:"Country", description:"Steel-string guitar, upright bass, fiddle, and country rhythm", bpm:104,
+      label:"Country", description:"Steel-string guitar, upright bass, fiddle, and country rhythm", bpm:104, tempoRange:[98,112],
       band:{ harmony:"acoustic_guitar_steel", bass:"acoustic_bass", lead:"fiddle", drums:"Casio-RZ1", hat:"hihat" },
-      chords:[[55,59,62],[48,52,55],[50,54,57],[55,59,62]]
+      chords:[[55,59,62],[48,52,55],[50,54,57],[52,55,59],[45,48,52],[47,50,54]],
+      progressions:[[0,1,0,2,0,1,2,0],[0,3,1,2,0,3,2,0],[1,0,4,2,1,0,2,0],[0,5,1,0,3,1,2,0]]
     },
     pop: {
-      label:"Pop", description:"Bright piano, clean guitar, bass, and pop drums", bpm:118,
+      label:"Pop", description:"Bright piano, clean guitar, bass, and pop drums", bpm:118, tempoRange:[112,124],
       band:{ harmony:"bright_acoustic_piano", bass:"synth_bass_1", lead:"electric_guitar_clean", drums:"TR-808", hat:"hihat-close" },
-      chords:[[48,52,55,60],[45,48,52,57],[41,45,48,53],[43,47,50,55]]
+      chords:[[48,52,55,60],[45,48,52,57],[41,45,48,53],[43,47,50,55],[50,53,57,62],[52,55,59,64]],
+      progressions:[[0,3,1,2,0,3,1,2],[1,2,0,3,1,2,0,3],[0,1,4,3,0,1,2,3],[5,2,0,3,5,2,1,3]]
     }
   };
   let moodAudioContext = null;
@@ -858,6 +863,7 @@
   let moodLibraryPromise = null;
   let moodTimer = null;
   let moodBarIndex = 0;
+  let moodPerformance = null;
   let moodLoadToken = 0;
   let moodLoading = false;
   let moodPlaying = false;
@@ -920,72 +926,167 @@
     notes.forEach((note, index) => bandNote("harmony", note, time + (index * strum), duration, velocity));
   }
 
-  function playVelvetBar(style, chord, start){
-    const beat = 60 / style.bpm;
-    chordNotes(chord.slice(1), start, beat * 1.72, 58, .018);
-    chordNotes(chord.slice(1), start + (beat * 2), beat * 1.72, 55, .02);
-    [0,1.5,2.5].forEach((offset,index) => bandNote("bass", index === 1 ? chord[2] - 12 : chord[0] - 12, start + (beat * offset), beat * .68, 72));
-    drum("kick", start, 80); drum("kick", start + (beat * 2.5), 68);
-    drum("snare", start + beat, 64); drum("snare", start + (beat * 3), 70);
-    for(let step=0; step<8; step++) drum(style.band.hat, start + (step * beat / 2), step % 2 ? 42 : 52);
-    [chord[2]+12,chord[3]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (.72 + index * 1.08)), beat * .44, 45));
+  function randomInt(min, max){ return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function scaledVelocity(velocity, energy){
+    return Math.max(1, Math.min(127, Math.round(velocity * energy)));
   }
 
-  function playChampagneBar(style, chord, start, barNumber){
-    const beat = 60 / style.bpm;
-    const bassLine = [chord[0]-12,chord[1]-12,chord[2]-12,chord[3]-12];
-    bassLine.forEach((note,index) => bandNote("bass", note, start + (beat * index), beat * .8, 72));
-    chordNotes(chord.slice(1), start + (beat * .08), beat * .62, 61, .012);
-    chordNotes(chord.slice(1), start + (beat * 2.58), beat * .72, 64, .014);
-    drum("kick", start, 48); drum("kick", start + (beat * 2), 44);
-    drum("snare", start + beat, 48); drum("snare", start + (beat * 3), 52);
-    for(let step=0; step<4; step++){
-      drum(step === 0 && style.band.ride ? style.band.ride : style.band.hat, start + (step * beat), step === 0 ? 58 : 46);
-      drum(style.band.hat, start + (beat * (step + .67)), 38);
-    }
-    [chord[3]+12,chord[2]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note + (barNumber % 2 ? 2 : 0), start + (beat * (1.25 + index * .84)), beat * .48, 51));
+  function beginMoodSection(style, performance){
+    const choices = style.progressions.map((_, index) => index).filter(index => index !== performance.progressionIndex);
+    performance.progressionIndex = choices[randomInt(0, choices.length - 1)];
+    performance.progression = style.progressions[performance.progressionIndex];
+    performance.sectionCount += 1;
+    performance.sectionBar = 0;
+    performance.sectionBars = performance.progression.length * (Math.random() < .58 ? 2 : 1);
+    performance.energy = performance.sectionCount === 0
+      ? .76
+      : (performance.sectionCount % 4 === 3 ? .62 : (.82 + (Math.random() * .24)));
+    performance.motif = randomInt(0, 3);
   }
 
-  function playRockBar(style, chord, start, barNumber){
-    const beat = 60 / style.bpm;
+  function createMoodPerformance(style){
+    const [minTempo, maxTempo] = style.tempoRange || [style.bpm, style.bpm];
+    const performance = {
+      bpm:randomInt(minTempo, maxTempo), progressionIndex:-1, progression:null,
+      sectionCount:-1, sectionBar:0, sectionBars:0, energy:.8, motif:0, totalBars:0
+    };
+    beginMoodSection(style, performance);
+    return performance;
+  }
+
+  function nextMoodBarPlan(style){
+    if(!moodPerformance) moodPerformance = createMoodPerformance(style);
+    if(moodPerformance.sectionBar >= moodPerformance.sectionBars) beginMoodSection(style, moodPerformance);
+    const phraseBar = moodPerformance.sectionBar % moodPerformance.progression.length;
+    const chordIndex = moodPerformance.progression[phraseBar];
+    const nextChordIndex = moodPerformance.progression[(phraseBar + 1) % moodPerformance.progression.length];
+    const plan = {
+      bpm:moodPerformance.bpm,
+      chord:style.chords[chordIndex],
+      nextChord:style.chords[nextChordIndex],
+      energy:moodPerformance.energy,
+      variant:(moodPerformance.motif + phraseBar + randomInt(0, 1)) % 4,
+      phraseBar,
+      sectionBar:moodPerformance.sectionBar,
+      sectionCount:moodPerformance.sectionCount,
+      isSectionStart:moodPerformance.sectionBar === 0,
+      isBreakdown:moodPerformance.energy < .7,
+      isFill:phraseBar === moodPerformance.progression.length - 1 || moodPerformance.sectionBar === moodPerformance.sectionBars - 1,
+      leadRest:Math.random() < (moodPerformance.energy < .7 ? .48 : .18)
+    };
+    moodPerformance.sectionBar += 1;
+    moodPerformance.totalBars += 1;
+    moodBarIndex = moodPerformance.totalBars;
+    return plan;
+  }
+
+  function playVelvetBar(style, chord, start, plan){
+    const beat = 60 / plan.bpm;
+    const energy = plan.energy;
+    const secondHit = [2,2.5,1.75,3][plan.variant];
+    chordNotes(chord.slice(1), start, beat * (plan.isBreakdown ? 3.6 : 1.72), scaledVelocity(58, energy), .018);
+    if(!plan.isBreakdown) chordNotes(chord.slice(1), start + (beat * secondHit), beat * 1.15, scaledVelocity(55, energy), .02);
+    const bassOffsets = plan.variant % 2 ? [0,1.5,2.75] : [0,1.75,3];
+    bassOffsets.forEach((offset,index) => {
+      const note = index === 1 ? chord[Math.min(2, chord.length - 1)] - 12 : chord[0] - 12;
+      bandNote("bass", note, start + (beat * offset), beat * .68, scaledVelocity(72, energy));
+    });
+    drum("kick", start, scaledVelocity(80, energy));
+    if(!plan.isBreakdown) drum("kick", start + (beat * (plan.variant === 2 ? 2.75 : 2.5)), scaledVelocity(68, energy));
+    drum("snare", start + beat, scaledVelocity(64, energy)); drum("snare", start + (beat * 3), scaledVelocity(70, energy));
     for(let step=0; step<8; step++){
+      if(!plan.isBreakdown || step % 2 === 0) drum(style.band.hat, start + (step * beat / 2), scaledVelocity(step % 2 ? 42 : 52, energy));
+    }
+    if(!plan.leadRest){
+      const top = chord[chord.length - 1];
+      const phrases = [[chord[2],top,chord[1]],[top,chord[2],chord[1]],[chord[1],chord[2],top],[chord[2],chord[1],top]];
+      phrases[plan.variant].forEach((note,index) => bandNote("lead", note + 12, start + (beat * (.58 + index * (plan.variant % 2 ? .92 : 1.08))), beat * .44, scaledVelocity(47, energy)));
+    }
+  }
+
+  function playChampagneBar(style, chord, start, plan){
+    const beat = 60 / plan.bpm;
+    const energy = plan.energy;
+    const bassLine = [chord[0]-12,chord[1]-12,chord[2]-12,plan.variant % 2 ? plan.nextChord[0]-13 : chord[chord.length-1]-12];
+    bassLine.forEach((note,index) => bandNote("bass", note, start + (beat * index), beat * .8, scaledVelocity(72, energy)));
+    const firstComp = [.08,.42,.08,.7][plan.variant];
+    chordNotes(chord.slice(1), start + (beat * firstComp), beat * .62, scaledVelocity(61, energy), .012);
+    if(!plan.isBreakdown || plan.variant % 2) chordNotes(chord.slice(1), start + (beat * (plan.variant === 2 ? 3.08 : 2.58)), beat * .72, scaledVelocity(64, energy), .014);
+    drum("kick", start, scaledVelocity(48, energy));
+    if(!plan.isBreakdown) drum("kick", start + (beat * 2), scaledVelocity(44, energy));
+    drum("snare", start + beat, scaledVelocity(48, energy)); drum("snare", start + (beat * 3), scaledVelocity(52, energy));
+    for(let step=0; step<4; step++){
+      const rideNote = (step === 0 || (plan.variant === 3 && step === 2)) && style.band.ride ? style.band.ride : style.band.hat;
+      drum(rideNote, start + (step * beat), scaledVelocity(step === 0 ? 58 : 46, energy));
+      if(!plan.isBreakdown) drum(style.band.hat, start + (beat * (step + .67)), scaledVelocity(38, energy));
+    }
+    if(!plan.leadRest){
+      const phrases = [[chord[3],chord[2],chord[1]],[chord[1],chord[2],chord[3]],[chord[2],chord[1],chord[3]],[chord[3],chord[1],chord[2]]];
+      phrases[plan.variant].forEach((note,index) => bandNote("lead", note + 12, start + (beat * (1.05 + index * .84)), beat * (index === 2 ? .7 : .48), scaledVelocity(51, energy)));
+    }
+  }
+
+  function playRockBar(style, chord, start, plan){
+    const beat = 60 / plan.bpm;
+    const energy = plan.energy;
+    const steps = plan.isBreakdown ? [0,4] : [0,1,2,3,4,5,6,7];
+    steps.forEach(step => {
       const when = start + (step * beat / 2);
-      chordNotes(chord, when, beat * .43, step % 2 ? 60 : 74);
-      bandNote("bass", chord[0]-12, when, beat * .4, step % 2 ? 66 : 78);
-      drum(style.band.hat, when, step % 2 ? 52 : 66);
+      chordNotes(chord, when, beat * (plan.isBreakdown ? 1.7 : .43), scaledVelocity(step % 2 ? 60 : 74, energy));
+      bandNote("bass", chord[0]-12, when, beat * (plan.isBreakdown ? 1.5 : .4), scaledVelocity(step % 2 ? 66 : 78, energy));
+      drum(style.band.hat, when, scaledVelocity(step % 2 ? 52 : 66, energy));
+    });
+    const kicks = plan.variant % 2 ? [0,1.5,2.5] : [0,2,2.5];
+    kicks.forEach((offset,index) => drum("kick", start + (beat * offset), scaledVelocity(index ? 75 : 90, energy)));
+    drum("snare", start + beat, scaledVelocity(86, energy)); drum("snare", start + (beat * 3), scaledVelocity(90, energy));
+    if(plan.isSectionStart) drum("crash", start, scaledVelocity(82, energy));
+    if(!plan.leadRest){
+      const phrases = [[chord[1],chord[2],chord[1]],[chord[2],chord[1],chord[0]],[chord[1],chord[1],chord[2]],[chord[2],chord[0],chord[1]]];
+      phrases[plan.variant].forEach((note,index) => bandNote("lead", note + 12, start + (beat * (.45 + index * (plan.variant === 1 ? .82 : 1.15))), beat * .48, scaledVelocity(56, energy)));
     }
-    [0,2,2.5].forEach((offset,index) => drum("kick", start + (beat * offset), index ? 75 : 90));
-    drum("snare", start + beat, 86); drum("snare", start + (beat * 3), 90);
-    if(barNumber % 4 === 0) drum("crash", start, 82);
-    [chord[1]+12,chord[2]+12,chord[1]+12].forEach((note,index) => bandNote("lead", note, start + (beat * (.5 + index * 1.15)), beat * .48, 56));
   }
 
-  function playCountryBar(style, chord, start, barNumber){
-    const beat = 60 / style.bpm;
-    bandNote("bass", chord[0]-12, start, beat * .72, 74);
-    bandNote("bass", chord[2]-12, start + (beat * 2), beat * .72, 70);
-    chordNotes(chord, start + beat, beat * .52, 66, .026);
-    chordNotes(chord, start + (beat * 3), beat * .52, 70, .026);
-    drum("kick", start, 76); drum("kick", start + (beat * 2), 72);
-    drum("snare", start + beat, 64); drum("snare", start + (beat * 3), 68);
-    for(let step=1; step<8; step+=2) drum(style.band.hat, start + (step * beat / 2), 40);
-    [chord[2]+12,chord[1]+12,chord[2]+12].forEach((note,index) => bandNote("lead", note + (barNumber % 2 ? -2 : 0), start + (beat * (.48 + index * 1.08)), beat * .38, 58));
+  function playCountryBar(style, chord, start, plan){
+    const beat = 60 / plan.bpm;
+    const energy = plan.energy;
+    bandNote("bass", chord[0]-12, start, beat * .72, scaledVelocity(74, energy));
+    bandNote("bass", (plan.variant === 2 ? plan.nextChord[0]-12 : chord[2]-12), start + (beat * 2), beat * .72, scaledVelocity(70, energy));
+    const strumBeats = plan.isBreakdown ? [1] : (plan.variant % 2 ? [1,2.5,3] : [1,3]);
+    strumBeats.forEach((offset,index) => chordNotes(chord, start + (beat * offset), beat * .52, scaledVelocity(66 + index * 2, energy), .026));
+    drum("kick", start, scaledVelocity(76, energy));
+    if(!plan.isBreakdown) drum("kick", start + (beat * 2), scaledVelocity(72, energy));
+    drum("snare", start + beat, scaledVelocity(64, energy)); drum("snare", start + (beat * 3), scaledVelocity(68, energy));
+    for(let step=1; step<8; step+=2){
+      if(!plan.isBreakdown || step % 4 === 1) drum(style.band.hat, start + (step * beat / 2), scaledVelocity(40, energy));
+    }
+    if(!plan.leadRest){
+      const phrases = [[chord[2],chord[1],chord[2]],[chord[1],chord[2],chord[0]],[chord[2],chord[0],chord[1]],[chord[0],chord[1],chord[2]]];
+      phrases[plan.variant].forEach((note,index) => bandNote("lead", note + 12, start + (beat * (.45 + index * (plan.variant === 3 ? .82 : 1.08))), beat * .38, scaledVelocity(58, energy)));
+    }
   }
 
-  function playPopBar(style, chord, start){
-    const beat = 60 / style.bpm;
-    chordNotes(chord.slice(1), start, beat * 1.82, 57, .012);
-    chordNotes(chord.slice(1), start + (beat * 2), beat * 1.82, 57, .012);
+  function playPopBar(style, chord, start, plan){
+    const beat = 60 / plan.bpm;
+    const energy = plan.energy;
+    chordNotes(chord.slice(1), start, beat * (plan.isBreakdown ? 3.7 : 1.82), scaledVelocity(57, energy), .012);
+    if(!plan.isBreakdown) chordNotes(chord.slice(1), start + (beat * (plan.variant === 1 ? 2.5 : 2)), beat * 1.3, scaledVelocity(57, energy), .012);
     for(let step=0; step<4; step++){
-      bandNote("bass", chord[0]-12, start + (beat * step), beat * .72, step === 0 ? 78 : 68);
-      drum("kick", start + (beat * step), step === 0 ? 86 : 72);
+      if(!plan.isBreakdown || step % 2 === 0){
+        const bassNote = step === 3 && plan.variant === 3 ? plan.nextChord[0]-12 : chord[0]-12;
+        bandNote("bass", bassNote, start + (beat * step), beat * .72, scaledVelocity(step === 0 ? 78 : 68, energy));
+        drum("kick", start + (beat * step), scaledVelocity(step === 0 ? 86 : 72, energy));
+      }
     }
-    drum("snare", start + beat, 72); drum("clap", start + beat, 46);
-    drum("snare", start + (beat * 3), 76); drum("clap", start + (beat * 3), 50);
+    drum("snare", start + beat, scaledVelocity(72, energy)); drum("clap", start + beat, scaledVelocity(46, energy));
+    drum("snare", start + (beat * 3), scaledVelocity(76, energy)); drum("clap", start + (beat * 3), scaledVelocity(50, energy));
     for(let step=0; step<8; step++){
-      drum(style.band.hat, start + (step * beat / 2), step % 2 ? 44 : 58);
-      const note = chord[1 + (step % (chord.length - 1))] + (step > 3 ? 12 : 0);
-      bandNote("lead", note, start + (step * beat / 2), beat * .34, 50);
+      if(!plan.isBreakdown || step % 2 === 0) drum(style.band.hat, start + (step * beat / 2), scaledVelocity(step % 2 ? 44 : 58, energy));
+      if(!plan.leadRest && (plan.variant !== 2 || step % 2 === 0)){
+        const noteIndex = 1 + ((step + plan.variant) % (chord.length - 1));
+        const note = chord[noteIndex] + (step > 3 ? 12 : 0);
+        bandNote("lead", note, start + (step * beat / 2), beat * .34, scaledVelocity(50, energy));
+      }
     }
   }
 
@@ -994,21 +1095,29 @@
   function playMoodBar(){
     if(!moodAudioContext || !moodBand || !moodPlaying) return;
     const style = moodStyles[moodStyleKey];
-    const barNumber = moodBarIndex++;
-    const chord = style.chords[barNumber % style.chords.length];
+    const plan = nextMoodBarPlan(style);
     const start = moodAudioContext.currentTime + .08;
-    moodArrangements[moodStyleKey](style, chord, start, barNumber);
-    if(barNumber % 4 === 3){
-      const beat = 60 / style.bpm;
-      [3.25,3.5,3.75].forEach((offset,index) => drum("snare", start + (beat * offset), 50 + (index * 10)));
+    moodArrangements[moodStyleKey](style, plan.chord, start, plan);
+    if(plan.isFill){
+      const beat = 60 / plan.bpm;
+      const fillNotes = plan.variant % 2 ? ["snare","snare","kick"] : ["snare","snare","snare"];
+      [3.25,3.5,3.75].forEach((offset,index) => drum(fillNotes[index], start + (beat * offset), scaledVelocity(50 + (index * 10), plan.energy)));
     }
   }
 
-  function startMoodLoop(){
-    moodBarIndex = 0;
-    playMoodBar();
-    const barMilliseconds = (60 / moodStyles[moodStyleKey].bpm) * 4000;
-    moodTimer = setInterval(playMoodBar, barMilliseconds);
+  function startMoodLoop(resetPerformance=true){
+    if(moodTimer){ clearTimeout(moodTimer); moodTimer = null; }
+    if(resetPerformance || !moodPerformance){
+      moodBarIndex = 0;
+      moodPerformance = createMoodPerformance(moodStyles[moodStyleKey]);
+    }
+    const playAndSchedule = () => {
+      if(!moodPlaying || !moodAudioContext || !moodBand) return;
+      playMoodBar();
+      const barMilliseconds = (60 / (moodPerformance?.bpm || moodStyles[moodStyleKey].bpm)) * 4000;
+      moodTimer = setTimeout(playAndSchedule, barMilliseconds);
+    };
+    playAndSchedule();
   }
 
   async function startMood(remember=true){
@@ -1066,9 +1175,10 @@
 
   function stopMood(remember=true){
     moodLoadToken++;
-    if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    if(moodTimer){ clearTimeout(moodTimer); moodTimer = null; }
     if(moodBand) Object.values(moodBand).forEach(instrument => instrument.stop());
     moodBand = null;
+    moodPerformance = null;
     moodLoading = false;
     moodPlaying = false;
     const contextToClose = moodAudioContext;
@@ -1094,7 +1204,7 @@
       return;
     }
     if(!moodPlaying || !moodAudioContext || !moodMasterGain) return;
-    if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    if(moodTimer){ clearTimeout(moodTimer); moodTimer = null; }
     if(moodBand) Object.values(moodBand).forEach(instrument => instrument.stop());
     const contextToPause = moodAudioContext;
     moodPlaying = false;
@@ -1122,7 +1232,7 @@
     moodMasterGain.gain.cancelScheduledValues(moodAudioContext.currentTime);
     moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
     moodMasterGain.gain.exponentialRampToValueAtTime(moodOutputLevel(), moodAudioContext.currentTime + .45);
-    startMoodLoop();
+    startMoodLoop(false);
     updateMoodControls();
   }
 
@@ -1134,8 +1244,8 @@
     button.disabled = moodLoading;
     button.setAttribute("aria-pressed", String(moodPlaying));
     label.textContent = moodLoading ? "Loading instruments…" : (moodPlaying ? "Pause the music" : "Play instrumental");
-    const playbackStatus = moodLoading ? "Loading recorded instruments" : (moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default"));
-    status.textContent = `${moodStyles[moodStyleKey].label} • Live-band sound • ${moodStyles[moodStyleKey].description} • ${playbackStatus}`;
+    const playbackStatus = moodLoading ? "Loading band instruments" : (moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default"));
+    status.textContent = `${moodStyles[moodStyleKey].label} • Long-form live-band mix • ${moodStyles[moodStyleKey].description} • ${playbackStatus}`;
   }
 
   function setupMoodControls(){
