@@ -823,21 +823,25 @@
   // Original ambient soundscape generated in the browser. It never autoplays
   // on a fresh visit and does not use third-party or copyrighted audio files.
   const moodStyles = {
-    romantic: {
-      label:"Romantic Glow", interval:4900, release:5.35, attack:1.25, wave:"sine", bassWave:"triangle",
-      chords:[[130.81,164.81,196.00,246.94],[110.00,130.81,164.81,196.00],[87.31,110.00,130.81,164.81],[98.00,123.47,146.83,196.00]]
+    velvet: {
+      label:"Velvet R&B", interval:3800, release:4.35, attack:.68, wave:"triangle", bassWave:"sine",
+      chords:[[103.83,130.81,155.56,196.00],[116.54,146.83,174.61,220.00],[98.00,123.47,155.56,196.00],[87.31,116.54,146.83,174.61]]
     },
-    soulful: {
-      label:"Soulful Night", interval:4200, release:4.7, attack:.82, wave:"triangle", bassWave:"sine",
-      chords:[[116.54,146.83,174.61,220.00],[98.00,116.54,146.83,174.61],[103.83,130.81,155.56,196.00],[116.54,146.83,174.61,233.08]]
+    champagne: {
+      label:"Champagne Jazz", interval:4450, release:4.95, attack:.95, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,246.94],[146.83,174.61,220.00,261.63],[123.47,155.56,185.00,233.08],[110.00,138.59,164.81,207.65]]
     },
-    calm: {
-      label:"Calm Connection", interval:6100, release:6.55, attack:1.9, wave:"sine", bassWave:"sine",
-      chords:[[146.83,185.00,220.00,277.18],[110.00,146.83,185.00,220.00],[123.47,146.83,185.00,246.94],[98.00,123.47,146.83,196.00]]
+    rock: {
+      label:"Rock and Roll", interval:2250, release:2.55, attack:.08, wave:"sawtooth", bassWave:"square",
+      chords:[[82.41,123.47,164.81,207.65],[98.00,146.83,196.00,246.94],[110.00,164.81,220.00,277.18],[73.42,110.00,146.83,185.00]]
     },
-    fresh: {
-      label:"Fresh Start", interval:3500, release:3.95, attack:.45, wave:"sine", bassWave:"triangle",
-      chords:[[130.81,164.81,196.00,261.63],[98.00,123.47,146.83,196.00],[110.00,130.81,164.81,220.00],[87.31,110.00,130.81,174.61]]
+    country: {
+      label:"Country", interval:2850, release:3.15, attack:.18, wave:"triangle", bassWave:"square",
+      chords:[[98.00,123.47,146.83,196.00],[130.81,164.81,196.00,261.63],[146.83,185.00,220.00,293.66],[110.00,138.59,164.81,220.00]]
+    },
+    pop: {
+      label:"Pop", interval:2450, release:2.9, attack:.12, wave:"sine", bassWave:"triangle",
+      chords:[[130.81,164.81,196.00,261.63],[98.00,123.47,146.83,196.00],[110.00,138.59,164.81,220.00],[87.31,110.00,130.81,174.61]]
     }
   };
   let moodAudioContext = null;
@@ -845,9 +849,11 @@
   let moodTimer = null;
   let moodChordIndex = 0;
   let moodPlaying = false;
-  let moodWanted = localStorage.getItem("ljt_mood_enabled") === "true";
+  let moodWanted = false;
+  let moodPausedForCall = false;
   let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("ljt_mood_volume") || .30)));
-  let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "romantic";
+  let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "velvet";
+  localStorage.removeItem("ljt_mood_enabled");
 
   function playMoodChord(){
     if(!moodAudioContext || !moodMasterGain || !moodPlaying) return;
@@ -871,6 +877,12 @@
 
   async function startMood(remember=true){
     if(moodPlaying) return;
+    if(callIsOpen()){
+      if(remember) moodWanted = true;
+      moodPausedForCall = moodWanted;
+      updateMoodControls();
+      return;
+    }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if(!AudioContextClass) return showToast("Music is not supported in this browser");
     moodAudioContext = new AudioContextClass();
@@ -883,7 +895,8 @@
     moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .7);
     playMoodChord();
     moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
-    if(remember){ moodWanted = true; localStorage.setItem("ljt_mood_enabled", "true"); }
+    moodPausedForCall = false;
+    if(remember) moodWanted = true;
     updateMoodControls();
   }
 
@@ -898,7 +911,38 @@
     }
     moodAudioContext = null;
     moodMasterGain = null;
-    if(remember){ moodWanted = false; localStorage.setItem("ljt_mood_enabled", "false"); }
+    moodPausedForCall = false;
+    if(remember) moodWanted = false;
+    updateMoodControls();
+  }
+
+  function pauseMoodForCall(){
+    if(!moodPlaying || !moodAudioContext || !moodMasterGain) return;
+    if(moodTimer){ clearInterval(moodTimer); moodTimer = null; }
+    const contextToPause = moodAudioContext;
+    moodPlaying = false;
+    moodPausedForCall = moodWanted;
+    moodMasterGain.gain.cancelScheduledValues(contextToPause.currentTime);
+    moodMasterGain.gain.setTargetAtTime(.0001, contextToPause.currentTime, .05);
+    setTimeout(() => {
+      if(moodPausedForCall && moodAudioContext === contextToPause){
+        contextToPause.suspend().catch(() => {});
+      }
+    }, 220);
+    updateMoodControls();
+  }
+
+  async function resumeMoodAfterCall(){
+    if(!moodPausedForCall || !moodWanted || !moodAudioContext || !moodMasterGain || callIsOpen()) return;
+    moodPausedForCall = false;
+    await moodAudioContext.resume();
+    moodPlaying = true;
+    moodChordIndex = 0;
+    moodMasterGain.gain.cancelScheduledValues(moodAudioContext.currentTime);
+    moodMasterGain.gain.setValueAtTime(.0001, moodAudioContext.currentTime);
+    moodMasterGain.gain.exponentialRampToValueAtTime(Math.max(.0001, .16 * moodVolume), moodAudioContext.currentTime + .45);
+    playMoodChord();
+    moodTimer = setInterval(playMoodChord, moodStyles[moodStyleKey].interval);
     updateMoodControls();
   }
 
@@ -909,7 +953,8 @@
     if(!button || !label || !status) return;
     button.setAttribute("aria-pressed", String(moodPlaying));
     label.textContent = moodPlaying ? "Pause the mood" : "Set the mood";
-    status.textContent = `${moodStyles[moodStyleKey].label} • Original instrumental • ${moodPlaying ? "Playing" : "Off by default"}`;
+    const playbackStatus = moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default");
+    status.textContent = `${moodStyles[moodStyleKey].label} • Original instrumental • ${playbackStatus}`;
   }
 
   function setupMoodControls(){
@@ -934,7 +979,6 @@
       }
     };
     updateMoodControls();
-    if(moodWanted && navigator.userActivation?.hasBeenActive) startMood(false);
   }
 
   function showToast(msg){
@@ -1511,13 +1555,14 @@
           <div class="moodPlayer" aria-label="Homepage music controls">
             <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Set the mood</span></button>
             <label class="moodSelectWrap" for="moodStyle">Mood <select id="moodStyle">
-              <option value="romantic">Romantic Glow</option>
-              <option value="soulful">Soulful Night</option>
-              <option value="calm">Calm Connection</option>
-              <option value="fresh">Fresh Start</option>
+              <option value="velvet">Velvet R&amp;B</option>
+              <option value="champagne">Champagne Jazz</option>
+              <option value="rock">Rock and Roll</option>
+              <option value="country">Country</option>
+              <option value="pop">Pop</option>
             </select></label>
             <label class="moodVolumeWrap" for="moodVolume">Volume <input id="moodVolume" type="range" min="0" max="100" step="1" value="30" /></label>
-            <span class="moodStatus" id="moodStatus">Romantic Glow • Original instrumental • Off by default</span>
+            <span class="moodStatus" id="moodStatus">Velvet R&amp;B • Original instrumental • Off by default</span>
           </div>
         </div>
       </section>
@@ -2947,13 +2992,14 @@ Conversation starters:
     state.callCameraOff = false;
     state.pendingLocalCallCandidates = [];
     state.pendingRemoteCallCandidates = [];
+    queueMicrotask(() => resumeMoodAfterCall().catch(() => {}));
   }
 
   function stopCallWatch(){
     if(typeof state.callUnsubscribe === "function") state.callUnsubscribe();
     state.callUnsubscribe = null;
-    cleanupCallMedia();
     state.call = null;
+    cleanupCallMedia();
     state.callBusy = false;
   }
 
@@ -2967,6 +3013,7 @@ Conversation starters:
         if(announce) showToast(error.message || "The call could not be closed cleanly.");
       }
     }
+    if(state.call?.id === callId) state.call = { ...state.call, status };
     cleanupCallMedia();
     state.callBusy = false;
     if(announce) showToast(status === "declined" ? "Call declined." : "Call ended.");
@@ -3068,6 +3115,7 @@ Conversation starters:
     state.callBusy = true;
     renderMessages();
     try{
+      pauseMoodForCall();
       state.localCallStream = await getCallMedia(mode);
       const peer = createCallPeer(conversation, "caller");
       const offer = await peer.createOffer();
@@ -3090,8 +3138,8 @@ Conversation starters:
       watchRemoteCallCandidates(conversation, state.activeCallId, "callee");
       await flushLocalCallCandidates(conversation);
     }catch(error){
-      cleanupCallMedia();
       state.call = null;
+      cleanupCallMedia();
       showToast(error.name === "NotAllowedError"
         ? "Allow camera and microphone access to place the call."
         : (error.message || "The call could not start."));
@@ -3108,6 +3156,7 @@ Conversation starters:
     state.callBusy = true;
     renderMessages();
     try{
+      pauseMoodForCall();
       state.localCallStream = await getCallMedia(call.mode);
       state.activeCallId = call.id;
       const peer = createCallPeer(conversation, "callee");
@@ -3384,7 +3433,6 @@ Conversation starters:
 
   // =================== ROUTER ===================
   function render(){
-    if(state.screen !== "home" && moodPlaying) stopMood(false);
     if(state.screen === "home") return renderHome();
 
     if(state.screen === "quiz"){
