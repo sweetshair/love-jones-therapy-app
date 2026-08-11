@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v17";
+const VERSION = "fod-riq-v29";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -21,7 +21,9 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS.map(asset => new Request(asset, { cache:"reload" }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -41,16 +43,32 @@ self.addEventListener("fetch", (event) => {
   // Only handle GET
   if (req.method !== "GET") return;
 
-  // Network-first for HTML so you see updates faster
-  if (req.headers.get("accept")?.includes("text/html")) {
+  const url = new URL(req.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isNavigation = req.mode === "navigate" || req.destination === "document";
+  const isFreshAppFile = isSameOrigin && (
+    isNavigation
+    || req.destination === "script"
+    || url.pathname.endsWith("/manifest.webmanifest")
+  );
+
+  // Network-first for the app shell and scripts so reopening the app gets updates.
+  if (isFreshAppFile) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache:"no-store" })
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          if(res.ok){
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
           return res;
         })
-        .catch(() => caches.match(req).then((m) => m || caches.match("./")))
+        .catch(async () => {
+          const cached = await caches.match(req);
+          if(cached) return cached;
+          if(isNavigation) return caches.match("./");
+          return Response.error();
+        })
     );
     return;
   }

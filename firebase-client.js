@@ -3,6 +3,7 @@ import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   getAuth,
+  getIdToken,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -22,6 +23,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   where
@@ -52,7 +54,10 @@ const verificationSettings = {
   handleCodeInApp: false
 };
 
-await setPersistence(auth, browserLocalPersistence);
+const authPersistenceReady = Promise.race([
+  setPersistence(auth, browserLocalPersistence),
+  new Promise(resolve => setTimeout(resolve, 4000))
+]).catch(() => undefined);
 
 function publicUser(user) {
   if (!user) return null;
@@ -69,7 +74,12 @@ function requireUser() {
   return auth.currentUser;
 }
 
+async function getCurrentUserIdToken() {
+  return getIdToken(requireUser());
+}
+
 async function signUp({ name, phone, email, password, consent }) {
+  await authPersistenceReady;
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const user = credential.user;
   await updateProfile(user, { displayName: name });
@@ -88,6 +98,7 @@ async function signUp({ name, phone, email, password, consent }) {
 }
 
 async function signIn(email, password) {
+  await authPersistenceReady;
   const credential = await signInWithEmailAndPassword(auth, email, password);
   return publicUser(credential.user);
 }
@@ -190,8 +201,7 @@ async function findDatingProfiles(relationshipTypes = []) {
   seenSnapshot.forEach(item => seen.add(item.data().toId));
   const snapshot = await getDocs(query(
     collection(db, "datingProfiles"),
-    where("active", "==", true),
-    limit(80)
+    where("active", "==", true)
   ));
   snapshot.forEach(item => {
     const data = item.data();
@@ -199,7 +209,7 @@ async function findDatingProfiles(relationshipTypes = []) {
       item.id !== user.uid
       && !seen.has(item.id)
       && !blocked.has(item.id)
-      && relationshipTypes.includes(data.relationshipType)
+      && (!relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
     ) {
       profiles.push({ id: item.id, ...data });
     }
@@ -313,6 +323,111 @@ async function sendMessage(matchId, text) {
   });
 }
 
+function safeSessionDescription(description) {
+  const type = String(description?.type || "");
+  const sdp = String(description?.sdp || "");
+  if (!["offer", "answer"].includes(type) || !sdp) {
+    throw new Error("The call connection information is incomplete.");
+  }
+  return { type, sdp };
+}
+
+function watchLatestCall(matchId, onCall, onError) {
+  requireUser();
+  return onSnapshot(query(
+    collection(db, "matches", matchId, "calls"),
+    orderBy("createdAt", "desc"),
+    limit(1)
+  ), snapshot => {
+    const item = snapshot.docs[0];
+    onCall(item ? { id: item.id, ...item.data() } : null);
+  }, onError);
+}
+
+async function createCallSignal(matchId, calleeId, mode, offer) {
+  const user = requireUser();
+  if (!matchId || !calleeId || calleeId === user.uid) throw new Error("That member cannot be called.");
+  if (!["audio", "video"].includes(mode)) throw new Error("Choose a voice or video call.");
+  const callReference = doc(collection(db, "matches", matchId, "calls"));
+  await setDoc(callReference, {
+    callerId: user.uid,
+    calleeId,
+    mode,
+    status: "ringing",
+    offer: safeSessionDescription(offer),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return callReference.id;
+}
+
+async function answerCallSignal(matchId, callId, answer) {
+  requireUser();
+  await setDoc(doc(db, "matches", matchId, "calls", callId), {
+    answer: safeSessionDescription(answer),
+    status: "active",
+    answeredAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
+async function updateCallStatus(matchId, callId, status) {
+  requireUser();
+  if (!["declined", "ended", "failed"].includes(status)) throw new Error("That call status is not supported.");
+  await setDoc(doc(db, "matches", matchId, "calls", callId), {
+    status,
+    endedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
+async function expireCallSignal(matchId, callId) {
+  requireUser();
+  const callRef = doc(db, "matches", matchId, "calls", callId);
+  return runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists()) return false;
+    const call = snapshot.data();
+    if (call.status !== "ringing") return false;
+    const createdAt = call.createdAt?.toMillis?.();
+    if (createdAt && Date.now() < createdAt + 20000) return false;
+    transaction.update(callRef, {
+      status: "missed",
+      endedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  });
+}
+
+async function addCallCandidate(matchId, callId, role, candidate) {
+  const user = requireUser();
+  if (!["caller", "callee"].includes(role)) throw new Error("The call role is invalid.");
+  const payload = candidate?.toJSON ? candidate.toJSON() : candidate;
+  if (!payload?.candidate) return;
+  await addDoc(collection(db, "matches", matchId, "calls", callId, `${role}Candidates`), {
+    ownerId: user.uid,
+    candidate: String(payload.candidate),
+    sdpMid: payload.sdpMid == null ? null : String(payload.sdpMid),
+    sdpMLineIndex: payload.sdpMLineIndex == null ? null : Number(payload.sdpMLineIndex),
+    createdAt: serverTimestamp()
+  });
+}
+
+function watchCallCandidates(matchId, callId, role, onCandidate, onError) {
+  requireUser();
+  if (!["caller", "callee"].includes(role)) throw new Error("The call role is invalid.");
+  return onSnapshot(
+    collection(db, "matches", matchId, "calls", callId, `${role}Candidates`),
+    snapshot => {
+      snapshot.docChanges().forEach(change => {
+        if (change.type === "added") onCandidate({ id: change.doc.id, ...change.doc.data() });
+      });
+    },
+    onError
+  );
+}
+
 async function unmatch(matchId) {
   const user = requireUser();
   await setDoc(doc(db, "matches", matchId), {
@@ -398,12 +513,20 @@ window.ljtFirebase = {
   getMutualMatches,
   watchMessages,
   sendMessage,
+  watchLatestCall,
+  createCallSignal,
+  answerCallSignal,
+  updateCallStatus,
+  expireCallSignal,
+  addCallCandidate,
+  watchCallCandidates,
   unmatch,
   blockMember,
   reportMember,
   uploadProfilePhoto,
   loadProfilePhoto,
   deleteProfilePhoto,
+  getCurrentUserIdToken,
   currentUser: () => publicUser(auth.currentUser)
 };
 
