@@ -1,6 +1,9 @@
 [functions]
   directory = "netlify/functions"
 
+[context.deploy-preview.environment]
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyAd8Fj3RRYXEju1z1ZfdW6351IGlN88Ono"
+
 [[headers]]
   for = "/*"
   [headers.values]
