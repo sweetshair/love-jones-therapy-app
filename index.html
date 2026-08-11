@@ -1779,23 +1779,15 @@
   async function registerSW(){
     if(!("serviceWorker" in navigator)) return;
     try{
-      const reg = await navigator.serviceWorker.register("./sw.js");
-
-      // If a new SW is waiting, notify and refresh on click later (simple approach)
-      if(reg.waiting){
-        showToast("Update ready ✅ Refresh the page");
-      }
-
-      reg.addEventListener("updatefound", () => {
-        const nw = reg.installing;
-        if(!nw) return;
-        nw.addEventListener("statechange", () => {
-          if(nw.state === "installed" && navigator.serviceWorker.controller){
-            showToast("Update ready ✅ Refresh the page");
-          }
-        });
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if(!hadController || refreshing) return;
+        refreshing = true;
+        window.location.reload();
       });
-
+      const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache:"none" });
+      await reg.update();
     }catch(e){
       // still works online
     }
