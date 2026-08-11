@@ -3,6 +3,7 @@ import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   getAuth,
+  getIdToken,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -68,6 +69,10 @@ function publicUser(user) {
 function requireUser() {
   if (!auth.currentUser) throw new Error("You must sign in first.");
   return auth.currentUser;
+}
+
+async function getCurrentUserIdToken() {
+  return getIdToken(requireUser());
 }
 
 async function signUp({ name, phone, email, password, consent }) {
@@ -516,6 +521,7 @@ window.ljtFirebase = {
   uploadProfilePhoto,
   loadProfilePhoto,
   deleteProfilePhoto,
+  getCurrentUserIdToken,
   currentUser: () => publicUser(auth.currentUser)
 };
 

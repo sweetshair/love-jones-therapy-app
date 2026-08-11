@@ -3416,10 +3416,31 @@ Conversation starters:
 
   const FREE_CALL_SECONDS = 5 * 60;
   const CALL_RING_SECONDS = 20;
-  const CALL_ICE_SERVERS = [
+  const CALL_STUN_SERVERS = [
     { urls:"stun:stun.l.google.com:19302" },
     { urls:"stun:stun1.l.google.com:19302" }
   ];
+  let callIceServers = null;
+  let callIceServersExpireAt = 0;
+
+  async function getCallIceServers(){
+    if(callIceServers && Date.now() < callIceServersExpireAt) return callIceServers;
+    const idToken = await window.ljtFirebase.getCurrentUserIdToken();
+    const response = await fetch("/.netlify/functions/turn-credentials", {
+      method:"POST",
+      headers:{ Authorization:`Bearer ${idToken}` },
+      cache:"no-store"
+    });
+    if(!response.ok) throw new Error("The secure call relay is unavailable. Try again in a moment.");
+    const payload = await response.json();
+    if(!Array.isArray(payload.iceServers) || !payload.iceServers.length){
+      throw new Error("The secure call relay returned incomplete connection information.");
+    }
+    callIceServers = [...CALL_STUN_SERVERS, ...payload.iceServers];
+    const lifetimeSeconds = Math.max(120, Math.min(900, Number(payload.expiresInSeconds) || 900));
+    callIceServersExpireAt = Date.now() + ((lifetimeSeconds - 60) * 1000);
+    return callIceServers;
+  }
 
   function callIsOpen(call = state.call){
     return Boolean(call && ["ringing", "active"].includes(call.status));
@@ -3614,9 +3635,9 @@ Conversation starters:
     );
   }
 
-  function createCallPeer(conversation, role){
+  function createCallPeer(conversation, role, iceServers){
     if(!window.RTCPeerConnection) throw new Error("This browser does not support calling.");
-    const peer = new RTCPeerConnection({ iceServers:CALL_ICE_SERVERS });
+    const peer = new RTCPeerConnection({ iceServers });
     state.callPeer = peer;
     state.callRole = role;
     state.remoteCallStream = new MediaStream();
@@ -3679,8 +3700,10 @@ Conversation starters:
     renderMessages();
     try{
       pauseMoodForCall();
-      state.localCallStream = await getCallMedia(mode);
-      const peer = createCallPeer(conversation, "caller");
+      const localCallStream = await getCallMedia(mode);
+      state.localCallStream = localCallStream;
+      const iceServers = await getCallIceServers();
+      const peer = createCallPeer(conversation, "caller", iceServers);
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       state.activeCallId = await window.ljtFirebase.createCallSignal(
@@ -3720,9 +3743,11 @@ Conversation starters:
     renderMessages();
     try{
       pauseMoodForCall();
-      state.localCallStream = await getCallMedia(call.mode);
+      const localCallStream = await getCallMedia(call.mode);
+      state.localCallStream = localCallStream;
+      const iceServers = await getCallIceServers();
       state.activeCallId = call.id;
-      const peer = createCallPeer(conversation, "callee");
+      const peer = createCallPeer(conversation, "callee", iceServers);
       await peer.setRemoteDescription(call.offer);
       await flushRemoteCallCandidates();
       watchRemoteCallCandidates(conversation, call.id, "caller");
