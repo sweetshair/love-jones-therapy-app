@@ -54,7 +54,10 @@ const verificationSettings = {
   handleCodeInApp: false
 };
 
-await setPersistence(auth, browserLocalPersistence);
+const authPersistenceReady = Promise.race([
+  setPersistence(auth, browserLocalPersistence),
+  new Promise(resolve => setTimeout(resolve, 4000))
+]).catch(() => undefined);
 
 function publicUser(user) {
   if (!user) return null;
@@ -76,6 +79,7 @@ async function getCurrentUserIdToken() {
 }
 
 async function signUp({ name, phone, email, password, consent }) {
+  await authPersistenceReady;
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const user = credential.user;
   await updateProfile(user, { displayName: name });
@@ -94,6 +98,7 @@ async function signUp({ name, phone, email, password, consent }) {
 }
 
 async function signIn(email, password) {
+  await authPersistenceReady;
   const credential = await signInWithEmailAndPassword(auth, email, password);
   return publicUser(credential.user);
 }
