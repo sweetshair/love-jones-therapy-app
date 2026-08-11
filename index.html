@@ -121,6 +121,26 @@
     .moodStatus{ width:100%; color:rgba(242,242,245,.62); font-size:10px; }
     .moodCredit{ width:100%; color:rgba(242,242,245,.46); font-size:9px; }
     .moodCredit a{ color:inherit; }
+    .soundcloudDock{
+      position:fixed; left:12px; right:12px; bottom:12px; z-index:45;
+      display:none;
+    }
+    .soundcloudDock.active{ display:block; }
+    .soundcloudDockInner{
+      max-width:980px; margin:0 auto; padding:9px;
+      border:1px solid rgba(246,195,74,.28); border-radius:15px;
+      background:rgba(20,20,26,.97); box-shadow:0 18px 55px rgba(0,0,0,.62);
+      backdrop-filter:blur(12px);
+    }
+    .soundcloudDockHead{
+      display:flex; align-items:center; justify-content:space-between; gap:9px;
+      margin-bottom:7px; color:var(--muted); font-size:11px;
+    }
+    .soundcloudDockHead strong{ color:var(--text); }
+    .soundcloudDockActions{ display:flex; align-items:center; gap:9px; }
+    .soundcloudDockActions button{ padding:6px 9px; font-size:10px; }
+    .soundcloudFrame{ display:block; width:100%; height:112px; border:0; border-radius:10px; background:#f5f5f5; }
+    body.moodDockOpen{ padding-bottom:166px; }
     .heroDots{ position:absolute; z-index:2; right:16px; bottom:14px; display:flex; gap:7px; padding:8px; border-radius:999px; background:rgba(9,9,11,.48); backdrop-filter:blur(8px); }
     .heroDot{ width:9px; height:9px; min-width:0; padding:0; border-radius:999px; border:1px solid rgba(255,255,255,.55); background:rgba(255,255,255,.18); box-shadow:none; }
     .heroDot.active{ width:24px; background:var(--accent); border-color:var(--accent); }
@@ -160,6 +180,11 @@
       .storyBanner::after{ background:linear-gradient(90deg,rgba(8,8,10,.94) 0%,rgba(8,8,10,.72) 58%,rgba(8,8,10,.20) 100%); }
       .storyCopy{ width:72%; padding:22px 18px; }
       .storyCopy strong{ font-size:23px; }
+      .soundcloudDock{ left:7px; right:7px; bottom:7px; }
+      .soundcloudDockHead{ align-items:flex-start; }
+      .soundcloudDockHead > span{ max-width:58%; }
+      .soundcloudFrame{ height:96px; }
+      body.moodDockOpen{ padding-bottom:148px; }
     }
 
     h1,h2,h3{ margin:8px 0; }
@@ -485,6 +510,26 @@
     </div>
   </div>
 
+  <div class="soundcloudDock" id="soundcloudDock" aria-label="First Option Dating Instrumental Radio">
+    <div class="soundcloudDockInner">
+      <div class="soundcloudDockHead">
+        <span><strong id="soundcloudDockTitle">First Option Dating Instrumental Radio</strong><br/><span id="soundcloudDockStatus">Off by default</span></span>
+        <span class="soundcloudDockActions">
+          <a href="https://soundcloud.com/firstoptiondating/sets/first-option-dating" target="_blank" rel="noopener">Open on SoundCloud</a>
+          <button id="soundcloudDockStop" type="button">Stop</button>
+        </span>
+      </div>
+      <iframe
+        id="soundcloudMoodPlayer"
+        class="soundcloudFrame"
+        title="First Option Dating Instrumental Radio on SoundCloud"
+        scrolling="no"
+        allow="autoplay"
+        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/firstoptiondating/sets/first-option-dating&amp;color=%23f6c34a&amp;auto_play=false&amp;hide_related=true&amp;show_comments=false&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=false">
+      </iframe>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast"><div class="toastInner" id="toastBox"></div></div>
 
@@ -570,6 +615,7 @@
   </div>
 
 <script type="module" src="./firebase-client.js"></script>
+<script src="https://w.soundcloud.com/player/api.js"></script>
 <script>
 /**
  * First Option Dating • Relationship IQ
@@ -869,7 +915,7 @@
   let moodPlaying = false;
   let moodWanted = false;
   let moodPausedForCall = false;
-  let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("ljt_mood_volume") || .30)));
+  let moodVolume = Math.max(0, Math.min(1, Number(localStorage.getItem("fod_soundcloud_volume") || .65)));
   let moodStyleKey = moodStyles[localStorage.getItem("ljt_mood_style")] ? localStorage.getItem("ljt_mood_style") : "velvet";
   localStorage.removeItem("ljt_mood_enabled");
 
@@ -1269,6 +1315,231 @@
         moodMasterGain.gain.setTargetAtTime(moodOutputLevel(), moodAudioContext.currentTime, .08);
       }
     };
+    updateMoodControls();
+  }
+
+  // SoundCloud station beta. These declarations intentionally replace the
+  // generated-band controls above while the beta is evaluated.
+  const soundcloudPlaylistUrl = "https://soundcloud.com/firstoptiondating/sets/first-option-dating";
+  const soundcloudTrackOrder = ["velvet", "champagne", "rock", "country", "pop"];
+  const soundcloudTrackTitles = {
+    velvet:"Midnight Intentions",
+    champagne:"Champagne Conversation",
+    rock:"Electric First Choice",
+    country:"Open Road Promise",
+    pop:"Choose Us Tonight"
+  };
+  let soundcloudWidget = null;
+  let soundcloudReady = false;
+  let soundcloudPauseReason = "";
+  let soundcloudTrackSelectionPending = false;
+
+  function setSoundcloudDockVisible(visible){
+    document.getElementById("soundcloudDock")?.classList.toggle("active", visible);
+    document.body.classList.toggle("moodDockOpen", visible);
+  }
+
+  function currentSoundcloudTrack(styleKey = moodStyleKey){
+    return soundcloudTrackTitles[styleKey] || soundcloudTrackTitles.velvet;
+  }
+
+  function syncMoodStyleFromSound(sound){
+    const title = String(sound?.title || "").toLowerCase();
+    const found = soundcloudTrackOrder.find(key => title.includes(soundcloudTrackTitles[key].toLowerCase()));
+    if(!found) return;
+    moodStyleKey = found;
+    localStorage.setItem("ljt_mood_style", moodStyleKey);
+    const select = document.getElementById("moodStyle");
+    if(select) select.value = moodStyleKey;
+  }
+
+  function queueSoundcloudPlay(selectTrack){
+    if(!soundcloudReady || !soundcloudWidget || !moodWanted || callIsOpen()) return;
+    soundcloudWidget.setVolume(Math.round(moodVolume * 100));
+    if(selectTrack){
+      soundcloudTrackSelectionPending = true;
+      soundcloudWidget.skip(soundcloudTrackOrder.indexOf(moodStyleKey));
+    }
+    // Keep play in the listener's click gesture so mobile browsers allow audio.
+    if(moodWanted && !callIsOpen()) soundcloudWidget.play();
+  }
+
+  function ensureSoundcloudWidget(){
+    if(soundcloudWidget) return true;
+    if(!window.SC?.Widget) return false;
+    const iframe = document.getElementById("soundcloudMoodPlayer");
+    if(!iframe) return false;
+    soundcloudWidget = window.SC.Widget(iframe);
+    const events = window.SC.Widget.Events;
+    soundcloudWidget.bind(events.READY, () => {
+      soundcloudReady = true;
+      soundcloudWidget.setVolume(Math.round(moodVolume * 100));
+      if(moodWanted && !callIsOpen()) queueSoundcloudPlay(true);
+      else{
+        moodLoading = false;
+        updateMoodControls();
+      }
+    });
+    soundcloudWidget.bind(events.PLAY, () => {
+      if(callIsOpen()){
+        soundcloudPauseReason = "call";
+        soundcloudWidget.pause();
+        return;
+      }
+      moodLoading = false;
+      moodPlaying = true;
+      moodWanted = true;
+      moodPausedForCall = false;
+      soundcloudTrackSelectionPending = false;
+      soundcloudWidget.getCurrentSound(sound => {
+        syncMoodStyleFromSound(sound);
+        updateMoodControls();
+      });
+      updateMoodControls();
+    });
+    soundcloudWidget.bind(events.PAUSE, () => {
+      const reason = soundcloudPauseReason;
+      soundcloudPauseReason = "";
+      moodLoading = false;
+      moodPlaying = false;
+      if(reason === "call") moodPausedForCall = moodWanted;
+      else{
+        moodWanted = false;
+        moodPausedForCall = false;
+        setSoundcloudDockVisible(false);
+      }
+      updateMoodControls();
+    });
+    soundcloudWidget.bind(events.FINISH, () => {
+      if(!moodWanted || callIsOpen()) return;
+      soundcloudWidget.getCurrentSoundIndex(index => {
+        const nextIndex = (Number(index || 0) + 1) % soundcloudTrackOrder.length;
+        moodStyleKey = soundcloudTrackOrder[nextIndex];
+        localStorage.setItem("ljt_mood_style", moodStyleKey);
+        moodLoading = true;
+        updateMoodControls();
+        soundcloudWidget.skip(nextIndex);
+        queueSoundcloudPlay(false);
+      });
+    });
+    soundcloudWidget.bind(events.ERROR, () => {
+      moodLoading = false;
+      moodPlaying = false;
+      moodWanted = false;
+      moodPausedForCall = false;
+      setSoundcloudDockVisible(false);
+      updateMoodControls();
+      showToast("The SoundCloud station could not load. Check the playlist permissions and try again.");
+    });
+    return true;
+  }
+
+  async function startMood(remember=true){
+    if(moodPlaying || (moodLoading && moodWanted)) return;
+    if(remember) moodWanted = true;
+    if(callIsOpen()){
+      moodPausedForCall = moodWanted;
+      updateMoodControls();
+      return;
+    }
+    moodWanted = true;
+    moodLoading = true;
+    moodPausedForCall = false;
+    setSoundcloudDockVisible(true);
+    updateMoodControls();
+    if(!ensureSoundcloudWidget()){
+      moodLoading = false;
+      moodWanted = false;
+      setSoundcloudDockVisible(false);
+      updateMoodControls();
+      showToast("The SoundCloud player is not available yet. Check your connection and try again.");
+      return;
+    }
+    if(soundcloudReady) queueSoundcloudPlay(true);
+  }
+
+  function stopMood(remember=true){
+    if(remember) moodWanted = false;
+    moodLoading = false;
+    moodPlaying = false;
+    moodPausedForCall = false;
+    soundcloudTrackSelectionPending = false;
+    soundcloudPauseReason = "stop";
+    soundcloudWidget?.pause();
+    setSoundcloudDockVisible(false);
+    updateMoodControls();
+  }
+
+  function pauseMoodForCall(){
+    if(!moodWanted && !moodPlaying && !moodLoading) return;
+    moodLoading = false;
+    moodPlaying = false;
+    moodPausedForCall = moodWanted;
+    soundcloudPauseReason = "call";
+    soundcloudWidget?.pause();
+    updateMoodControls();
+  }
+
+  async function resumeMoodAfterCall(){
+    if(!moodPausedForCall || !moodWanted || callIsOpen()) return;
+    moodPausedForCall = false;
+    moodLoading = true;
+    setSoundcloudDockVisible(true);
+    updateMoodControls();
+    if(!ensureSoundcloudWidget()){
+      moodLoading = false;
+      moodWanted = false;
+      setSoundcloudDockVisible(false);
+      updateMoodControls();
+      return;
+    }
+    if(soundcloudReady) queueSoundcloudPlay(soundcloudTrackSelectionPending);
+  }
+
+  function updateMoodControls(){
+    const button = document.getElementById("moodToggleBtn");
+    const label = document.getElementById("moodToggleLabel");
+    const status = document.getElementById("moodStatus");
+    const playbackStatus = moodLoading
+      ? "Connecting to station"
+      : (moodPausedForCall ? "Paused for call" : (moodPlaying ? "Playing" : "Off by default"));
+    if(button){
+      button.disabled = moodLoading;
+      button.setAttribute("aria-pressed", String(moodPlaying));
+    }
+    if(label) label.textContent = moodLoading ? "Connecting…" : (moodPlaying ? "Pause the station" : "Play live-band station");
+    if(status) status.textContent = `${moodStyles[moodStyleKey].label} • ${currentSoundcloudTrack()} • ${playbackStatus}`;
+    const dockTitle = document.getElementById("soundcloudDockTitle");
+    const dockStatus = document.getElementById("soundcloudDockStatus");
+    if(dockTitle) dockTitle.textContent = `${moodStyles[moodStyleKey].label} • ${currentSoundcloudTrack()}`;
+    if(dockStatus) dockStatus.textContent = `${playbackStatus} • First Option Dating Instrumental Radio`;
+  }
+
+  function setupMoodControls(){
+    const button = document.getElementById("moodToggleBtn");
+    const volume = document.getElementById("moodVolume");
+    const style = document.getElementById("moodStyle");
+    if(!button || !volume || !style) return;
+    volume.value = String(Math.round(moodVolume * 100));
+    style.value = moodStyleKey;
+    button.onclick = () => (moodPlaying || moodLoading) ? stopMood(true) : startMood(true);
+    style.onchange = () => {
+      moodStyleKey = style.value;
+      localStorage.setItem("ljt_mood_style", moodStyleKey);
+      soundcloudTrackSelectionPending = true;
+      if(moodWanted && !callIsOpen()){
+        moodLoading = true;
+        updateMoodControls();
+        queueSoundcloudPlay(true);
+      }else updateMoodControls();
+    };
+    volume.oninput = () => {
+      moodVolume = Number(volume.value) / 100;
+      localStorage.setItem("fod_soundcloud_volume", String(moodVolume));
+      soundcloudWidget?.setVolume(Math.round(moodVolume * 100));
+    };
+    document.getElementById("soundcloudDockStop").onclick = () => stopMood(true);
+    ensureSoundcloudWidget();
     updateMoodControls();
   }
 
@@ -1844,7 +2115,7 @@
           <p>Discover your Relationship IQ, understand how you connect, and meet people who complement the way you love.</p>
           <div class="heroSlogan">Better insight. Better conversations. Make the right choice.</div>
           <div class="moodPlayer" aria-label="Homepage music controls">
-            <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Play instrumental</span></button>
+            <button id="moodToggleBtn" type="button" aria-pressed="false">♪ <span id="moodToggleLabel">Play live-band station</span></button>
             <label class="moodSelectWrap" for="moodStyle">Mood <select id="moodStyle">
               <option value="velvet">Velvet R&amp;B</option>
               <option value="champagne">Champagne Jazz</option>
@@ -1853,8 +2124,8 @@
               <option value="pop">Pop</option>
             </select></label>
             <label class="moodVolumeWrap" for="moodVolume">Volume <input id="moodVolume" type="range" min="0" max="100" step="1" value="30" /></label>
-            <span class="moodStatus" id="moodStatus">Velvet R&amp;B • Electric piano, bass, sax, and slow drums • Off by default</span>
-            <span class="moodCredit">Instrument samples: <a href="https://github.com/gleitz/midi-js-soundfonts/tree/gh-pages/FluidR3_GM" target="_blank" rel="noopener">FluidR3 GM</a> under <a href="https://creativecommons.org/licenses/by/3.0/us/" target="_blank" rel="noopener">CC BY 3.0</a>; drum samples are public domain.</span>
+            <span class="moodStatus" id="moodStatus">Velvet R&amp;B • Midnight Intentions • Off by default</span>
+            <span class="moodCredit">Original First Option Dating recordings • Streaming from <a href="https://soundcloud.com/firstoptiondating/sets/first-option-dating" target="_blank" rel="noopener">SoundCloud</a></span>
           </div>
         </div>
       </section>
