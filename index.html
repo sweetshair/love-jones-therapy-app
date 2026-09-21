@@ -3310,8 +3310,12 @@ Conversation starters:
 
   function mutuallyCompatiblePreferences(own, candidate){
     if(!own || !own.gender || !own.lookingFor) return true;
-    return preferenceAllows(own.lookingFor, candidate.gender)
-      && preferenceAllows(candidate.lookingFor, own.gender);
+    const candidateFitsOwnPreference = !candidate?.gender
+      || preferenceAllows(own.lookingFor, candidate.gender);
+    const ownFitsCandidatePreference = candidate?.likedYou
+      || !candidate?.lookingFor
+      || preferenceAllows(candidate.lookingFor, own.gender);
+    return candidateFitsOwnPreference && ownFitsCandidatePreference;
   }
 
   function renderMatches(){
@@ -3359,6 +3363,8 @@ Conversation starters:
         state.matches = matches
           .filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile))
           .sort((first, second) => {
+            const incomingLikeDifference = Number(Boolean(second.likedYou)) - Number(Boolean(first.likedYou));
+            if(incomingLikeDifference) return incomingLikeDifference;
             const scoreDifference = compatibilityScore(
               state.relationshipType,
               second.relationshipType
@@ -3397,6 +3403,7 @@ Conversation starters:
               <h2 style="margin:0;">${escapeHtml(name)}${candidate.age ? `, ${escapeHtml(candidate.age)}` : ""}</h2>
               <div class="tiny">${escapeHtml(location)}</div>
               <div class="badgeGrid">
+                ${candidate.likedYou ? `<span class="badge"><strong>Liked you</strong></span>` : ``}
                 <span class="badge"><strong>${escapeHtml(typeName)}</strong></span>
                 <span class="badge">${escapeHtml(candidate.relationshipGoal || "Dating with intention")}</span>
               </div>
