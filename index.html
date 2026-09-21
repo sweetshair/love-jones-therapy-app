@@ -2981,12 +2981,10 @@ Conversation starters:
       return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
     }).join("");
     const countryOptions = (selected) => {
-      const supported = COUNTRY_GROUPS.some(([, countries]) => countries.includes(selected));
-      const savedCountry = selected && !supported
-        ? `<optgroup label="Saved location"><option value="${escapeAttr(selected)}" selected>${escapeHtml(selected)}</option></optgroup>`
-        : "";
-      return `${savedCountry}${COUNTRY_GROUPS.map(([region, countries]) => `
-        <optgroup label="${escapeAttr(region)}">${options(countries, selected)}</optgroup>`).join("")}`;
+      const countries = COUNTRY_GROUPS.flatMap(([, items]) => items);
+      if(selected && !countries.includes(selected)) countries.push(selected);
+      countries.sort((first, second) => first.localeCompare(second));
+      return options(countries, selected);
     };
 
     app.innerHTML = `
