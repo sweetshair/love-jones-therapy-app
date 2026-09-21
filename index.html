@@ -845,7 +845,8 @@
   // =================== STATE ===================
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
-    installDismissed: "ljt_install_dismissed"
+    installDismissed: "ljt_install_dismissed",
+    datingProfileDraftPrefix: "fod_dating_profile_draft_"
   };
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
@@ -915,6 +916,29 @@
 
     deferredInstallPrompt: null
   };
+
+  function datingProfileDraftKey(){
+    return state.authUser?.uid ? `${STORAGE.datingProfileDraftPrefix}${state.authUser.uid}` : "";
+  }
+
+  function loadDatingProfileDraft(){
+    const key = datingProfileDraftKey();
+    if(!key) return {};
+    try{ return JSON.parse(localStorage.getItem(key) || "{}") || {}; }
+    catch(error){ return {}; }
+  }
+
+  function saveDatingProfileDraft(profile){
+    const key = datingProfileDraftKey();
+    if(!key) return;
+    const { photoPaths, active, ownerId, ...draft } = profile;
+    localStorage.setItem(key, JSON.stringify({ ...draft, active:false }));
+  }
+
+  function clearDatingProfileDraft(){
+    const key = datingProfileDraftKey();
+    if(key) localStorage.removeItem(key);
+  }
 
   const app = document.getElementById("app");
   const toastBox = document.getElementById("toastBox");
@@ -2306,7 +2330,7 @@
             password,
             consent: state.consentOk
           });
-          showToast("Account created. Check your email to verify it ✅");
+          showToast("Account created ✅ You can complete your profile now.");
         }else{
           await window.ljtFirebase.signIn(state.userEmail, password);
           showToast("Signed in ✅");
@@ -2330,7 +2354,7 @@
       try{
         if(!isValidEmail(state.userEmail)) throw new Error("Enter your email address first.");
         await window.ljtFirebase.resetPassword(state.userEmail);
-        showToast("Password reset email sent ✅");
+        showToast("Check your email for the password reset link ✅");
       }catch(error){ errorBox.textContent = error.message; }
     };
 
@@ -2920,25 +2944,6 @@ Conversation starters:
 
   function renderDatingProfile(){
     if(!state.authUser){ state.screen = "home"; return render(); }
-    if(!state.authUser.emailVerified){
-      app.innerHTML = `
-        <div class="topbar">
-          <div class="brand"><div class="logo"><b>FO</b></div><div class="brandTxt"><div class="title">Verify Your Email</div><div class="sub">One safety step before dating features</div></div></div>
-          ${headerRightPill()}
-        </div>
-        <div class="kpi">
-          <b>Check your inbox before creating a dating profile</b>
-          <p>Use the verification link sent to ${escapeHtml(state.authUser.email)}. Then sign out and sign back in so your verified status refreshes.</p>
-          <div class="btnrow"><button class="primary" id="resendProfileVerificationBtn">Resend Verification</button><button id="homeBtn">Home</button></div>
-        </div>`;
-      document.getElementById("resendProfileVerificationBtn").onclick = async () => {
-        try{ await window.ljtFirebase.resendVerification(); showToast("Verification email sent ✅"); }
-        catch(error){ showToast(error.message || "Could not send the verification email."); }
-      };
-      document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
-      return;
-    }
-
     if(!state.relationshipType){
       app.innerHTML = `
         <div class="topbar">
@@ -2970,9 +2975,16 @@ Conversation starters:
       return;
     }
 
-    const profile = state.datingProfile || {};
+    const savedProfile = state.datingProfile || {};
+    const profileDraft = loadDatingProfileDraft();
+    const profile = {
+      ...savedProfile,
+      ...profileDraft,
+      photoPaths: Array.isArray(savedProfile.photoPaths) ? savedProfile.photoPaths : []
+    };
+    const emailVerified = Boolean(state.authUser.emailVerified);
     const photoPaths = getPhotoPaths(profile);
-    const profileExists = Boolean(profile.ownerId);
+    const profileExists = Boolean(savedProfile.ownerId);
     const firstName = (state.userName || "Member").trim().split(/\s+/)[0];
     const current = (key, fallback="") => profile[key] ?? fallback;
     const options = (items, selected) => items.map(item => {
@@ -2997,6 +3009,16 @@ Conversation starters:
       </div>
 
       ${storyBanner("hero-couple.webp", "Be seen for who you are", "A thoughtful profile attracts thoughtful people.", "Share enough to start a real conversation while keeping your private information private.", "center 34%")}
+
+      ${emailVerified ? `` : `
+        <div class="safetyNotice" style="margin-bottom:12px;">
+          <b>Build your profile now</b>
+          <p class="tiny">Your draft stays private. Verify your email only when you are ready to add pictures and make your profile public.</p>
+          <div class="btnrow">
+            <button type="button" id="resendProfileVerificationBtn">Send Verification Email</button>
+            <button type="button" class="ok" id="refreshProfileVerificationBtn">I Have Verified My Email</button>
+          </div>
+        </div>`}
 
       <div class="kpi">
         <b>Public Profile Details</b>
@@ -3028,18 +3050,19 @@ Conversation starters:
           <div class="photoCard">
             ${index === 0 ? `<span class="mainPhotoTag">Main photo</span>` : ``}
             <img class="profilePhoto" data-photo-path="${escapeAttr(path)}" alt="Dating profile photo ${index + 1}" />
-            <div class="photoActions">
+            ${emailVerified ? `<div class="photoActions">
               ${index > 0 ? `<button type="button" data-photo-action="main" data-photo-path="${escapeAttr(path)}">Make Main</button>` : ``}
               <button type="button" data-photo-action="replace" data-photo-path="${escapeAttr(path)}">Replace</button>
               <button type="button" data-photo-action="delete" data-photo-path="${escapeAttr(path)}">Remove</button>
-            </div>
+            </div>` : ``}
           </div>`).join("")}</div>` : `<p class="tiny">No photos added yet.</p>`}
-        ${profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />` : ``}
-        ${profileExists && photoPaths.length < 5 ? `
+        ${emailVerified && profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />` : ``}
+        ${emailVerified && profileExists && photoPaths.length < 5 ? `
           <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
           <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
-        ${profileExists && photoPaths.length === 5 ? `<p class="tiny">You have five photos. Use Replace on any picture, or remove one before adding another.</p>` : ``}
-        ${!profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
+        ${emailVerified && profileExists && photoPaths.length === 5 ? `<p class="tiny">You have five photos. Use Replace on any picture, or remove one before adding another.</p>` : ``}
+        ${emailVerified && !profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
+        ${!emailVerified ? `<p class="tiny">Pictures become available after email verification. You can save the rest of your profile as a private draft now.</p>` : ``}
         ${profileExists && !photoPaths.length ? `<p class="tiny">Your profile is private. Upload at least one photo, then turn on profile visibility and save again.</p>` : ``}
         <div class="errorText tiny" id="photoError"></div>
 
@@ -3053,19 +3076,44 @@ Conversation starters:
           <span class="tiny">I confirm I am 18 or older and agree to the <a href="#" data-policy="terms">Terms</a>, <a href="#" data-policy="privacy">Privacy</a>, and <a href="#" data-policy="community">Community Guidelines</a>.</span>
         </label>
         <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="activeProfileChk" ${current("active", false) ? "checked" : ""} />
-          <span class="tiny">Show my dating profile to signed-in members.</span>
+          <input type="checkbox" id="activeProfileChk" ${emailVerified && current("active", false) ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
+          <span class="tiny">Show my dating profile to signed-in members.${emailVerified ? "" : " Email verification is required before publishing."}</span>
         </label>
         <div class="errorText tiny" id="datingProfileError"></div>
         <div class="btnrow">
-          <button class="primary" id="saveDatingProfileBtn">Save Dating Profile</button>
-          <button class="ok" id="viewMatchesBtn">Discover People</button>
-          <button id="viewConnectionsBtn">My Matches</button>
+          <button class="primary" id="saveDatingProfileBtn">${emailVerified ? "Save Dating Profile" : "Save Private Draft"}</button>
+          <button class="ok" id="viewMatchesBtn" ${emailVerified ? "" : "disabled"}>Discover People</button>
+          <button id="viewConnectionsBtn" ${emailVerified ? "" : "disabled"}>My Matches</button>
           <button id="homeBtn">Home</button>
         </div>
       </div>`;
 
     document.getElementById("homeBtn").onclick = () => { state.screen = "home"; render(); };
+    const resendProfileVerificationBtn = document.getElementById("resendProfileVerificationBtn");
+    if(resendProfileVerificationBtn) resendProfileVerificationBtn.onclick = async () => {
+      resendProfileVerificationBtn.disabled = true;
+      try{ await window.ljtFirebase.resendVerification(); showToast("Verification email sent ✅"); }
+      catch(error){ showToast(error.message || "Could not send the verification email."); }
+      finally{ resendProfileVerificationBtn.disabled = false; }
+    };
+    const refreshProfileVerificationBtn = document.getElementById("refreshProfileVerificationBtn");
+    if(refreshProfileVerificationBtn) refreshProfileVerificationBtn.onclick = async () => {
+      refreshProfileVerificationBtn.disabled = true;
+      try{
+        const user = await window.ljtFirebase.refreshVerification();
+        state.authUser = user;
+        if(user.emailVerified){
+          showToast("Email verified ✅ Your profile can now be published.");
+          render();
+        }else{
+          showToast("Email verification is not complete yet.");
+        }
+      }catch(error){
+        showToast(error.message || "Could not refresh verification status.");
+      }finally{
+        if(document.body.contains(refreshProfileVerificationBtn)) refreshProfileVerificationBtn.disabled = false;
+      }
+    };
     document.getElementById("viewMatchesBtn").onclick = () => {
       state.matchView = "discover";
       state.matchesLoaded = false;
@@ -3204,11 +3252,20 @@ Conversation starters:
       if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, state or province, and country.";
       if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
       if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.";
+      if(!emailVerified){
+        payload.active = false;
+        saveDatingProfileDraft(payload);
+        state.datingProfile = { ...savedProfile, ...payload };
+        showToast("Private profile draft saved on this device ✅");
+        render();
+        return;
+      }
       const savePrivatelyUntilPhoto = payload.active && !photoPaths.length;
       if(savePrivatelyUntilPhoto) payload.active = false;
       button.disabled = true;
       try{
         await window.ljtFirebase.saveDatingProfile(payload);
+        clearDatingProfileDraft();
         state.datingProfile = { ...profile, ...payload, ownerId: state.authUser.uid };
         state.matchesLoaded = false;
         showToast(savePrivatelyUntilPhoto
