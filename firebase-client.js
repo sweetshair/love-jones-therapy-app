@@ -473,95 +473,14 @@ function photoExtension(contentType) {
   return extensions[contentType] || null;
 }
 
-const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
-
-async function decodeProfilePhoto(file) {
-  if ("createImageBitmap" in window) {
-    try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-      return {
-        source: bitmap,
-        width: bitmap.width,
-        height: bitmap.height,
-        cleanup: () => bitmap.close()
-      };
-    } catch (error) {
-      // Fall through to the image element decoder for mobile browser compatibility.
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => resolve({
-      source: image,
-      width: image.naturalWidth,
-      height: image.naturalHeight,
-      cleanup: () => URL.revokeObjectURL(objectUrl)
-    });
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("This phone photo format could not be prepared. Choose a JPEG, PNG or WebP photo, or use a screenshot of the photo."));
-    };
-    image.src = objectUrl;
-  });
-}
-
-function canvasToJpeg(canvas, quality) {
-  return new Promise((resolve, reject) => canvas.toBlob(
-    blob => blob ? resolve(blob) : reject(new Error("This photo could not be prepared for upload.")),
-    "image/jpeg",
-    quality
-  ));
-}
-
-async function prepareProfilePhoto(file) {
-  if (!file || !String(file.type || "").startsWith("image/")) {
-    throw new Error("Choose a photo from your phone or computer.");
-  }
-
-  const supportedType = Boolean(photoExtension(file.type));
-  if (supportedType && file.size < PROFILE_PHOTO_MAX_BYTES) return file;
-
-  const decoded = await decodeProfilePhoto(file);
-  try {
-    const largestSide = Math.max(decoded.width, decoded.height);
-    const scale = Math.min(1, 1800 / largestSide);
-    const width = Math.max(1, Math.round(decoded.width * scale));
-    const height = Math.max(1, Math.round(decoded.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) throw new Error("This browser could not prepare the photo.");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(decoded.source, 0, 0, width, height);
-
-    let quality = 0.88;
-    let blob = await canvasToJpeg(canvas, quality);
-    while (blob.size >= PROFILE_PHOTO_MAX_BYTES && quality > 0.48) {
-      quality -= 0.1;
-      blob = await canvasToJpeg(canvas, quality);
-    }
-    if (blob.size >= PROFILE_PHOTO_MAX_BYTES) {
-      throw new Error("This photo is still too large after resizing. Choose a different photo.");
-    }
-    return new File([blob], `profile-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-  } finally {
-    decoded.cleanup();
-  }
-}
-
 async function uploadProfilePhoto(file) {
   const user = requireUser();
-  const preparedFile = await prepareProfilePhoto(file);
-  const extension = photoExtension(preparedFile.type);
+  const extension = photoExtension(file.type);
   if (!extension) throw new Error("Choose a JPEG, PNG or WebP photo.");
-  if (preparedFile.size >= PROFILE_PHOTO_MAX_BYTES) throw new Error("This photo is too large to upload.");
+  if (file.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
   const path = `profilePhotos/${user.uid}/${uniqueName}`;
-  await uploadBytes(storageRef(storage, path), preparedFile, { contentType: preparedFile.type });
+  await uploadBytes(storageRef(storage, path), file, { contentType: file.type });
   return path;
 }
 
