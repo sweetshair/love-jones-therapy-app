@@ -5,6 +5,7 @@ import {
   getAuth,
   getIdToken,
   onAuthStateChanged,
+  reload,
   sendEmailVerification,
   sendPasswordResetEmail,
   setPersistence,
@@ -116,6 +117,13 @@ async function resendVerification() {
   if (user.emailVerified) return false;
   await sendEmailVerification(user, verificationSettings);
   return true;
+}
+
+async function refreshVerification() {
+  const user = requireUser();
+  await reload(user);
+  await getIdToken(user, true);
+  return publicUser(user);
 }
 
 async function getMyProfile() {
@@ -503,6 +511,7 @@ window.ljtFirebase = {
   signOut: logOut,
   resetPassword,
   resendVerification,
+  refreshVerification,
   getMyProfile,
   saveMyProfile,
   saveQuizResult,
