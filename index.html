@@ -3023,7 +3023,7 @@ Conversation starters:
 
         <div class="hr"></div>
         <b>Profile Photos</b>
-        <p class="tiny">Add up to five photos. Large supported phone photos are automatically resized before upload. Your first photo is your main photo.</p>
+        <p class="tiny">Add up to five JPEG, PNG or WebP photos. Each photo must be under 5 MB. Your first photo is your main photo.</p>
         ${photoPaths.length ? `<div class="photoGrid">${photoPaths.map((path, index) => `
           <div class="photoCard">
             ${index === 0 ? `<span class="mainPhotoTag">Main photo</span>` : ``}
@@ -3034,9 +3034,9 @@ Conversation starters:
               <button type="button" data-photo-action="delete" data-photo-path="${escapeAttr(path)}">Remove</button>
             </div>
           </div>`).join("")}</div>` : `<p class="tiny">No photos added yet.</p>`}
-        ${profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/*" hidden />` : ``}
+        ${profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />` : ``}
         ${profileExists && photoPaths.length < 5 ? `
-          <input class="filePicker" id="photoInput" type="file" accept="image/*" multiple />
+          <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
           <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
         ${profileExists && photoPaths.length === 5 ? `<p class="tiny">You have five photos. Use Replace on any picture, or remove one before adding another.</p>` : ``}
         ${!profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
