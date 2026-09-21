@@ -931,8 +931,8 @@
   function saveDatingProfileDraft(profile){
     const key = datingProfileDraftKey();
     if(!key) return;
-    const { photoPaths, active, ownerId, ...draft } = profile;
-    localStorage.setItem(key, JSON.stringify({ ...draft, active:false }));
+    const { ownerId, ...draft } = profile;
+    localStorage.setItem(key, JSON.stringify(draft));
   }
 
   function clearDatingProfileDraft(){
@@ -2980,7 +2980,9 @@ Conversation starters:
     const profile = {
       ...savedProfile,
       ...profileDraft,
-      photoPaths: Array.isArray(savedProfile.photoPaths) ? savedProfile.photoPaths : []
+      photoPaths: savedProfile.ownerId
+        ? (Array.isArray(savedProfile.photoPaths) ? savedProfile.photoPaths : [])
+        : (Array.isArray(profileDraft.photoPaths) ? profileDraft.photoPaths : [])
     };
     const emailVerified = Boolean(state.authUser.emailVerified);
     const photoPaths = getPhotoPaths(profile);
@@ -3056,12 +3058,12 @@ Conversation starters:
               <button type="button" data-photo-action="delete" data-photo-path="${escapeAttr(path)}">Remove</button>
             </div>` : ``}
           </div>`).join("")}</div>` : `<p class="tiny">No photos added yet.</p>`}
-        ${emailVerified && profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />` : ``}
-        ${emailVerified && profileExists && photoPaths.length < 5 ? `
+        ${emailVerified && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />` : ``}
+        ${emailVerified && photoPaths.length < 5 ? `
           <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
-          <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
+          <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Add Selected Pictures</button></div>` : ``}
         ${emailVerified && profileExists && photoPaths.length === 5 ? `<p class="tiny">You have five photos. Use Replace on any picture, or remove one before adding another.</p>` : ``}
-        ${emailVerified && !profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
+        ${emailVerified && !profileExists ? `<p class="tiny">Add your pictures now. Then accept the terms below and save the complete profile once.</p>` : ``}
         ${!emailVerified ? `<p class="tiny">Pictures become available after email verification. You can save the rest of your profile as a private draft now.</p>` : ``}
         ${profileExists && !photoPaths.length ? `<p class="tiny">Your profile is private. Upload at least one photo, then turn on profile visibility and save again.</p>` : ``}
         <div class="errorText tiny" id="photoError"></div>
@@ -3081,7 +3083,7 @@ Conversation starters:
         </label>
         <div class="errorText tiny" id="datingProfileError"></div>
         <div class="btnrow">
-          <button class="primary" id="saveDatingProfileBtn">${emailVerified ? "Save Dating Profile" : "Save Private Draft"}</button>
+          <button class="primary" id="saveDatingProfileBtn">${emailVerified ? "Save Complete Profile" : "Save Private Draft"}</button>
           <button class="ok" id="viewMatchesBtn" ${emailVerified ? "" : "disabled"}>Discover People</button>
           <button id="viewConnectionsBtn" ${emailVerified ? "" : "disabled"}>My Matches</button>
           <button id="homeBtn">Home</button>
@@ -3128,6 +3130,29 @@ Conversation starters:
     };
     hydrateProfilePhotos();
 
+    const readDatingProfileForm = () => ({
+      displayName: document.getElementById("displayNameInput").value.trim(),
+      age: Number(document.getElementById("ageInput").value),
+      city: document.getElementById("cityInput").value.trim(),
+      region: document.getElementById("regionInput").value.trim(),
+      country: document.getElementById("countryInput").value.trim(),
+      gender: document.getElementById("genderInput").value,
+      lookingFor: document.getElementById("lookingForInput").value,
+      relationshipGoal: document.getElementById("goalInput").value,
+      bio: document.getElementById("bioInput").value.trim(),
+      relationshipType: state.relationshipType,
+      secondaryType: state.secondaryType,
+      termsAccepted: document.getElementById("datingTermsChk").checked,
+      active: document.getElementById("activeProfileChk").checked
+    });
+
+    const keepProfileFormWithPhotos = (nextPaths, overrides={}) => {
+      const draft = { ...readDatingProfileForm(), photoPaths:nextPaths, ...overrides };
+      saveDatingProfileDraft(draft);
+      state.datingProfile = { ...savedProfile, ...draft };
+      return draft;
+    };
+
     const uploadButton = document.getElementById("uploadPhotosBtn");
     if(uploadButton) uploadButton.onclick = async () => {
       const input = document.getElementById("photoInput");
@@ -3145,13 +3170,19 @@ Conversation starters:
           uploadedPaths.push(await window.ljtFirebase.uploadProfilePhoto(file));
         }
         const nextPaths = [...photoPaths, ...uploadedPaths];
-        await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
-        state.datingProfile = { ...profile, photoPaths: nextPaths };
+        keepProfileFormWithPhotos(nextPaths);
+        if(profileExists){
+          await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+          state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
+        }
         state.matchesLoaded = false;
-        showToast("Photos uploaded ✅");
+        showToast(profileExists
+          ? "Pictures added ✅"
+          : "Pictures added. Accept the terms and save your complete profile ✅");
         render();
       }catch(error){
         await Promise.allSettled(uploadedPaths.map(path => window.ljtFirebase.deleteProfilePhoto(path)));
+        keepProfileFormWithPhotos(photoPaths);
         errorBox.textContent = error.message || "Could not upload the photos.";
         uploadButton.disabled = false;
         uploadButton.textContent = "Upload Selected Photos";
@@ -3175,19 +3206,21 @@ Conversation starters:
         try{
           if(action === "main"){
             const nextPaths = [path, ...photoPaths.filter(item => item !== path)];
-            await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
-            state.datingProfile = { ...profile, photoPaths: nextPaths };
+            if(profileExists) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+            keepProfileFormWithPhotos(nextPaths);
+            if(profileExists) state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
             state.matchesLoaded = false;
             showToast("Main photo updated ✅");
           }else{
             const nextPaths = photoPaths.filter(item => item !== path);
-            const hidesProfile = nextPaths.length === 0 && Boolean(profile.active);
-            await window.ljtFirebase.saveDatingProfile({
+            const hidesProfile = profileExists && nextPaths.length === 0 && Boolean(savedProfile.active);
+            if(profileExists) await window.ljtFirebase.saveDatingProfile({
               photoPaths: nextPaths,
               ...(hidesProfile ? { active:false } : {})
             });
             try{ await window.ljtFirebase.deleteProfilePhoto(path); }catch(error){ console.warn("Unused photo could not be deleted", error); }
-            state.datingProfile = { ...profile, photoPaths: nextPaths, ...(hidesProfile ? { active:false } : {}) };
+            keepProfileFormWithPhotos(nextPaths, hidesProfile ? { active:false } : {});
+            if(profileExists) state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
             state.matchesLoaded = false;
             showToast(hidesProfile
               ? "Photo removed. Your profile is hidden until you add another photo."
@@ -3214,14 +3247,16 @@ Conversation starters:
       try{
         newPath = await window.ljtFirebase.uploadProfilePhoto(file);
         const nextPaths = photoPaths.map(path => path === oldPath ? newPath : path);
-        await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+        if(profileExists) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
         try{ await window.ljtFirebase.deleteProfilePhoto(oldPath); }catch(error){ console.warn("Replaced photo could not be deleted", error); }
-        state.datingProfile = { ...profile, photoPaths: nextPaths };
+        keepProfileFormWithPhotos(nextPaths);
+        if(profileExists) state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
         state.matchesLoaded = false;
         showToast("Photo replaced ✅");
         render();
       }catch(error){
         if(newPath) await window.ljtFirebase.deleteProfilePhoto(newPath).catch(() => undefined);
+        keepProfileFormWithPhotos(photoPaths);
         errorBox.textContent = error.message || "Could not replace the photo.";
         replaceButtons.forEach(button => button.disabled = false);
       }
@@ -3230,27 +3265,13 @@ Conversation starters:
     document.getElementById("saveDatingProfileBtn").onclick = async () => {
       const errorBox = document.getElementById("datingProfileError");
       const button = document.getElementById("saveDatingProfileBtn");
-      const payload = {
-        displayName: document.getElementById("displayNameInput").value.trim(),
-        age: Number(document.getElementById("ageInput").value),
-        city: document.getElementById("cityInput").value.trim(),
-        region: document.getElementById("regionInput").value.trim(),
-        country: document.getElementById("countryInput").value.trim(),
-        gender: document.getElementById("genderInput").value,
-        lookingFor: document.getElementById("lookingForInput").value,
-        relationshipGoal: document.getElementById("goalInput").value,
-        bio: document.getElementById("bioInput").value.trim(),
-        relationshipType: state.relationshipType,
-        secondaryType: state.secondaryType,
-        photoPaths,
-        termsAccepted: document.getElementById("datingTermsChk").checked,
-        active: document.getElementById("activeProfileChk").checked
-      };
+      const payload = { ...readDatingProfileForm(), photoPaths };
       errorBox.textContent = "";
       if(payload.displayName.length < 2) return errorBox.textContent = "Enter a first name or display name.";
       if(!Number.isInteger(payload.age) || payload.age < 18 || payload.age > 99) return errorBox.textContent = "Members must be 18 or older. Enter a valid age.";
       if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, state or province, and country.";
       if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
+      if(emailVerified && !payload.photoPaths.length) return errorBox.textContent = "Add at least one profile picture before saving your complete profile.";
       if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.";
       if(!emailVerified){
         payload.active = false;
