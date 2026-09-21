@@ -185,9 +185,10 @@ async function getMyDatingProfile() {
 async function findDatingProfiles(relationshipTypes = []) {
   const user = requireUser();
   const profiles = [];
-  const seen = new Set();
+  const outgoingDecisions = new Map();
+  const incomingLikes = new Set();
   const blocked = new Set();
-  const [outgoingBlocks, incomingBlocks] = await Promise.all([
+  const [outgoingBlocks, incomingBlocks, outgoingSwipes, incomingSwipes] = await Promise.all([
     getDocs(query(
       collection(db, "blocks"),
       where("blockerId", "==", user.uid),
@@ -197,29 +198,44 @@ async function findDatingProfiles(relationshipTypes = []) {
       collection(db, "blocks"),
       where("blockedId", "==", user.uid),
       limit(250)
+    )),
+    getDocs(query(
+      collection(db, "swipes"),
+      where("fromId", "==", user.uid),
+      limit(250)
+    )),
+    getDocs(query(
+      collection(db, "swipes"),
+      where("toId", "==", user.uid),
+      limit(250)
     ))
   ]);
   outgoingBlocks.forEach(item => blocked.add(item.data().blockedId));
   incomingBlocks.forEach(item => blocked.add(item.data().blockerId));
-  const seenSnapshot = await getDocs(query(
-    collection(db, "swipes"),
-    where("fromId", "==", user.uid),
-    limit(250)
-  ));
-  seenSnapshot.forEach(item => seen.add(item.data().toId));
+  outgoingSwipes.forEach(item => {
+    const data = item.data();
+    outgoingDecisions.set(data.toId, data.decision);
+  });
+  incomingSwipes.forEach(item => {
+    const data = item.data();
+    if (data.decision === "like") incomingLikes.add(data.fromId);
+  });
   const snapshot = await getDocs(query(
     collection(db, "datingProfiles"),
     where("active", "==", true)
   ));
   snapshot.forEach(item => {
     const data = item.data();
+    const outgoingDecision = outgoingDecisions.get(item.id);
+    const likedYou = incomingLikes.has(item.id);
     if (
       item.id !== user.uid
-      && !seen.has(item.id)
+      && outgoingDecision !== "like"
+      && (outgoingDecision !== "pass" || likedYou)
       && !blocked.has(item.id)
       && (!relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
     ) {
-      profiles.push({ id: item.id, ...data });
+      profiles.push({ id: item.id, ...data, likedYou });
     }
   });
   return profiles;
