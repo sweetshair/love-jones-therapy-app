@@ -659,6 +659,62 @@
       growth:"Balance growth with enjoyment. Celebrate wins, not just fixes." }
   };
 
+  const COUNTRY_GROUPS = [
+    ["Caribbean", [
+      "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Bonaire",
+      "British Virgin Islands", "Cayman Islands", "Cuba", "Curaçao", "Dominica",
+      "Dominican Republic", "Grenada", "Guadeloupe", "Haiti", "Jamaica", "Martinique",
+      "Montserrat", "Puerto Rico", "Saba", "Saint Barthélemy", "Saint Kitts and Nevis",
+      "Saint Lucia", "Saint Martin", "Saint Vincent and the Grenadines", "Sint Eustatius",
+      "Sint Maarten", "Trinidad and Tobago", "Turks and Caicos Islands",
+      "United States Virgin Islands"
+    ]],
+    ["North America", ["Bermuda", "Canada", "Greenland", "Mexico", "United States"]],
+    ["Central America", ["Belize", "Costa Rica", "El Salvador", "Guatemala", "Honduras", "Nicaragua", "Panama"]],
+    ["South America", [
+      "Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Falkland Islands",
+      "French Guiana", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay", "Venezuela"
+    ]],
+    ["Europe", [
+      "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina",
+      "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Faroe Islands",
+      "Finland", "France", "Germany", "Gibraltar", "Greece", "Guernsey", "Hungary",
+      "Iceland", "Ireland", "Isle of Man", "Italy", "Jersey", "Kosovo", "Latvia",
+      "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova", "Monaco",
+      "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal",
+      "Romania", "Russia", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain",
+      "Sweden", "Switzerland", "Türkiye", "Ukraine", "United Kingdom", "Vatican City"
+    ]],
+    ["Africa", [
+      "Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cabo Verde",
+      "Cameroon", "Central African Republic", "Chad", "Comoros", "Democratic Republic of the Congo",
+      "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Eswatini", "Ethiopia", "Gabon",
+      "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Ivory Coast", "Kenya", "Lesotho",
+      "Liberia", "Libya", "Madagascar", "Malawi", "Mali", "Mauritania", "Mauritius",
+      "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria", "Republic of the Congo",
+      "Rwanda", "São Tomé and Príncipe", "Senegal", "Seychelles", "Sierra Leone", "Somalia",
+      "South Africa", "South Sudan", "Sudan", "Tanzania", "Togo", "Tunisia", "Uganda",
+      "Zambia", "Zimbabwe"
+    ]],
+    ["Asia", [
+      "Afghanistan", "Armenia", "Azerbaijan", "Bangladesh", "Bhutan", "Brunei", "Cambodia",
+      "China", "Georgia", "Hong Kong", "India", "Indonesia", "Japan", "Kazakhstan",
+      "Kyrgyzstan", "Laos", "Macao", "Malaysia", "Maldives", "Mongolia", "Myanmar", "Nepal",
+      "North Korea", "Pakistan", "Philippines", "Singapore", "South Korea", "Sri Lanka",
+      "Taiwan", "Tajikistan", "Thailand", "Timor-Leste", "Turkmenistan", "Uzbekistan", "Vietnam"
+    ]],
+    ["Middle East", [
+      "Bahrain", "Iran", "Iraq", "Israel", "Jordan", "Kuwait", "Lebanon", "Oman", "Palestine",
+      "Qatar", "Saudi Arabia", "Syria", "United Arab Emirates", "Yemen"
+    ]],
+    ["Oceania", [
+      "American Samoa", "Australia", "Cook Islands", "Fiji", "French Polynesia", "Guam",
+      "Kiribati", "Marshall Islands", "Micronesia", "Nauru", "New Caledonia", "New Zealand",
+      "Niue", "Northern Mariana Islands", "Palau", "Papua New Guinea", "Samoa", "Solomon Islands",
+      "Tonga", "Tuvalu", "Vanuatu"
+    ]]
+  ];
+
   // =================== QUIZ ===================
   const QUIZ = {
     title: "Relationship IQ",
@@ -2577,8 +2633,12 @@
         <div class="tiny" style="margin-top:8px;"><a href="#" id="privacyLink2">Privacy</a></div>
       </div>
 
+      <div class="kpi" style="margin-top:12px;border-color:rgba(0,230,184,.55);box-shadow:0 0 0 1px rgba(0,230,184,.12);">
+        <b>Your next step: Build your dating profile</b>
+        <p class="tiny" style="margin:8px 0 12px;">Use what you learned from your Relationship IQ to show who you are and find compatible people.</p>
+        <button class="primary" id="profileBtn" style="width:100%;">Continue to Dating Profile</button>
+      </div>
       <div class="btnrow">
-        <button class="primary" id="profileBtn">Continue to Dating Profile</button>
         <button id="shareBtn">Share Result</button>
         <button class="ok" id="couplesQuickBtn">Couples Mode</button>
         <button id="retakeBtn">Retake</button>
@@ -2920,6 +2980,14 @@ Conversation starters:
       const label = typeof item === "string" ? item : item[1];
       return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
     }).join("");
+    const countryOptions = (selected) => {
+      const supported = COUNTRY_GROUPS.some(([, countries]) => countries.includes(selected));
+      const savedCountry = selected && !supported
+        ? `<optgroup label="Saved location"><option value="${escapeAttr(selected)}" selected>${escapeHtml(selected)}</option></optgroup>`
+        : "";
+      return `${savedCountry}${COUNTRY_GROUPS.map(([region, countries]) => `
+        <optgroup label="${escapeAttr(region)}">${options(countries, selected)}</optgroup>`).join("")}`;
+    };
 
     app.innerHTML = `
       <div class="topbar">
@@ -2944,7 +3012,7 @@ Conversation starters:
         <div class="row" style="margin-top:12px;">
           <div class="col"><div class="tiny" style="margin-bottom:6px;">City</div><input class="in" id="cityInput" maxlength="60" value="${escapeAttr(current("city"))}" /></div>
           <div class="col"><div class="tiny" style="margin-bottom:6px;">State or province</div><input class="in" id="regionInput" maxlength="60" value="${escapeAttr(current("region"))}" /></div>
-          <div class="col"><div class="tiny" style="margin-bottom:6px;">Country</div><input class="in" id="countryInput" maxlength="60" value="${escapeAttr(current("country", "United States"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Country</div><select class="in" id="countryInput">${countryOptions(current("country", "United States"))}</select></div>
         </div>
 
         <div class="row" style="margin-top:12px;">
