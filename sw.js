@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v33";
+const VERSION = "fod-riq-v34";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -45,8 +45,11 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   const isSameOrigin = url.origin === self.location.origin;
+  // External account, media, and API requests must go directly to their providers.
+  // Caching cross-origin Firebase modules can prevent member sign-in after an update.
+  if (!isSameOrigin) return;
   const isNavigation = req.mode === "navigate" || req.destination === "document";
-  const isFreshAppFile = isSameOrigin && (
+  const isFreshAppFile = (
     isNavigation
     || req.destination === "script"
     || url.pathname.endsWith("/manifest.webmanifest")
