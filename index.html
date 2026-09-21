@@ -3023,19 +3023,22 @@ Conversation starters:
 
         <div class="hr"></div>
         <b>Profile Photos</b>
-        <p class="tiny">Add up to five JPEG, PNG or WebP photos. Each photo must be under 5 MB. Your first photo is your main photo.</p>
+        <p class="tiny">Add up to five photos. Large supported phone photos are automatically resized before upload. Your first photo is your main photo.</p>
         ${photoPaths.length ? `<div class="photoGrid">${photoPaths.map((path, index) => `
           <div class="photoCard">
             ${index === 0 ? `<span class="mainPhotoTag">Main photo</span>` : ``}
             <img class="profilePhoto" data-photo-path="${escapeAttr(path)}" alt="Dating profile photo ${index + 1}" />
             <div class="photoActions">
               ${index > 0 ? `<button type="button" data-photo-action="main" data-photo-path="${escapeAttr(path)}">Make Main</button>` : ``}
+              <button type="button" data-photo-action="replace" data-photo-path="${escapeAttr(path)}">Replace</button>
               <button type="button" data-photo-action="delete" data-photo-path="${escapeAttr(path)}">Remove</button>
             </div>
           </div>`).join("")}</div>` : `<p class="tiny">No photos added yet.</p>`}
+        ${profileExists && photoPaths.length ? `<input id="replacePhotoInput" type="file" accept="image/*" hidden />` : ``}
         ${profileExists && photoPaths.length < 5 ? `
-          <input class="filePicker" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+          <input class="filePicker" id="photoInput" type="file" accept="image/*" multiple />
           <div class="btnrow"><button type="button" class="primary" id="uploadPhotosBtn">Upload Selected Photos</button></div>` : ``}
+        ${profileExists && photoPaths.length === 5 ? `<p class="tiny">You have five photos. Use Replace on any picture, or remove one before adding another.</p>` : ``}
         ${!profileExists ? `<p class="tiny">Save your profile details first. If you selected profile visibility, we will keep the profile private until you add a photo.</p>` : ``}
         ${profileExists && !photoPaths.length ? `<p class="tiny">Your profile is private. Upload at least one photo, then turn on profile visibility and save again.</p>` : ``}
         <div class="errorText tiny" id="photoError"></div>
@@ -3113,6 +3116,13 @@ Conversation starters:
         const path = button.dataset.photoPath;
         const errorBox = document.getElementById("photoError");
         errorBox.textContent = "";
+        if(action === "replace"){
+          const input = document.getElementById("replacePhotoInput");
+          input.dataset.replacePath = path;
+          input.value = "";
+          input.click();
+          return;
+        }
         button.disabled = true;
         try{
           if(action === "main"){
@@ -3123,11 +3133,17 @@ Conversation starters:
             showToast("Main photo updated ✅");
           }else{
             const nextPaths = photoPaths.filter(item => item !== path);
-            await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+            const hidesProfile = nextPaths.length === 0 && Boolean(profile.active);
+            await window.ljtFirebase.saveDatingProfile({
+              photoPaths: nextPaths,
+              ...(hidesProfile ? { active:false } : {})
+            });
             try{ await window.ljtFirebase.deleteProfilePhoto(path); }catch(error){ console.warn("Unused photo could not be deleted", error); }
-            state.datingProfile = { ...profile, photoPaths: nextPaths };
+            state.datingProfile = { ...profile, photoPaths: nextPaths, ...(hidesProfile ? { active:false } : {}) };
             state.matchesLoaded = false;
-            showToast("Photo removed ✅");
+            showToast(hidesProfile
+              ? "Photo removed. Your profile is hidden until you add another photo."
+              : "Photo removed ✅");
           }
           render();
         }catch(error){
@@ -3136,6 +3152,32 @@ Conversation starters:
         }
       };
     });
+
+    const replacePhotoInput = document.getElementById("replacePhotoInput");
+    if(replacePhotoInput) replacePhotoInput.onchange = async () => {
+      const oldPath = replacePhotoInput.dataset.replacePath;
+      const file = replacePhotoInput.files?.[0];
+      if(!oldPath || !file) return;
+      const errorBox = document.getElementById("photoError");
+      const replaceButtons = [...document.querySelectorAll('[data-photo-action="replace"]')];
+      errorBox.textContent = "";
+      replaceButtons.forEach(button => button.disabled = true);
+      let newPath = "";
+      try{
+        newPath = await window.ljtFirebase.uploadProfilePhoto(file);
+        const nextPaths = photoPaths.map(path => path === oldPath ? newPath : path);
+        await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+        try{ await window.ljtFirebase.deleteProfilePhoto(oldPath); }catch(error){ console.warn("Replaced photo could not be deleted", error); }
+        state.datingProfile = { ...profile, photoPaths: nextPaths };
+        state.matchesLoaded = false;
+        showToast("Photo replaced ✅");
+        render();
+      }catch(error){
+        if(newPath) await window.ljtFirebase.deleteProfilePhoto(newPath).catch(() => undefined);
+        errorBox.textContent = error.message || "Could not replace the photo.";
+        replaceButtons.forEach(button => button.disabled = false);
+      }
+    };
 
     document.getElementById("saveDatingProfileBtn").onclick = async () => {
       const errorBox = document.getElementById("datingProfileError");
