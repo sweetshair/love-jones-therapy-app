@@ -258,6 +258,21 @@ service cloud.firestore {
       }
     }
 
+    match /callWallets/{userId} {
+      allow read: if owns(userId);
+      allow write: if false;
+    }
+
+    match /callPurchases/{purchaseId} {
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /paidCallSessions/{callId} {
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
     match /blocks/{blockId} {
       allow read: if eligibleMember()
         && (resource.data.blockerId == request.auth.uid
