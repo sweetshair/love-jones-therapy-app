@@ -4191,7 +4191,12 @@ Conversation starters:
     }
     return navigator.mediaDevices.getUserMedia({
       audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true },
-      video:mode === "video" ? { facingMode:"user" } : false
+      video:mode === "video" ? {
+        facingMode:"user",
+        width:{ ideal:1280 },
+        height:{ ideal:720 },
+        frameRate:{ ideal:30, max:30 }
+      } : false
     });
   }
 
@@ -4346,7 +4351,7 @@ Conversation starters:
               <div class="tiny">${interrupted
                 ? "This page was refreshed. End this attempt and start again."
                 : connected
-                  ? `5-minute preview • <span id="callCountdown">${callTimeText()}</span> remaining • Calls are not recorded by First Option Dating`
+                  ? `5-minute preview • <span id="callCountdown">${callTimeText()}</span> remaining • ${call.mode === "video" ? "720p preferred • " : ""}Calls are not recorded by First Option Dating`
                   : "Waiting for an answer • up to 20 seconds"
               }</div>
             </div>
