@@ -3309,11 +3309,11 @@ Conversation starters:
   }
 
   function mutuallyCompatiblePreferences(own, candidate){
+    if(candidate?.likedYou) return true;
     if(!own || !own.gender || !own.lookingFor) return true;
     const candidateFitsOwnPreference = !candidate?.gender
       || preferenceAllows(own.lookingFor, candidate.gender);
-    const ownFitsCandidatePreference = candidate?.likedYou
-      || !candidate?.lookingFor
+    const ownFitsCandidatePreference = !candidate?.lookingFor
       || preferenceAllows(candidate.lookingFor, own.gender);
     return candidateFitsOwnPreference && ownFitsCandidatePreference;
   }
