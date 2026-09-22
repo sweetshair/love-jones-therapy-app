@@ -342,6 +342,9 @@
     .callMedia{ width:100%; min-height:150px; max-height:52vh; border-radius:13px; object-fit:cover; background:#09090d; border:1px solid rgba(255,255,255,.09); }
     .callMedia.local{ transform:scaleX(-1); }
     .callStatus{ color:var(--accent); font-weight:800; }
+    .callPlanGrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:14px 0; }
+    .callPlanCard{ padding:14px; text-align:center; border:1px solid rgba(246,195,74,.25); border-radius:15px; background:rgba(246,195,74,.06); }
+    .callPlanPrice{ margin:5px 0 10px; color:var(--accent); font-size:19px; font-weight:900; }
     .policyLinks{ display:flex; justify-content:center; gap:8px 12px; flex-wrap:wrap; margin-top:8px; }
     .modalScroll{ max-height:min(68vh,650px); overflow:auto; padding-right:5px; }
     .safetyNotice{ padding:10px 12px; border-radius:12px; border:1px solid rgba(246,195,74,.24); background:rgba(246,195,74,.07); }
@@ -352,6 +355,7 @@
       .messageComposer{ flex-direction:column; }
       .messageComposer button{ width:100%; }
       .callMediaGrid{ grid-template-columns:1fr; }
+      .callPlanGrid{ grid-template-columns:1fr; }
     }
     .photoActions{ display:flex; gap:6px; flex-wrap:wrap; padding:8px; }
     .photoActions button{ padding:7px 9px; font-size:11px; }
@@ -924,6 +928,15 @@
     callTimer: null,
     callWarningMinuteShown: false,
     callWarningFinalShown: false,
+    callWallet: null,
+    callWalletLoading: false,
+    callWalletLoaded: false,
+    usePaidTimeAfterFree: false,
+    startNextCallWithPaidTime: false,
+    paidCallActive: false,
+    paidCallStarting: false,
+    paidCallHeartbeat: null,
+    paidCallBilledSeconds: 0,
     reportTarget: null,
 
     couplesStep: CouplesStep.SETUP,
@@ -3756,6 +3769,12 @@ Conversation starters:
 
   const FREE_CALL_SECONDS = 3 * 60;
   const CALL_RING_SECONDS = 20;
+  const PAID_CALL_HEARTBEAT_MS = 10 * 1000;
+  const CALL_TIME_PACKAGES = [
+    { id:"minutes_15", minutes:15, price:"$6.99 CAD" },
+    { id:"minutes_30", minutes:30, price:"$11.99 CAD" },
+    { id:"minutes_60", minutes:60, price:"$19.99 CAD" }
+  ];
   const CALL_STUN_SERVERS = [
     { urls:"stun:stun.l.google.com:19302" },
     { urls:"stun:stun1.l.google.com:19302" }
@@ -3786,7 +3805,18 @@ Conversation starters:
     return Boolean(call && ["ringing", "active"].includes(call.status));
   }
 
+  function formatCallDuration(totalSeconds){
+    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
   function callTimeText(){
+    if(state.paidCallActive){
+      return state.call?.callerId === state.authUser?.uid
+        ? formatCallDuration(state.callWallet?.balanceSeconds || 0)
+        : "Paid";
+    }
     if(!state.callDeadline) return "3:00";
     const seconds = Math.max(0, Math.ceil((state.callDeadline - Date.now()) / 1000));
     const minutes = Math.floor(seconds / 60);
@@ -3798,14 +3828,117 @@ Conversation starters:
     return new Date(timestamp).toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" });
   }
 
+  async function callServerFunction(path, body = {}){
+    const idToken = await window.ljtFirebase.getCurrentUserIdToken();
+    const response = await fetch(`/.netlify/functions/${path}`, {
+      method:"POST",
+      headers:{
+        Authorization:`Bearer ${idToken}`,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify(body),
+      cache:"no-store"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if(!response.ok) throw new Error(payload.error || "The call-time service is temporarily unavailable.");
+    return payload;
+  }
+
+  async function loadCallWallet(force = false){
+    if(state.callWalletLoaded && !force) return state.callWallet;
+    if(state.callWalletLoading) return state.callWallet;
+    state.callWalletLoading = true;
+    try{
+      state.callWallet = await callServerFunction("call-wallet");
+      return state.callWallet;
+    }finally{
+      state.callWalletLoading = false;
+      state.callWalletLoaded = true;
+    }
+  }
+
+  function renderCallPlansContent(notice = ""){
+    const content = document.getElementById("policyContent");
+    if(!content) return;
+    const balance = state.callWallet
+      ? `${formatCallDuration(state.callWallet.balanceSeconds)} available`
+      : state.callWalletLoading
+        ? "Loading balance…"
+        : "Balance unavailable until Stripe test mode is connected";
+    content.innerHTML = `
+      ${notice ? `<div class="safetyNotice"><b>${escapeHtml(notice)}</b></div>` : ``}
+      <div class="kpi" style="margin-top:12px;"><b>Your call-time balance</b><p>${escapeHtml(balance)}</p></div>
+      <div class="callPlanGrid">
+        ${CALL_TIME_PACKAGES.map(plan => `
+          <div class="callPlanCard">
+            <b>${plan.minutes} minutes</b>
+            <div class="callPlanPrice">${escapeHtml(plan.price)}</div>
+            <button class="ok" data-buy-call-package="${escapeAttr(plan.id)}">Test checkout</button>
+          </div>`).join("")}
+      </div>
+      <p class="tiny">Stripe test mode only. Test cards do not create a real charge. Purchased time belongs to the caller and can be used with any match.</p>
+      <div class="btnrow"><button id="refreshCallBalanceBtn">Refresh balance</button></div>`;
+    document.querySelectorAll("[data-buy-call-package]").forEach(button => {
+      button.onclick = () => startCallTimeCheckout(button.dataset.buyCallPackage, button);
+    });
+    document.getElementById("refreshCallBalanceBtn")?.addEventListener("click", async () => {
+      try{
+        await loadCallWallet(true);
+        renderCallPlansContent(notice);
+      }catch(error){
+        showToast(error.message || "The balance could not be refreshed.");
+      }
+    });
+  }
+
+  async function startCallTimeCheckout(packageId, button){
+    const buttons = [...document.querySelectorAll("[data-buy-call-package]")];
+    buttons.forEach(item => item.disabled = true);
+    if(button) button.textContent = "Opening Stripe…";
+    try{
+      const payload = await callServerFunction("create-checkout-session", { packageId });
+      window.location.assign(payload.checkoutUrl);
+    }catch(error){
+      showToast(error.message || "Stripe checkout could not be opened.");
+      buttons.forEach(item => item.disabled = false);
+      renderCallPlansContent();
+    }
+  }
+
   function openCallPlans(previewEnded = false, notice = ""){
     document.getElementById("privacyTitle").textContent = "Get more call time";
-    document.getElementById("privacySubtitle").textContent = "Call plans are coming soon";
-    document.getElementById("policyContent").innerHTML = `
-      <div class="safetyNotice"><b>${escapeHtml(notice || (previewEnded ? "Your 3-minute free call has ended." : "Paid call-time packages are not available yet."))}</b></div>
-      <p>A secure checkout must be added before anyone can purchase extra minutes. No payment will be taken from this screen.</p>
-      <p class="tiny">For now, continue by message or use any free calls remaining in your current allowance period.</p>`;
+    document.getElementById("privacySubtitle").textContent = "Secure Stripe test checkout";
     document.getElementById("privacyBackdrop").style.display = "flex";
+    const message = notice || (previewEnded ? "Your 3-minute free call has ended." : "Choose a call-time package.");
+    renderCallPlansContent(message);
+    loadCallWallet(true).then(() => renderCallPlansContent(message)).catch(error => {
+      renderCallPlansContent(`${message} ${error.message || "The balance is temporarily unavailable."}`);
+    });
+  }
+
+  function handleStripeReturn(){
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("stripe");
+    if(!result) return;
+    url.searchParams.delete("stripe");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    if(result === "cancelled"){
+      showToast("Stripe test checkout was cancelled. No payment was made.");
+      return;
+    }
+    if(result === "success"){
+      state.callWalletLoaded = false;
+      showToast("Stripe test payment completed. Updating your call-time balance…");
+      setTimeout(async () => {
+        try{
+          await loadCallWallet(true);
+          openCallPlans(false, "Test payment confirmed. Your purchased call time is ready.");
+        }catch(error){
+          openCallPlans(false, "Test payment completed. Use Refresh balance while the secure webhook finishes updating your wallet.");
+        }
+      }, 1500);
+    }
   }
 
   function stopRingTimer(){
@@ -3813,6 +3946,93 @@ Conversation starters:
     state.callRingTimer = null;
     state.callRingDeadline = 0;
     state.callRingExpiring = false;
+  }
+
+  function stopPaidCallHeartbeat(){
+    if(state.paidCallHeartbeat) clearInterval(state.paidCallHeartbeat);
+    state.paidCallHeartbeat = null;
+  }
+
+  async function paidCallAction(action){
+    const conversation = state.activeConversation;
+    const callId = state.activeCallId || state.call?.id;
+    if(!conversation?.matchId || !callId) throw new Error("The active call could not be identified.");
+    const payload = await callServerFunction("paid-call-session", {
+      action,
+      matchId:conversation.matchId,
+      callId
+    });
+    state.callWallet = {
+      ...(state.callWallet || {}),
+      balanceSeconds:Math.max(0, Number(payload.balanceSeconds) || 0)
+    };
+    state.paidCallBilledSeconds = Math.max(0, Number(payload.billedSeconds) || 0);
+    return payload;
+  }
+
+  async function updatePaidCallUsage(){
+    if(!state.paidCallActive || state.call?.callerId !== state.authUser?.uid) return;
+    try{
+      const payload = await paidCallAction("heartbeat");
+      const timer = document.getElementById("callCountdown");
+      if(timer) timer.textContent = callTimeText();
+      if(payload.status === "exhausted" || Number(payload.balanceSeconds) <= 0){
+        state.paidCallActive = false;
+        stopPaidCallHeartbeat();
+        await endCurrentCall("ended", false);
+        openCallPlans(false, "Your purchased call-time balance has been used.");
+      }
+    }catch(error){
+      showToast(error.message || "Purchased call time could not be updated.");
+    }
+  }
+
+  async function startPaidCallTime(){
+    if(state.paidCallActive || state.paidCallStarting) return;
+    state.paidCallStarting = true;
+    try{
+      const payload = await paidCallAction("start");
+      state.paidCallActive = true;
+      state.usePaidTimeAfterFree = true;
+      state.callDeadline = 0;
+      stopPaidCallHeartbeat();
+      state.paidCallHeartbeat = setInterval(updatePaidCallUsage, PAID_CALL_HEARTBEAT_MS);
+      showToast(`Purchased time is now in use. ${formatCallDuration(payload.balanceSeconds)} available.`);
+      if(state.screen === "messages") renderMessages();
+    }catch(error){
+      state.usePaidTimeAfterFree = false;
+      await endCurrentCall("ended", false);
+      openCallPlans(true, error.message || "Purchase call time to continue.");
+    }finally{
+      state.paidCallStarting = false;
+    }
+  }
+
+  async function finishPaidCallTime(){
+    if(!state.paidCallActive || state.call?.callerId !== state.authUser?.uid) return;
+    stopPaidCallHeartbeat();
+    try{
+      await paidCallAction("end");
+    }catch(error){
+      console.warn("Paid call could not be finalized:", error.message);
+    }finally{
+      state.paidCallActive = false;
+    }
+  }
+
+  async function preparePaidContinuation(){
+    try{
+      const wallet = await loadCallWallet(true);
+      if(!wallet || Number(wallet.balanceSeconds) <= 0){
+        openCallPlans(false, "Purchase call time before continuing beyond the free three minutes.");
+        return;
+      }
+      state.usePaidTimeAfterFree = true;
+      showToast(`This call will continue using your balance after three minutes. ${formatCallDuration(wallet.balanceSeconds)} available.`);
+      if(state.screen === "messages") renderMessages();
+    }catch(error){
+      openCallPlans(false, error.message || "Your call-time balance is unavailable.");
+    }
   }
 
   function scheduleRingTimeout(call){
@@ -3860,26 +4080,39 @@ Conversation starters:
     state.callWarningFinalShown = false;
   }
 
-  function updateCallCountdown(){
+  async function updateCallCountdown(){
     const timer = document.getElementById("callCountdown");
     if(timer) timer.textContent = callTimeText();
+    if(state.paidCallActive) return;
     if(!state.callDeadline) return;
     const seconds = Math.max(0, Math.ceil((state.callDeadline - Date.now()) / 1000));
     if(seconds <= 60 && !state.callWarningMinuteShown){
       state.callWarningMinuteShown = true;
-      showToast("One minute remains in this call preview.");
+      showToast(state.call?.callerId === state.authUser?.uid
+        ? "One free minute remains. Choose Use My Call Time to continue."
+        : "One free minute remains in this call.");
     }
     if(seconds <= 15 && !state.callWarningFinalShown){
       state.callWarningFinalShown = true;
-      showToast("15 seconds remain in this call preview.");
+      showToast("15 free seconds remain in this call.");
     }
     if(seconds <= 0){
+      if(state.call?.callerId !== state.authUser?.uid) return;
+      if(state.usePaidTimeAfterFree){
+        await startPaidCallTime();
+        return;
+      }
       const callLabel = state.call?.mode === "video" ? "video" : "voice";
       endCurrentCall("ended", false).finally(() => openCallPlans(true, `Your 3-minute free ${callLabel} call has ended.`));
     }
   }
 
   function startCallTimer(call){
+    if(call?.callerId === state.authUser?.uid && state.startNextCallWithPaidTime){
+      state.startNextCallWithPaidTime = false;
+      startPaidCallTime();
+      return;
+    }
     if(state.callTimer) return;
     const answeredAt = call?.answeredAt?.toMillis ? call.answeredAt.toMillis() : Date.now();
     state.callDeadline = answeredAt + (FREE_CALL_SECONDS * 1000);
@@ -3930,6 +4163,7 @@ Conversation starters:
   function cleanupCallMedia(){
     stopRingTimer();
     stopCallTimer();
+    stopPaidCallHeartbeat();
     if(typeof state.callCandidateUnsubscribe === "function") state.callCandidateUnsubscribe();
     state.callCandidateUnsubscribe = null;
     if(state.callPeer){
@@ -3947,6 +4181,11 @@ Conversation starters:
     state.callRole = "";
     state.callMuted = false;
     state.callCameraOff = false;
+    state.usePaidTimeAfterFree = false;
+    state.startNextCallWithPaidTime = false;
+    state.paidCallActive = false;
+    state.paidCallStarting = false;
+    state.paidCallBilledSeconds = 0;
     state.pendingLocalCallCandidates = [];
     state.pendingRemoteCallCandidates = [];
     queueMicrotask(() => resumeMoodAfterCall().catch(() => {}));
@@ -4110,6 +4349,9 @@ Conversation starters:
   async function endCurrentCall(status = "ended", announce = true){
     const conversation = state.activeConversation;
     const callId = state.activeCallId || state.call?.id;
+    if(state.paidCallActive && state.call?.callerId === state.authUser?.uid){
+      await finishPaidCallTime();
+    }
     if(conversation && callId && callIsOpen()){
       try{
         await window.ljtFirebase.updateCallStatus(conversation.matchId, callId, status);
@@ -4223,6 +4465,7 @@ Conversation starters:
     const conversation = state.activeConversation;
     if(!conversation || state.callBusy || callIsOpen()) return;
     state.callBusy = true;
+    state.startNextCallWithPaidTime = false;
     renderMessages();
     try{
       const allowance = await window.ljtFirebase.getFreeCallAllowance(mode);
@@ -4233,8 +4476,16 @@ Conversation starters:
           : allowance.period >= 4
             ? `You have used both free ${callLabel} calls in your final allowance period.`
             : `You have used both free ${callLabel} calls in this allowance period. Two more become available on ${formatAllowanceDate(allowance.periodEndsAt)}.`;
-        openCallPlans(false, notice);
-        return;
+        let wallet = null;
+        try{ wallet = await loadCallWallet(true); }catch(error){}
+        if(wallet && Number(wallet.balanceSeconds) > 0){
+          state.startNextCallWithPaidTime = true;
+          state.usePaidTimeAfterFree = true;
+          showToast(`This ${callLabel} call will use your purchased balance.`);
+        }else{
+          openCallPlans(false, `${notice} Purchase call time to place another ${callLabel} call.`);
+          return;
+        }
       }
       pauseMoodForCall();
       const localCallStream = await getCallMedia(mode);
@@ -4320,11 +4571,25 @@ Conversation starters:
       await state.callPeer.setRemoteDescription(call.answer);
       await flushRemoteCallCandidates();
     }
-    if(call.id === state.activeCallId && call.status === "active") startCallTimer(call);
+    if(call.id === state.activeCallId && call.status === "active"){
+      if(call.paidStatus === "active"){
+        state.paidCallActive = true;
+        state.callDeadline = 0;
+        if(!state.callTimer) state.callTimer = setInterval(updateCallCountdown, 1000);
+        if(call.callerId === state.authUser?.uid && !state.paidCallHeartbeat){
+          state.paidCallHeartbeat = setInterval(updatePaidCallUsage, PAID_CALL_HEARTBEAT_MS);
+        }
+      }else{
+        startCallTimer(call);
+      }
+    }
     if(
       call.id === state.activeCallId
       && ["declined", "ended", "failed", "missed"].includes(call.status)
     ){
+      if(state.paidCallActive && call.callerId === state.authUser?.uid){
+        await finishPaidCallTime();
+      }
       cleanupCallMedia();
       if(previous?.status !== call.status){
         const terminalMessage = call.status === "declined"
@@ -4381,7 +4646,9 @@ Conversation starters:
               <div class="tiny">${interrupted
                 ? "This page was refreshed. End this attempt and start again."
                 : connected
-                  ? `3-minute free call • <span id="callCountdown">${callTimeText()}</span> remaining • ${call.mode === "video" ? "720p preferred • " : ""}Calls are not recorded by First Option Dating`
+                  ? state.paidCallActive
+                    ? `Purchased time • ${call.callerId === userId ? `<span id="callCountdown">${callTimeText()}</span> balance • ` : ``}${call.mode === "video" ? "720p preferred • " : ""}Calls are not recorded by First Option Dating`
+                    : `3-minute free call • <span id="callCountdown">${callTimeText()}</span> remaining • ${call.mode === "video" ? "720p preferred • " : ""}Calls are not recorded by First Option Dating`
                   : "Waiting for an answer • up to 20 seconds"
               }</div>
             </div>
@@ -4398,17 +4665,20 @@ Conversation starters:
               <button class="ok" id="enableCallSoundBtn">Turn Sound On</button>
               <button id="muteCallBtn">${state.callMuted ? "Unmute" : "Mute"}</button>
               ${call.mode === "video" ? `<button id="cameraCallBtn">${state.callCameraOff ? "Turn camera on" : "Turn camera off"}</button>` : ``}
-              <button id="callPlansBtn">Call plans coming soon</button>
+              ${connected && call.callerId === userId && !state.paidCallActive
+                ? `<button class="primary" id="continuePaidCallBtn">${state.usePaidTimeAfterFree ? "My Call Time Is Ready" : "Use My Call Time After 3 Minutes"}</button>`
+                : ``}
+              <button id="callPlansBtn">Buy Call Time</button>
             </div>` : ``}
         </div>`;
     }
     return `
       <div class="callToolbar">
-        <div><b>Call your match</b><div class="tiny">Two free 3-minute voice calls and two free 3-minute video calls per allowance period</div></div>
+        <div><b>Call your match</b><div class="tiny">Two free 3-minute voice calls and two free 3-minute video calls per allowance period${state.callWallet ? ` • Purchased balance ${formatCallDuration(state.callWallet.balanceSeconds)}` : ``}</div></div>
         <div class="btnrow">
           <button id="startVoiceCallBtn">Voice call</button>
           <button class="ok" id="startVideoCallBtn">Video call</button>
-          <button id="callPlansBtn">Call plans coming soon</button>
+          <button id="callPlansBtn">Buy Call Time</button>
         </div>
       </div>`;
   }
@@ -4420,6 +4690,7 @@ Conversation starters:
     document.getElementById("declineCallBtn")?.addEventListener("click", () => endCurrentCall("declined"));
     document.getElementById("hangupCallBtn")?.addEventListener("click", () => endCurrentCall("ended"));
     document.querySelectorAll("#callPlansBtn").forEach(button => button.addEventListener("click", () => openCallPlans(false)));
+    document.getElementById("continuePaidCallBtn")?.addEventListener("click", preparePaidContinuation);
     document.getElementById("enableCallSoundBtn")?.addEventListener("click", enableCallSound);
     document.getElementById("muteCallBtn")?.addEventListener("click", () => {
       state.callMuted = !state.callMuted;
@@ -4440,6 +4711,11 @@ Conversation starters:
     const conversation = state.activeConversation;
     if(!conversation){ state.matchView = "connections"; state.screen = "matches"; return render(); }
     ensureCallWatch(conversation);
+    if(!state.callWalletLoaded && !state.callWalletLoading){
+      loadCallWallet().then(() => {
+        if(state.screen === "messages") renderMessages();
+      }).catch(() => {});
+    }
     if(!state.messageUnsubscribe){
       state.messagesLoading = true;
       state.messageUnsubscribe = window.ljtFirebase.watchMessages(
@@ -4621,6 +4897,7 @@ Conversation starters:
       }
       state.profileLoaded = true;
       startIncomingCallWatches().catch(() => {});
+      handleStripeReturn();
     }else{
       state.userName = "";
       state.userPhone = "";
@@ -4640,6 +4917,9 @@ Conversation starters:
       state.sentLikes = [];
       state.sentLikesLoaded = false;
       state.sentLikesError = "";
+      state.callWallet = null;
+      state.callWalletLoaded = false;
+      state.callWalletLoading = false;
       if(state.screen !== "home") state.screen = "home";
     }
 
