@@ -337,6 +337,72 @@ async function getMutualMatches() {
   return matches;
 }
 
+async function getSentLikes() {
+  const user = requireUser();
+  const sentLikes = new Map();
+  const blocked = new Set();
+  const matched = new Set();
+  const [sentSnapshot, profilesSnapshot, matchesSnapshot, outgoingBlocks, incomingBlocks] = await Promise.all([
+    getDocs(query(
+      collection(db, "swipes"),
+      where("fromId", "==", user.uid),
+      limit(250)
+    )),
+    getDocs(query(
+      collection(db, "datingProfiles"),
+      where("active", "==", true)
+    )),
+    getDocs(query(
+      collection(db, "matches"),
+      where("memberIds", "array-contains", user.uid),
+      limit(80)
+    )),
+    getDocs(query(
+      collection(db, "blocks"),
+      where("blockerId", "==", user.uid),
+      limit(250)
+    )),
+    getDocs(query(
+      collection(db, "blocks"),
+      where("blockedId", "==", user.uid),
+      limit(250)
+    ))
+  ]);
+  sentSnapshot.forEach(item => {
+    const data = item.data();
+    if (data.decision === "like") sentLikes.set(data.toId, data.updatedAt || data.createdAt || null);
+  });
+  outgoingBlocks.forEach(item => blocked.add(item.data().blockedId));
+  incomingBlocks.forEach(item => blocked.add(item.data().blockerId));
+  matchesSnapshot.forEach(item => {
+    const otherId = item.data().memberIds?.find(id => id !== user.uid);
+    if (otherId) matched.add(otherId);
+  });
+
+  const profiles = [];
+  profilesSnapshot.forEach(item => {
+    if (sentLikes.has(item.id) && !blocked.has(item.id) && !matched.has(item.id)) {
+      profiles.push({ id: item.id, ...item.data(), likedAt: sentLikes.get(item.id) });
+    }
+  });
+  return profiles;
+}
+
+async function withdrawLike(targetId) {
+  const user = requireUser();
+  const cleanTargetId = String(targetId || "");
+  if (!cleanTargetId || cleanTargetId === user.uid) throw new Error("That Like is unavailable.");
+  const swipeReference = doc(db, "swipes", `${user.uid}_${cleanTargetId}`);
+  const snapshot = await getDoc(swipeReference);
+  if (!snapshot.exists() || snapshot.data().fromId !== user.uid || snapshot.data().decision !== "like") {
+    throw new Error("That Like is no longer active.");
+  }
+  await setDoc(swipeReference, {
+    decision: "pass",
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
 function watchMessages(matchId, onMessages, onError) {
   requireUser();
   return onSnapshot(query(
@@ -549,6 +615,8 @@ window.ljtFirebase = {
   findDatingProfiles,
   recordSwipe,
   getMutualMatches,
+  getSentLikes,
+  withdrawLike,
   watchMessages,
   sendMessage,
   watchLatestCall,
