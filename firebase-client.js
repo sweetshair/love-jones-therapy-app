@@ -54,6 +54,7 @@ const verificationSettings = {
   url: window.location.origin,
   handleCodeInApp: false
 };
+const FREE_CALL_PROGRAM_START_MS = Date.parse("2026-09-22T00:00:00.000Z");
 
 const authPersistenceReady = Promise.race([
   setPersistence(auth, browserLocalPersistence),
@@ -337,6 +338,77 @@ async function getMutualMatches() {
   return matches;
 }
 
+async function getFreeCallAllowance(mode) {
+  const user = requireUser();
+  if (!["audio", "video"].includes(mode)) throw new Error("Choose a voice or video call.");
+  const matches = await getMutualMatches();
+  const callSnapshots = await Promise.all(matches.map(match => getDocs(query(
+    collection(db, "matches", match.id, "calls"),
+    where("callerId", "==", user.uid),
+    limit(100)
+  ))));
+  const answeredCalls = [];
+  callSnapshots.forEach(snapshot => {
+    snapshot.forEach(item => {
+      const call = item.data();
+      const answeredAt = call.answeredAt?.toMillis?.();
+      if (call.mode === mode && answeredAt >= FREE_CALL_PROGRAM_START_MS) answeredCalls.push(answeredAt);
+    });
+  });
+  answeredCalls.sort((first, second) => first - second);
+
+  if (!answeredCalls.length) {
+    return {
+      allowed: true,
+      remaining: 2,
+      used: 0,
+      period: 1,
+      hasStarted: false,
+      startsAt: null,
+      periodEndsAt: null,
+      trialEndsAt: null
+    };
+  }
+
+  const day = 24 * 60 * 60 * 1000;
+  const startsAt = answeredCalls[0];
+  const trialEndsAt = startsAt + (30 * day);
+  const now = Date.now();
+  if (now >= trialEndsAt) {
+    return {
+      allowed: false,
+      remaining: 0,
+      used: answeredCalls.length,
+      period: 4,
+      hasStarted: true,
+      expired: true,
+      startsAt,
+      periodEndsAt: trialEndsAt,
+      trialEndsAt
+    };
+  }
+
+  const elapsedDays = (now - startsAt) / day;
+  const period = elapsedDays < 7 ? 1 : elapsedDays < 14 ? 2 : elapsedDays < 21 ? 3 : 4;
+  const periodStartOffsets = [0, 0, 7, 14, 21];
+  const periodEndOffsets = [0, 7, 14, 21, 30];
+  const periodStartsAt = startsAt + (periodStartOffsets[period] * day);
+  const periodEndsAt = startsAt + (periodEndOffsets[period] * day);
+  const used = answeredCalls.filter(time => time >= periodStartsAt && time < periodEndsAt).length;
+  const remaining = Math.max(0, 2 - used);
+  return {
+    allowed: remaining > 0,
+    remaining,
+    used,
+    period,
+    hasStarted: true,
+    expired: false,
+    startsAt,
+    periodEndsAt,
+    trialEndsAt
+  };
+}
+
 async function getSentLikes() {
   const user = requireUser();
   const sentLikes = new Map();
@@ -615,6 +687,7 @@ window.ljtFirebase = {
   findDatingProfiles,
   recordSwipe,
   getMutualMatches,
+  getFreeCallAllowance,
   getSentLikes,
   withdrawLike,
   watchMessages,
