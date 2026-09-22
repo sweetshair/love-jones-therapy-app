@@ -303,8 +303,7 @@ async function recordSwipe(targetProfile, decision) {
   const memberIds = [user.uid, targetId].sort();
   const matchId = matchIdFor(user.uid, targetId);
   const matchReference = doc(db, "matches", matchId);
-  const existingMatch = await getDoc(matchReference);
-  if (!existingMatch.exists()) {
+  try {
     await setDoc(matchReference, {
       memberIds,
       status: "active",
@@ -315,6 +314,10 @@ async function recordSwipe(targetProfile, decision) {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+  } catch (error) {
+    if (!String(error?.code || "").endsWith("permission-denied")) throw error;
+    const existingMatch = await getDoc(matchReference);
+    if (!existingMatch.exists() || existingMatch.data().status !== "active") throw error;
   }
   return { matched: true, matchId };
 }
