@@ -187,6 +187,7 @@ async function findDatingProfiles(relationshipTypes = []) {
   const profiles = [];
   const outgoingDecisions = new Map();
   const incomingLikes = new Set();
+  const activeProfileIds = new Set();
   const blocked = new Set();
   const [outgoingBlocks, incomingBlocks, outgoingSwipes, incomingSwipes] = await Promise.all([
     getDocs(query(
@@ -226,19 +227,28 @@ async function findDatingProfiles(relationshipTypes = []) {
   ));
   snapshot.forEach(item => {
     const data = item.data();
+    activeProfileIds.add(item.id);
     const outgoingDecision = outgoingDecisions.get(item.id);
     const likedYou = incomingLikes.has(item.id);
     if (
       item.id !== user.uid
-      && outgoingDecision !== "like"
-      && (outgoingDecision !== "pass" || likedYou)
+      && (!outgoingDecision || likedYou)
       && !blocked.has(item.id)
-      && (!relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
+      && (likedYou || !relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
     ) {
       profiles.push({ id: item.id, ...data, likedYou });
     }
   });
-  return profiles;
+  return {
+    profiles,
+    status: {
+      incomingLikes: incomingLikes.size,
+      visibleIncomingLikes: profiles.filter(profile => profile.likedYou).length,
+      unavailableIncomingLikes: [...incomingLikes].filter(id => (
+        id !== user.uid && !activeProfileIds.has(id) && !blocked.has(id)
+      )).length
+    }
+  };
 }
 
 function matchIdFor(firstId, secondId) {
