@@ -879,6 +879,7 @@
     matchesLoading: false,
     matchesLoaded: false,
     matchesError: "",
+    discoveryStatus: null,
     matchView: "discover",
     connections: [],
     connectionsLoading: false,
@@ -3359,7 +3360,9 @@ Conversation starters:
     }else if(!state.matchesLoaded && !state.matchesLoading){
       state.matchesLoading = true;
       state.matchesError = "";
-      window.ljtFirebase.findDatingProfiles().then(matches => {
+      window.ljtFirebase.findDatingProfiles().then(result => {
+        const matches = Array.isArray(result) ? result : result.profiles;
+        state.discoveryStatus = Array.isArray(result) ? null : result.status;
         state.matches = matches
           .filter(profile => mutuallyCompatiblePreferences(state.datingProfile, profile))
           .sort((first, second) => {
@@ -3380,6 +3383,7 @@ Conversation starters:
         if(state.screen === "matches" && state.matchView === "discover") render();
       }).catch(error => {
         state.matches = [];
+        state.discoveryStatus = null;
         state.matchesLoaded = true;
         state.matchesLoading = false;
         state.matchesError = error.message || "Could not load people.";
@@ -3450,6 +3454,12 @@ Conversation starters:
         </article>`;
     }).join("");
 
+    const emptyDiscoveryMessage = state.discoveryStatus?.incomingLikes === 0
+      ? "No incoming likes are currently recorded for this account."
+      : state.discoveryStatus?.unavailableIncomingLikes > 0
+        ? "An incoming like is recorded, but that member’s dating profile is currently private or incomplete. They need to publish their profile again."
+        : "There are no new profiles matching your dating preferences right now. Check back as more members join.";
+
     app.innerHTML = `
       <div class="topbar">
         <div class="brand"><div class="logo"><b>FO</b></div><div class="brandTxt"><div class="title">${state.matchView === "connections" ? "My Matches" : "Discover People"}</div><div class="sub">First Option Dating • Relationship IQ compatibility</div></div></div>
@@ -3467,7 +3477,7 @@ Conversation starters:
       ${state.matchView === "discover" ? `
         ${state.matchesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Looking for compatible members…</p></div>` : ``}
         ${state.matchesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.matchesError)}</p></div>` : ``}
-        ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>You are caught up</b><p>There are no new profiles matching your dating preferences right now. Check back as more members join.</p></div>` : discoveryCard}
+        ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>You are caught up</b><p>${escapeHtml(emptyDiscoveryMessage)}</p></div>` : discoveryCard}
       ` : `
         ${state.connectionsLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading your mutual matches…</p></div>` : ``}
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}
@@ -4278,6 +4288,7 @@ Conversation starters:
       state.datingProfileLoaded = false;
       state.matches = [];
       state.matchesLoaded = false;
+      state.discoveryStatus = null;
       state.connections = [];
       state.connectionsLoaded = false;
       if(state.screen !== "home") state.screen = "home";
