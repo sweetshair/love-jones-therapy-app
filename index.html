@@ -319,6 +319,8 @@
     .swipeHint{ margin-top:9px; text-align:center; color:var(--muted); font-size:11px; }
     .connectionCard{ display:flex; flex-direction:column; gap:10px; }
     .connectionCard .matchPhoto{ width:86px; height:104px; }
+    .sentLikeCard{ display:flex; flex-direction:column; gap:10px; }
+    .sentLikeCard .matchPhoto{ width:100%; height:auto; aspect-ratio:4/5; border-radius:14px; }
     .messagePanel{ border:1px solid rgba(255,255,255,.09); border-radius:16px; overflow:hidden; background:rgba(255,255,255,.025); }
     .messageList{ height:min(54vh,520px); overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
     .messageBubble{ max-width:78%; padding:10px 12px; border-radius:15px 15px 15px 4px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08); }
@@ -885,6 +887,10 @@
     connectionsLoading: false,
     connectionsLoaded: false,
     connectionsError: "",
+    sentLikes: [],
+    sentLikesLoading: false,
+    sentLikesLoaded: false,
+    sentLikesError: "",
     activeConversation: null,
     messages: [],
     messagesLoading: false,
@@ -3328,6 +3334,12 @@ Conversation starters:
     return candidateFitsOwnPreference && ownFitsCandidatePreference;
   }
 
+  function formatLikeDate(value){
+    const date = value?.toDate ? value.toDate() : null;
+    if(!date) return "Recently";
+    return date.toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" });
+  }
+
   function renderMatches(){
     if(!state.authUser){ state.screen = "home"; return render(); }
     if(!state.authUser.emailVerified){ state.screen = "datingProfile"; return render(); }
@@ -3364,6 +3376,27 @@ Conversation starters:
           state.connectionsLoading = false;
           state.connectionsError = error.message || "Could not load your matches.";
           if(state.screen === "matches" && state.matchView === "connections") render();
+        });
+      }
+    }else if(state.matchView === "sent"){
+      if(!state.sentLikesLoaded && !state.sentLikesLoading){
+        state.sentLikesLoading = true;
+        state.sentLikesError = "";
+        window.ljtFirebase.getSentLikes().then(profiles => {
+          state.sentLikes = profiles.sort((first, second) => {
+            const firstTime = first.likedAt?.toMillis?.() || 0;
+            const secondTime = second.likedAt?.toMillis?.() || 0;
+            return secondTime - firstTime;
+          });
+          state.sentLikesLoaded = true;
+          state.sentLikesLoading = false;
+          if(state.screen === "matches" && state.matchView === "sent") render();
+        }).catch(error => {
+          state.sentLikes = [];
+          state.sentLikesLoaded = true;
+          state.sentLikesLoading = false;
+          state.sentLikesError = error.message || "Could not load your sent Likes.";
+          if(state.screen === "matches" && state.matchView === "sent") render();
         });
       }
     }else if(!state.matchesLoaded && !state.matchesLoading){
@@ -3460,6 +3493,34 @@ Conversation starters:
             <button class="danger" data-connection-action="block" data-match-id="${escapeAttr(connection.id)}" data-member-id="${escapeAttr(otherId)}" data-member-name="${escapeAttr(name)}">Block</button>
             <button data-connection-action="report" data-match-id="${escapeAttr(connection.id)}" data-member-id="${escapeAttr(otherId)}" data-member-name="${escapeAttr(name)}">Report</button>
           </div>
+      </article>`;
+    }).join("");
+
+    const sentLikeCards = state.sentLikes.map(profile => {
+      const name = profile.displayName || "Member";
+      const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
+      const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
+      const mainPhoto = getPhotoPaths(profile)[0];
+      return `
+        <article class="matchCard sentLikeCard">
+          ${mainPhoto
+            ? `<img class="matchPhoto" data-photo-path="${escapeAttr(mainPhoto)}" alt="${escapeAttr(name)} profile photo" />`
+            : `<div class="discoveryFallback"><div class="avatarInitial">${escapeHtml(name.charAt(0).toUpperCase())}</div></div>`}
+          <div>
+            <h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3>
+            <div class="tiny">${escapeHtml(location)}</div>
+            <div class="badgeGrid">
+              <span class="badge"><strong>Waiting for their response</strong></span>
+              <span class="badge">${escapeHtml(typeName)}</span>
+              <span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span>
+            </div>
+            <p>${escapeHtml(profile.bio || "This member is still completing their profile.")}</p>
+            <div class="tiny">Looking to meet: ${escapeHtml(profile.lookingFor || "Not specified")}</div>
+            <div class="tiny" style="margin-top:5px;">Liked ${escapeHtml(formatLikeDate(profile.likedAt))}</div>
+          </div>
+          <div class="btnrow">
+            <button class="danger" data-withdraw-like="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Withdraw Like</button>
+          </div>
         </article>`;
     }).join("");
 
@@ -3471,12 +3532,13 @@ Conversation starters:
 
     app.innerHTML = `
       <div class="topbar">
-        <div class="brand"><div class="logo"><b>FO</b></div><div class="brandTxt"><div class="title">${state.matchView === "connections" ? "My Matches" : "Discover People"}</div><div class="sub">First Option Dating • Relationship IQ compatibility</div></div></div>
+        <div class="brand"><div class="logo"><b>FO</b></div><div class="brandTxt"><div class="title">${state.matchView === "connections" ? "My Matches" : state.matchView === "sent" ? "Likes Sent" : "Discover People"}</div><div class="sub">First Option Dating • Relationship IQ compatibility</div></div></div>
         ${headerRightPill()}
       </div>
       ${storyBanner("hero-interracial.webp", "Compatibility with intention", "Meet people who value how you love.", "Your matches combine Relationship IQ compatibility with mutual dating preferences.")}
       <div class="sectionTabs">
         <button id="discoverTabBtn" class="${state.matchView === "discover" ? "active" : ""}">Discover People</button>
+        <button id="sentLikesTabBtn" class="${state.matchView === "sent" ? "active" : ""}">Likes Sent</button>
         <button id="connectionsTabBtn" class="${state.matchView === "connections" ? "active" : ""}">My Matches</button>
       </div>
       <div class="kpi">
@@ -3487,6 +3549,10 @@ Conversation starters:
         ${state.matchesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Looking for compatible members…</p></div>` : ``}
         ${state.matchesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.matchesError)}</p></div>` : ``}
         ${state.matchesLoaded && !state.matches.length && !state.matchesError ? `<div class="kpi" style="margin-top:12px;"><b>You are caught up</b><p>${escapeHtml(emptyDiscoveryMessage)}</p></div>` : discoveryCard}
+      ` : state.matchView === "sent" ? `
+        ${state.sentLikesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading the profiles you liked…</p></div>` : ``}
+        ${state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.sentLikesError)}</p></div>` : ``}
+        ${state.sentLikesLoaded && !state.sentLikes.length && !state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><b>No pending Likes</b><p>Profiles you Like will appear here until they respond. Mutual Likes move to My Matches.</p></div>` : `<div class="matchGrid">${sentLikeCards}</div>`}
       ` : `
         ${state.connectionsLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading your mutual matches…</p></div>` : ``}
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}
@@ -3499,6 +3565,11 @@ Conversation starters:
       state.matchesLoaded = false;
       render();
     };
+    document.getElementById("sentLikesTabBtn").onclick = () => {
+      state.matchView = "sent";
+      state.sentLikesLoaded = false;
+      render();
+    };
     document.getElementById("connectionsTabBtn").onclick = () => {
       state.matchView = "connections";
       state.connectionsLoaded = false;
@@ -3509,6 +3580,9 @@ Conversation starters:
       if(state.matchView === "connections"){
         state.connectionsLoaded = false;
         state.connectionsLoading = false;
+      }else if(state.matchView === "sent"){
+        state.sentLikesLoaded = false;
+        state.sentLikesLoading = false;
       }else{
         state.matchesLoaded = false;
         state.matchesLoading = false;
@@ -3526,8 +3600,10 @@ Conversation starters:
         state.matches.shift();
         if(outcome.matched){
           state.connectionsLoaded = false;
+          state.sentLikesLoaded = false;
           showToast(`It’s a match with ${candidate.displayName || "this member"}! Start a conversation.`);
         }else{
+          if(decision === "like") state.sentLikesLoaded = false;
           showToast(decision === "like" ? "Liked. We’ll tell you if it’s mutual." : "Profile passed.");
         }
         render();
@@ -3573,6 +3649,25 @@ Conversation starters:
       });
       discoveryElement.addEventListener("pointercancel", () => { swipeStartX = null; });
     }
+
+    document.querySelectorAll("[data-withdraw-like]").forEach(button => {
+      button.onclick = async () => {
+        const memberId = button.dataset.withdrawLike;
+        const name = button.dataset.memberName || "this member";
+        if(!window.confirm(`Withdraw your Like for ${name}?`)) return;
+        button.disabled = true;
+        try{
+          await window.ljtFirebase.withdrawLike(memberId);
+          state.sentLikes = state.sentLikes.filter(profile => profile.id !== memberId);
+          state.matchesLoaded = false;
+          showToast(`Your Like for ${name} was withdrawn.`);
+          render();
+        }catch(error){
+          showToast(error.message || "Could not withdraw that Like.");
+          button.disabled = false;
+        }
+      };
+    });
 
     document.querySelectorAll("[data-connection-action]").forEach(button => {
       button.onclick = async () => {
@@ -4300,6 +4395,9 @@ Conversation starters:
       state.discoveryStatus = null;
       state.connections = [];
       state.connectionsLoaded = false;
+      state.sentLikes = [];
+      state.sentLikesLoaded = false;
+      state.sentLikesError = "";
       if(state.screen !== "home") state.screen = "home";
     }
 
