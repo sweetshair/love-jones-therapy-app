@@ -3752,13 +3752,13 @@ Conversation starters:
     return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
   }
 
-  function openCallPlans(){
+  function openCallPlans(previewEnded = false){
     document.getElementById("privacyTitle").textContent = "Get more call time";
-    document.getElementById("privacySubtitle").textContent = "Call plans are being prepared";
+    document.getElementById("privacySubtitle").textContent = "Call plans are coming soon";
     document.getElementById("policyContent").innerHTML = `
-      <div class="safetyNotice"><b>Your 5-minute call preview has ended.</b></div>
-      <p>Paid call-time packages will be added through a secure checkout before anyone can be charged.</p>
-      <p class="tiny">For now, you can continue the conversation by message or begin another preview when available.</p>`;
+      <div class="safetyNotice"><b>${previewEnded ? "Your 5-minute call preview has ended." : "Paid call-time packages are not available yet."}</b></div>
+      <p>A secure checkout must be added before anyone can purchase extra minutes. No payment will be taken from this screen.</p>
+      <p class="tiny">For now, continue by message or start another 5-minute preview call.</p>`;
     document.getElementById("privacyBackdrop").style.display = "flex";
   }
 
@@ -3828,7 +3828,7 @@ Conversation starters:
       showToast("15 seconds remain in this call preview.");
     }
     if(seconds <= 0){
-      endCurrentCall("ended", false).finally(openCallPlans);
+      endCurrentCall("ended", false).finally(() => openCallPlans(true));
     }
   }
 
@@ -3849,7 +3849,34 @@ Conversation starters:
     }
     if(remote && state.remoteCallStream && remote.srcObject !== state.remoteCallStream){
       remote.srcObject = state.remoteCallStream;
-      remote.play?.().catch(() => {});
+      remote.muted = false;
+      remote.volume = 1;
+      remote.play?.().then(() => {
+        const soundButton = document.getElementById("enableCallSoundBtn");
+        if(soundButton) soundButton.textContent = "Sound On";
+      }).catch(() => {
+        const soundButton = document.getElementById("enableCallSoundBtn");
+        if(soundButton) soundButton.textContent = "Tap for Sound";
+      });
+    }
+  }
+
+  async function enableCallSound(){
+    const remote = document.getElementById("remoteCallMedia");
+    const audioTracks = state.remoteCallStream?.getAudioTracks?.() || [];
+    if(!remote || !audioTracks.length){
+      showToast("Waiting for the other member’s microphone audio.");
+      return;
+    }
+    remote.muted = false;
+    remote.volume = 1;
+    try{
+      await remote.play();
+      const soundButton = document.getElementById("enableCallSoundBtn");
+      if(soundButton) soundButton.textContent = "Sound On";
+      showToast("Call sound is on ✅");
+    }catch(error){
+      showToast("Your browser is still blocking call sound. Check the speaker icon and site sound permission.");
     }
   }
 
@@ -3942,7 +3969,8 @@ Conversation starters:
     state.remoteCallStream = new MediaStream();
     state.localCallStream.getTracks().forEach(track => peer.addTrack(track, state.localCallStream));
     peer.ontrack = event => {
-      event.streams[0]?.getTracks().forEach(track => {
+      const remoteTracks = event.streams[0]?.getTracks?.() || [event.track].filter(Boolean);
+      remoteTracks.forEach(track => {
         if(!state.remoteCallStream.getTracks().some(item => item.id === track.id)){
           state.remoteCallStream.addTrack(track);
         }
@@ -3987,7 +4015,7 @@ Conversation starters:
       throw new Error("Calls require a secure browser connection with camera and microphone support.");
     }
     return navigator.mediaDevices.getUserMedia({
-      audio:true,
+      audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true },
       video:mode === "video" ? { facingMode:"user" } : false
     });
   }
@@ -4151,15 +4179,16 @@ Conversation starters:
           </div>
           ${!interrupted && call.mode === "video" ? `
             <div class="callMediaGrid">
-              <video class="callMedia" id="remoteCallMedia" autoplay playsinline></video>
+              <video class="callMedia" id="remoteCallMedia" autoplay playsinline controls></video>
               <video class="callMedia local" id="localCallMedia" autoplay muted playsinline></video>
             </div>` : !interrupted ? `
-            <div class="kpi" style="margin-top:10px;"><b>Voice call</b><p>Audio only</p><audio id="remoteCallMedia" autoplay></audio></div>` : ``}
+            <div class="kpi" style="margin-top:10px;"><b>Voice call</b><p>Audio only</p><audio id="remoteCallMedia" autoplay controls></audio></div>` : ``}
           ${!interrupted ? `
             <div class="btnrow">
+              <button class="ok" id="enableCallSoundBtn">Turn Sound On</button>
               <button id="muteCallBtn">${state.callMuted ? "Unmute" : "Mute"}</button>
               ${call.mode === "video" ? `<button id="cameraCallBtn">${state.callCameraOff ? "Turn camera on" : "Turn camera off"}</button>` : ``}
-              <button id="callPlansBtn">Get more call time</button>
+              <button id="callPlansBtn">Call plans coming soon</button>
             </div>` : ``}
         </div>`;
     }
@@ -4169,7 +4198,7 @@ Conversation starters:
         <div class="btnrow">
           <button id="startVoiceCallBtn">Voice call</button>
           <button class="ok" id="startVideoCallBtn">Video call</button>
-          <button id="callPlansBtn">Get more time</button>
+          <button id="callPlansBtn">Call plans coming soon</button>
         </div>
       </div>`;
   }
@@ -4180,7 +4209,8 @@ Conversation starters:
     document.getElementById("answerCallBtn")?.addEventListener("click", answerIncomingCall);
     document.getElementById("declineCallBtn")?.addEventListener("click", () => endCurrentCall("declined"));
     document.getElementById("hangupCallBtn")?.addEventListener("click", () => endCurrentCall("ended"));
-    document.querySelectorAll("#callPlansBtn").forEach(button => button.addEventListener("click", openCallPlans));
+    document.querySelectorAll("#callPlansBtn").forEach(button => button.addEventListener("click", () => openCallPlans(false)));
+    document.getElementById("enableCallSoundBtn")?.addEventListener("click", enableCallSound);
     document.getElementById("muteCallBtn")?.addEventListener("click", () => {
       state.callMuted = !state.callMuted;
       state.localCallStream?.getAudioTracks().forEach(track => track.enabled = !state.callMuted);
