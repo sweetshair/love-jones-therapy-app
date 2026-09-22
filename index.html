@@ -1689,7 +1689,15 @@
 
   function headerRightPill(){
     const online = navigator.onLine;
-    if(state.authUser) return `<div class="pill admin">Member • ${online ? "Online" : "Offline"}</div>`;
+    if(state.authUser){
+      const accountName = String(
+        state.datingProfile?.displayName
+        || state.userName
+        || state.authUser.displayName
+        || "Member"
+      ).trim().split(/\s+/)[0];
+      return `<div class="pill admin">${escapeHtml(accountName)} • ${online ? "Online" : "Offline"}</div>`;
+    }
     return `<div class="pill">${online ? "Online" : "Offline"}</div>`;
   }
 
@@ -2333,8 +2341,9 @@
           });
           showToast("Account created ✅ You can complete your profile now.");
         }else{
-          await window.ljtFirebase.signIn(state.userEmail, password);
-          showToast("Signed in ✅");
+          const signedInUser = await window.ljtFirebase.signIn(state.userEmail, password);
+          const signedInName = String(signedInUser.displayName || signedInUser.email || "Member").trim().split(/\s+/)[0];
+          showToast(`Signed in as ${signedInName} ✅`);
         }
       }catch(error){
         const messages = {
