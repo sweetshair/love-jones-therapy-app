@@ -3526,7 +3526,7 @@ Conversation starters:
       const name = profile.displayName || "Member";
       const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
       const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
-      const mainPhoto = getPhotoPaths(profile)[0];
+      const mainPhoto = getPhotoPaths(profile)[0] || profile.photoPath;
       return `
         <article class="matchCard sentLikeCard">
           ${mainPhoto
@@ -3536,7 +3536,7 @@ Conversation starters:
             <h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3>
             <div class="tiny">${escapeHtml(location)}</div>
             <div class="badgeGrid">
-              <span class="badge"><strong>Waiting for their response</strong></span>
+              <span class="badge"><strong>${profile.likeStatus === "matched" ? "Matched" : profile.likeStatus === "previously_matched" ? "Previously matched" : "Waiting for their response"}</strong></span>
               <span class="badge">${escapeHtml(typeName)}</span>
               <span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span>
             </div>
@@ -3545,7 +3545,11 @@ Conversation starters:
             <div class="tiny" style="margin-top:5px;">Liked ${escapeHtml(formatLikeDate(profile.likedAt))}</div>
           </div>
           <div class="btnrow">
-            <button class="danger" data-withdraw-like="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Withdraw Like</button>
+            ${profile.likeStatus === "matched"
+              ? `<button class="ok" data-view-matched-like="${escapeAttr(profile.matchId)}">View in My Matches</button>`
+              : profile.likeStatus === "previously_matched"
+                ? ``
+                : `<button class="danger" data-withdraw-like="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Withdraw Like</button>`}
           </div>
         </article>`;
     }).join("");
@@ -3578,7 +3582,7 @@ Conversation starters:
       ` : state.matchView === "sent" ? `
         ${state.sentLikesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading the profiles you liked…</p></div>` : ``}
         ${state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.sentLikesError)}</p></div>` : ``}
-        ${state.sentLikesLoaded && !state.sentLikes.length && !state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><b>No pending Likes</b><p>Profiles you Like will appear here until they respond. Mutual Likes move to My Matches.</p></div>` : `<div class="matchGrid">${sentLikeCards}</div>`}
+        ${state.sentLikesLoaded && !state.sentLikes.length && !state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><b>No Likes Sent Yet</b><p>Profiles you Like will appear here, including members who later become matches.</p></div>` : `<div class="matchGrid">${sentLikeCards}</div>`}
       ` : `
         ${state.connectionsLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading your mutual matches…</p></div>` : ``}
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}
@@ -3694,6 +3698,15 @@ Conversation starters:
           showToast(error.message || "Could not withdraw that Like.");
           button.disabled = false;
         }
+      };
+    });
+
+    document.querySelectorAll("[data-view-matched-like]").forEach(button => {
+      button.onclick = () => {
+        state.matchView = "connections";
+        state.connectionsLoaded = false;
+        state.connectionsLoading = false;
+        render();
       };
     });
 
