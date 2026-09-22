@@ -413,7 +413,7 @@ async function getSentLikes() {
   const user = requireUser();
   const sentLikes = new Map();
   const blocked = new Set();
-  const matched = new Set();
+  const matchHistory = new Map();
   const [sentSnapshot, profilesSnapshot, matchesSnapshot, outgoingBlocks, incomingBlocks] = await Promise.all([
     getDocs(query(
       collection(db, "swipes"),
@@ -447,15 +447,36 @@ async function getSentLikes() {
   outgoingBlocks.forEach(item => blocked.add(item.data().blockedId));
   incomingBlocks.forEach(item => blocked.add(item.data().blockerId));
   matchesSnapshot.forEach(item => {
-    const otherId = item.data().memberIds?.find(id => id !== user.uid);
-    if (otherId) matched.add(otherId);
+    const data = item.data();
+    const otherId = data.memberIds?.find(id => id !== user.uid);
+    if (otherId) {
+      matchHistory.set(otherId, {
+        matchId: item.id,
+        status: data.status,
+        profile: data.profileSnapshots?.[otherId] || null
+      });
+    }
   });
 
+  const currentProfiles = new Map();
+  profilesSnapshot.forEach(item => currentProfiles.set(item.id, item.data()));
   const profiles = [];
-  profilesSnapshot.forEach(item => {
-    if (sentLikes.has(item.id) && !blocked.has(item.id) && !matched.has(item.id)) {
-      profiles.push({ id: item.id, ...item.data(), likedAt: sentLikes.get(item.id) });
-    }
+  sentLikes.forEach((likedAt, targetId) => {
+    if (blocked.has(targetId)) return;
+    const match = matchHistory.get(targetId);
+    const profile = currentProfiles.get(targetId) || match?.profile;
+    if (!profile) return;
+    profiles.push({
+      ...profile,
+      id: targetId,
+      likedAt,
+      matchId: match?.matchId || "",
+      likeStatus: match?.status === "active"
+        ? "matched"
+        : match
+          ? "previously_matched"
+          : "pending"
+    });
   });
   return profiles;
 }
