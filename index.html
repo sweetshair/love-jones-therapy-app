@@ -333,6 +333,10 @@
     .callToolbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:12px; padding:11px 12px; border:1px solid rgba(255,255,255,.09); border-radius:14px; background:rgba(255,255,255,.025); }
     .callToolbar .btnrow{ margin-top:0; }
     .incomingCall{ margin-top:12px; padding:14px; border:1px solid rgba(72,209,138,.32); border-radius:16px; background:rgba(72,209,138,.08); }
+    .incomingCallBackdrop{ position:fixed; inset:0; z-index:12000; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(4,4,8,.86); backdrop-filter:blur(8px); }
+    .incomingCallAlert{ width:min(440px,100%); padding:24px; text-align:center; border:1px solid rgba(72,209,138,.5); border-radius:22px; background:linear-gradient(180deg,rgba(30,38,34,.98),rgba(17,17,23,.99)); box-shadow:0 24px 70px rgba(0,0,0,.6); }
+    .incomingCallPulse{ width:70px; height:70px; display:grid; place-items:center; margin:0 auto 14px; border-radius:50%; color:#0c2117; background:var(--good); font-size:28px; font-weight:900; animation:incomingPulse 1.25s ease-in-out infinite; }
+    @keyframes incomingPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(72,209,138,.35); transform:scale(1); } 50%{ box-shadow:0 0 0 18px rgba(72,209,138,0); transform:scale(1.04); } }
     .callStage{ margin-top:12px; padding:12px; border:1px solid rgba(246,195,74,.27); border-radius:16px; background:rgba(0,0,0,.28); }
     .callMediaGrid{ display:grid; grid-template-columns:minmax(0,2fr) minmax(120px,1fr); gap:10px; margin-top:10px; }
     .callMedia{ width:100%; min-height:150px; max-height:52vh; border-radius:13px; object-fit:cover; background:#09090d; border:1px solid rgba(255,255,255,.09); }
@@ -896,6 +900,11 @@
     messagesLoading: false,
     messageUnsubscribe: null,
     callUnsubscribe: null,
+    incomingCallUnsubscribes: [],
+    incomingCallAlertKey: "",
+    incomingCallNotification: null,
+    incomingCallAlertTimer: null,
+    pageTitleBeforeCall: "",
     callCandidateUnsubscribe: null,
     call: null,
     callPeer: null,
@@ -1634,6 +1643,22 @@
     toastBox.textContent = msg;
     toastBox.style.display = "block";
     setTimeout(() => toastBox.style.display = "none", 2400);
+  }
+
+  async function enableCallAlerts(){
+    if(!("Notification" in window)){
+      showToast("This browser does not support system call alerts. In app call alerts will still appear.");
+      return;
+    }
+    if(Notification.permission === "granted"){
+      showToast("Call alerts are already enabled ✅");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    showToast(permission === "granted"
+      ? "Call alerts enabled ✅"
+      : "System alerts were not enabled. In app call alerts will still appear.");
+    if(state.screen === "matches") renderMatches();
   }
 
   function getPhotoPaths(profile){
@@ -3369,6 +3394,7 @@ Conversation starters:
           state.connections = connections;
           state.connectionsLoaded = true;
           state.connectionsLoading = false;
+          startIncomingCallWatches(connections).catch(() => {});
           if(state.screen === "matches" && state.matchView === "connections") render();
         }).catch(error => {
           state.connections = [];
@@ -3558,7 +3584,7 @@ Conversation starters:
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}
         ${state.connectionsLoaded && !state.connections.length && !state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><b>No mutual matches yet</b><p>When you and another member both choose Like, that connection appears here and messaging unlocks.</p></div>` : `<div class="matchGrid">${connectionCards}</div>`}
       `}
-      <div class="btnrow"><button class="primary" id="editDatingProfileBtn">Edit Dating Profile</button><button id="refreshMatchesBtn">Refresh</button><button id="homeBtn">Home</button></div>`;
+      <div class="btnrow"><button class="primary" id="editDatingProfileBtn">Edit Dating Profile</button><button id="enableCallAlertsBtn">${"Notification" in window && Notification.permission === "granted" ? "Call alerts enabled" : "Enable call alerts"}</button><button id="refreshMatchesBtn">Refresh</button><button id="homeBtn">Home</button></div>`;
 
     document.getElementById("discoverTabBtn").onclick = () => {
       state.matchView = "discover";
@@ -3576,6 +3602,7 @@ Conversation starters:
       render();
     };
     document.getElementById("editDatingProfileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    document.getElementById("enableCallAlertsBtn").onclick = () => enableCallAlerts().catch(() => showToast("Call alert permission could not be updated."));
     document.getElementById("refreshMatchesBtn").onclick = () => {
       if(state.matchView === "connections"){
         state.connectionsLoaded = false;
@@ -3601,6 +3628,7 @@ Conversation starters:
         if(outcome.matched){
           state.connectionsLoaded = false;
           state.sentLikesLoaded = false;
+          startIncomingCallWatches().catch(() => {});
           showToast(`It’s a match with ${candidate.displayName || "this member"}! Start a conversation.`);
         }else{
           if(decision === "like") state.sentLikesLoaded = false;
@@ -3911,6 +3939,153 @@ Conversation starters:
     state.call = null;
     cleanupCallMedia();
     state.callBusy = false;
+  }
+
+  function connectionMemberDetails(connection){
+    const memberId = connection?.memberIds?.find(id => id !== state.authUser?.uid) || "";
+    const profile = connection?.profileSnapshots?.[memberId] || {};
+    return {
+      memberId,
+      name:profile.displayName || "Your match",
+      profile
+    };
+  }
+
+  function closeIncomingCallAlert(callId = ""){
+    if(callId && state.incomingCallAlertKey && !state.incomingCallAlertKey.endsWith(`:${callId}`)) return;
+    if(state.incomingCallAlertTimer) clearTimeout(state.incomingCallAlertTimer);
+    state.incomingCallAlertTimer = null;
+    document.getElementById("globalIncomingCallAlert")?.remove();
+    state.incomingCallNotification?.close?.();
+    state.incomingCallNotification = null;
+    state.incomingCallAlertKey = "";
+    if(state.pageTitleBeforeCall){
+      document.title = state.pageTitleBeforeCall;
+      state.pageTitleBeforeCall = "";
+    }
+  }
+
+  function openIncomingCallConversation(connection, call, answerNow = false){
+    const details = connectionMemberDetails(connection);
+    stopCallWatch();
+    stopMessageWatch();
+    state.activeConversation = {
+      matchId:connection.id,
+      memberId:details.memberId,
+      name:details.name,
+      connection
+    };
+    state.messages = [];
+    state.messagesLoading = true;
+    state.call = call;
+    state.screen = "messages";
+    closeIncomingCallAlert(call.id);
+    renderMessages();
+    if(answerNow) answerIncomingCall();
+  }
+
+  async function declineGlobalIncomingCall(connection, call){
+    try{
+      await window.ljtFirebase.updateCallStatus(connection.id, call.id, "declined");
+      closeIncomingCallAlert(call.id);
+      showToast("Call declined.");
+    }catch(error){
+      showToast(error.message || "The call could not be declined.");
+    }
+  }
+
+  function showGlobalIncomingCallAlert(connection, call){
+    if(!state.authUser || call?.status !== "ringing" || call.calleeId !== state.authUser.uid) return;
+    const createdAt = call.createdAt?.toMillis?.() || call.createdAtMs || Date.now();
+    const remainingRingTime = (CALL_RING_SECONDS * 1000) - (Date.now() - createdAt);
+    if(remainingRingTime <= 0){
+      window.ljtFirebase.expireCallSignal(connection.id, call.id).catch(() => {});
+      return;
+    }
+    const key = `${connection.id}:${call.id}`;
+    if(state.incomingCallAlertKey === key) return;
+    closeIncomingCallAlert();
+    state.incomingCallAlertKey = key;
+    const details = connectionMemberDetails(connection);
+    const callLabel = call.mode === "video" ? "video" : "voice";
+    state.pageTitleBeforeCall = document.title;
+    document.title = `Incoming ${callLabel} call from ${details.name}`;
+    navigator.vibrate?.([300,150,300,150,500]);
+
+    const backdrop = document.createElement("div");
+    backdrop.id = "globalIncomingCallAlert";
+    backdrop.className = "incomingCallBackdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    backdrop.setAttribute("aria-label", `Incoming ${callLabel} call from ${details.name}`);
+    backdrop.innerHTML = `
+      <div class="incomingCallAlert">
+        <div class="incomingCallPulse">FO</div>
+        <div class="tiny accent">INCOMING ${callLabel.toUpperCase()} CALL</div>
+        <h2 style="margin:8px 0 4px;">${escapeHtml(details.name)} is calling</h2>
+        <p class="tiny">Answer within 20 seconds.</p>
+        <div class="btnrow" style="justify-content:center;">
+          <button class="ok" id="globalAnswerCallBtn">Answer</button>
+          <button class="danger" id="globalDeclineCallBtn">Decline</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    document.getElementById("globalAnswerCallBtn").onclick = () => openIncomingCallConversation(connection, call, true);
+    document.getElementById("globalDeclineCallBtn").onclick = () => declineGlobalIncomingCall(connection, call);
+    state.incomingCallAlertTimer = setTimeout(() => {
+      closeIncomingCallAlert(call.id);
+      window.ljtFirebase.expireCallSignal(connection.id, call.id).catch(() => {});
+    }, remainingRingTime);
+
+    if("Notification" in window && Notification.permission === "granted"){
+      try{
+        const notification = new Notification("Incoming First Option Dating call", {
+          body:`${details.name} is starting a ${callLabel} call.`,
+          icon:"./icon-192.png",
+          tag:`fod-call-${call.id}`,
+          requireInteraction:true
+        });
+        notification.onclick = () => {
+          window.focus();
+          openIncomingCallConversation(connection, call, false);
+          notification.close();
+        };
+        state.incomingCallNotification = notification;
+      }catch(error){}
+    }
+  }
+
+  function stopIncomingCallWatches(){
+    state.incomingCallUnsubscribes.forEach(unsubscribe => {
+      if(typeof unsubscribe === "function") unsubscribe();
+    });
+    state.incomingCallUnsubscribes = [];
+    closeIncomingCallAlert();
+  }
+
+  async function startIncomingCallWatches(connections = null){
+    stopIncomingCallWatches();
+    const userId = state.authUser?.uid;
+    if(!userId) return;
+    const activeConnections = Array.isArray(connections)
+      ? connections
+      : await window.ljtFirebase.getMutualMatches();
+    if(state.authUser?.uid !== userId) return;
+    activeConnections.forEach(connection => {
+      const unsubscribe = window.ljtFirebase.watchLatestCall(
+        connection.id,
+        call => {
+          if(state.authUser?.uid !== userId) return;
+          if(call?.status === "ringing" && call.calleeId === userId){
+            showGlobalIncomingCallAlert(connection, call);
+          }else if(call?.id){
+            closeIncomingCallAlert(call.id);
+          }
+        },
+        () => {}
+      );
+      state.incomingCallUnsubscribes.push(unsubscribe);
+    });
   }
 
   async function endCurrentCall(status = "ended", announce = true){
@@ -4387,6 +4562,7 @@ Conversation starters:
   window.addEventListener("ljt-auth-change", async (event) => {
     stopCallWatch();
     stopMessageWatch();
+    stopIncomingCallWatches();
     state.authReady = true;
     state.authUser = event.detail.user;
     state.profileLoaded = false;
@@ -4409,6 +4585,7 @@ Conversation starters:
         showToast("Signed in, but the profile could not load yet");
       }
       state.profileLoaded = true;
+      startIncomingCallWatches().catch(() => {});
     }else{
       state.userName = "";
       state.userPhone = "";
