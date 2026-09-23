@@ -347,14 +347,23 @@ async function getFreeCallAllowance(mode) {
     where("callerId", "==", user.uid),
     limit(100)
   ))));
-  const answeredCalls = [];
+  const answeredSessions = new Map();
   callSnapshots.forEach(snapshot => {
     snapshot.forEach(item => {
       const call = item.data();
       const answeredAt = call.answeredAt?.toMillis?.();
-      if (call.mode === mode && answeredAt >= FREE_CALL_PROGRAM_START_MS) answeredCalls.push(answeredAt);
+      if (
+        call.mode === mode
+        && call.billingMode !== "paid"
+        && answeredAt >= FREE_CALL_PROGRAM_START_MS
+      ) {
+        const sessionId = String(call.freeSessionId || item.id);
+        const previous = answeredSessions.get(sessionId);
+        if (!previous || answeredAt < previous) answeredSessions.set(sessionId, answeredAt);
+      }
     });
   });
+  const answeredCalls = [...answeredSessions.values()];
   answeredCalls.sort((first, second) => first - second);
 
   if (!answeredCalls.length) {
@@ -540,15 +549,22 @@ function watchLatestCall(matchId, onCall, onError) {
   }, onError);
 }
 
-async function createCallSignal(matchId, calleeId, mode, offer) {
+async function createCallSignal(matchId, calleeId, mode, offer, callOptions = {}) {
   const user = requireUser();
   if (!matchId || !calleeId || calleeId === user.uid) throw new Error("That member cannot be called.");
   if (!["audio", "video"].includes(mode)) throw new Error("Choose a voice or video call.");
   const callReference = doc(collection(db, "matches", matchId, "calls"));
+  const billingMode = callOptions.billingMode === "paid" ? "paid" : "free";
+  const freeSessionId = String(callOptions.freeSessionId || callReference.id).slice(0, 180);
+  const requestedFreeSeconds = Math.floor(Number(callOptions.freeSeconds) || 180);
+  const freeSeconds = billingMode === "paid" ? 0 : Math.max(1, Math.min(180, requestedFreeSeconds));
   await setDoc(callReference, {
     callerId: user.uid,
     calleeId,
     mode,
+    billingMode,
+    freeSessionId,
+    freeSeconds,
     status: "ringing",
     offer: safeSessionDescription(offer),
     createdAt: serverTimestamp(),

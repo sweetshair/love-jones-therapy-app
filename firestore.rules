@@ -153,6 +153,13 @@ service cloud.firestore {
             /databases/$(database)/documents/matches/$(matchId)
           ).data.memberIds
           && request.resource.data.mode in ["audio", "video"]
+          && request.resource.data.billingMode in ["free", "paid"]
+          && request.resource.data.freeSessionId is string
+          && request.resource.data.freeSessionId.size() > 0
+          && request.resource.data.freeSessionId.size() <= 180
+          && request.resource.data.freeSeconds is int
+          && request.resource.data.freeSeconds >= 0
+          && request.resource.data.freeSeconds <= 180
           && request.resource.data.status == "ringing"
           && request.resource.data.offer is map
           && request.resource.data.offer.type == "offer"
@@ -166,6 +173,9 @@ service cloud.firestore {
             "callerId",
             "calleeId",
             "mode",
+            "billingMode",
+            "freeSessionId",
+            "freeSeconds",
             "status",
             "offer",
             "createdAt",
@@ -175,6 +185,9 @@ service cloud.firestore {
           && request.resource.data.callerId == resource.data.callerId
           && request.resource.data.calleeId == resource.data.calleeId
           && request.resource.data.mode == resource.data.mode
+          && request.resource.data.billingMode == resource.data.billingMode
+          && request.resource.data.freeSessionId == resource.data.freeSessionId
+          && request.resource.data.freeSeconds == resource.data.freeSeconds
           && request.resource.data.offer == resource.data.offer
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.updatedAt == request.time

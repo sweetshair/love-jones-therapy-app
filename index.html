@@ -924,6 +924,7 @@
     callRingDeadline: 0,
     callRingTimer: null,
     callRingExpiring: false,
+    callDisconnectTimer: null,
     callDeadline: 0,
     callTimer: null,
     callWarningMinuteShown: false,
@@ -937,6 +938,10 @@
     paidCallStarting: false,
     paidCallHeartbeat: null,
     paidCallBilledSeconds: 0,
+    callSoundRequested: false,
+    remoteAudioContext: null,
+    remoteAudioSource: null,
+    remoteAudioGain: null,
     reportTarget: null,
 
     couplesStep: CouplesStep.SETUP,
@@ -3768,8 +3773,11 @@ Conversation starters:
   }
 
   const FREE_CALL_SECONDS = 3 * 60;
+  const FREE_CALL_RECONNECT_SECONDS = 60;
   const CALL_RING_SECONDS = 20;
+  const CALL_DISCONNECT_GRACE_MS = 8 * 1000;
   const PAID_CALL_HEARTBEAT_MS = 10 * 1000;
+  const FREE_CALL_RECONNECT_STORAGE_PREFIX = "fodFreeCallReconnect:";
   const CALL_TIME_PACKAGES = [
     { id:"minutes_15", minutes:15, price:"$6.99 CAD" },
     { id:"minutes_30", minutes:30, price:"$11.99 CAD" },
@@ -3809,6 +3817,62 @@ Conversation starters:
     const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
     const minutes = Math.floor(seconds / 60);
     return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  function freeCallReconnectKey(mode){
+    const userId = state.authUser?.uid || "guest";
+    return `${FREE_CALL_RECONNECT_STORAGE_PREFIX}${userId}:${mode}`;
+  }
+
+  function clearFreeCallReconnect(mode){
+    try{ localStorage.removeItem(freeCallReconnectKey(mode)); }
+    catch(error){}
+  }
+
+  function getFreeCallReconnect(mode = ""){
+    const modes = mode ? [mode] : ["audio", "video"];
+    const reconnects = [];
+    modes.forEach(item => {
+      try{
+        const value = JSON.parse(localStorage.getItem(freeCallReconnectKey(item)) || "null");
+        if(
+          !value
+          || value.mode !== item
+          || !value.freeSessionId
+          || Number(value.remainingSeconds) <= 0
+          || Number(value.expiresAt) <= Date.now()
+        ){
+          clearFreeCallReconnect(item);
+          return;
+        }
+        reconnects.push(value);
+      }catch(error){
+        clearFreeCallReconnect(item);
+      }
+    });
+    return reconnects.sort((first, second) => Number(second.expiresAt) - Number(first.expiresAt))[0] || null;
+  }
+
+  function rememberFreeCallReconnect(call = state.call){
+    if(
+      !call
+      || call.callerId !== state.authUser?.uid
+      || call.billingMode === "paid"
+      || state.paidCallActive
+      || !state.callDeadline
+    ) return null;
+    const remainingSeconds = Math.max(0, Math.ceil((state.callDeadline - Date.now()) / 1000));
+    if(remainingSeconds <= 0) return null;
+    const reconnect = {
+      mode:call.mode,
+      freeSessionId:String(call.freeSessionId || call.id || ""),
+      remainingSeconds:Math.min(FREE_CALL_SECONDS, remainingSeconds),
+      expiresAt:Date.now() + (FREE_CALL_RECONNECT_SECONDS * 1000)
+    };
+    if(!reconnect.freeSessionId) return null;
+    try{ localStorage.setItem(freeCallReconnectKey(call.mode), JSON.stringify(reconnect)); }
+    catch(error){}
+    return reconnect;
   }
 
   function callTimeText(){
@@ -4080,6 +4144,11 @@ Conversation starters:
     state.callWarningFinalShown = false;
   }
 
+  function stopCallDisconnectTimer(){
+    if(state.callDisconnectTimer) clearTimeout(state.callDisconnectTimer);
+    state.callDisconnectTimer = null;
+  }
+
   async function updateCallCountdown(){
     const timer = document.getElementById("callCountdown");
     if(timer) timer.textContent = callTimeText();
@@ -4115,7 +4184,8 @@ Conversation starters:
     }
     if(state.callTimer) return;
     const answeredAt = call?.answeredAt?.toMillis ? call.answeredAt.toMillis() : Date.now();
-    state.callDeadline = answeredAt + (FREE_CALL_SECONDS * 1000);
+    const freeSeconds = Math.max(1, Math.min(FREE_CALL_SECONDS, Number(call?.freeSeconds) || FREE_CALL_SECONDS));
+    state.callDeadline = answeredAt + (freeSeconds * 1000);
     state.callTimer = setInterval(updateCallCountdown, 1000);
     updateCallCountdown();
   }
@@ -4129,7 +4199,7 @@ Conversation starters:
     }
     if(remote && state.remoteCallStream && remote.srcObject !== state.remoteCallStream){
       remote.srcObject = state.remoteCallStream;
-      remote.muted = false;
+      remote.muted = Boolean(state.remoteAudioSource);
       remote.volume = 1;
       remote.play?.().then(() => {
         const soundButton = document.getElementById("enableCallSoundBtn");
@@ -4139,31 +4209,102 @@ Conversation starters:
         if(soundButton) soundButton.textContent = "Tap for Sound";
       });
     }
+    if(state.callSoundRequested && state.remoteCallStream?.getAudioTracks?.().length){
+      routeRemoteCallAudio().catch(() => {});
+    }
+  }
+
+  async function routeRemoteCallAudio(){
+    const remote = document.getElementById("remoteCallMedia");
+    const audioTracks = state.remoteCallStream?.getAudioTracks?.() || [];
+    audioTracks.forEach(track => { track.enabled = true; });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(AudioContextClass){
+      if(!state.remoteAudioContext || state.remoteAudioContext.state === "closed"){
+        state.remoteAudioContext = new AudioContextClass();
+      }
+      if(state.remoteAudioContext.state === "suspended") await state.remoteAudioContext.resume();
+      if(audioTracks.length && !state.remoteAudioSource){
+        state.remoteAudioSource = state.remoteAudioContext.createMediaStreamSource(state.remoteCallStream);
+        state.remoteAudioGain = state.remoteAudioContext.createGain();
+        state.remoteAudioGain.gain.value = 1;
+        state.remoteAudioSource.connect(state.remoteAudioGain);
+        state.remoteAudioGain.connect(state.remoteAudioContext.destination);
+      }
+    }
+    if(remote){
+      remote.srcObject = state.remoteCallStream;
+      remote.volume = 1;
+      remote.muted = Boolean(state.remoteAudioSource);
+      await remote.play();
+    }
+    return audioTracks.length > 0;
   }
 
   async function enableCallSound(){
-    const remote = document.getElementById("remoteCallMedia");
-    const audioTracks = state.remoteCallStream?.getAudioTracks?.() || [];
-    if(!remote || !audioTracks.length){
-      showToast("Waiting for the other member’s microphone audio.");
+    state.callSoundRequested = true;
+    const ownMicrophones = state.localCallStream?.getAudioTracks?.() || [];
+    const remoteMicrophones = state.remoteCallStream?.getAudioTracks?.() || [];
+    ownMicrophones.forEach(track => { track.enabled = !state.callMuted; });
+    try{
+      await routeRemoteCallAudio();
+    }catch(error){
+      showToast("Your browser is still blocking call sound. Allow sound, microphone, and speaker access for this site.");
       return;
     }
-    remote.muted = false;
-    remote.volume = 1;
-    try{
-      await remote.play();
-      const soundButton = document.getElementById("enableCallSoundBtn");
-      if(soundButton) soundButton.textContent = "Sound On";
-      showToast("Call sound is on ✅");
-    }catch(error){
-      showToast("Your browser is still blocking call sound. Check the speaker icon and site sound permission.");
+    const soundButton = document.getElementById("enableCallSoundBtn");
+    if(soundButton) soundButton.textContent = "Sound On";
+    if(!ownMicrophones.length){
+      showToast("Your microphone is unavailable. Check this site’s microphone permission.");
+      return;
     }
+    if(!remoteMicrophones.length){
+      showToast("Your microphone is on. Waiting for the other member’s microphone audio.");
+      return;
+    }
+    showToast("Speaker and microphone are on ✅");
+  }
+
+  function stopRemoteCallAudio(){
+    try{ state.remoteAudioSource?.disconnect?.(); }catch(error){}
+    try{ state.remoteAudioGain?.disconnect?.(); }catch(error){}
+    try{ state.remoteAudioContext?.close?.(); }catch(error){}
+    state.remoteAudioContext = null;
+    state.remoteAudioSource = null;
+    state.remoteAudioGain = null;
+    state.callSoundRequested = false;
+  }
+
+  async function verifyLocalCallMedia(stream){
+    const microphone = stream?.getAudioTracks?.()[0];
+    if(!microphone || microphone.readyState !== "live"){
+      stream?.getTracks?.().forEach(track => track.stop());
+      throw new Error("Your microphone did not start. Allow microphone access and try again.");
+    }
+    microphone.enabled = true;
+    if("contentHint" in microphone) microphone.contentHint = "speech";
+    return stream;
+  }
+
+  async function getVerifiedCallMedia(mode){
+    const stream = await getCallMedia(mode);
+    return verifyLocalCallMedia(stream);
+  }
+
+  /* The remote stream may arrive after the member taps Sound On. Keep the
+     request active so the first remote audio track is routed immediately. */
+  async function retryRequestedCallSound(){
+    if(!state.callSoundRequested) return;
+    try{ await routeRemoteCallAudio(); }
+    catch(error){}
   }
 
   function cleanupCallMedia(){
     stopRingTimer();
     stopCallTimer();
+    stopCallDisconnectTimer();
     stopPaidCallHeartbeat();
+    stopRemoteCallAudio();
     if(typeof state.callCandidateUnsubscribe === "function") state.callCandidateUnsubscribe();
     state.callCandidateUnsubscribe = null;
     if(state.callPeer){
@@ -4349,6 +4490,7 @@ Conversation starters:
   async function endCurrentCall(status = "ended", announce = true){
     const conversation = state.activeConversation;
     const callId = state.activeCallId || state.call?.id;
+    const reconnect = rememberFreeCallReconnect(state.call);
     if(state.paidCallActive && state.call?.callerId === state.authUser?.uid){
       await finishPaidCallTime();
     }
@@ -4362,7 +4504,13 @@ Conversation starters:
     if(state.call?.id === callId) state.call = { ...state.call, status };
     cleanupCallMedia();
     state.callBusy = false;
-    if(announce) showToast(status === "declined" ? "Call declined." : "Call ended.");
+    if(announce){
+      showToast(status === "declined"
+        ? "Call declined."
+        : reconnect
+          ? `Call ended. Reconnect within 60 seconds to use the remaining ${formatCallDuration(reconnect.remainingSeconds)}.`
+          : "Call ended.");
+    }
     if(state.screen === "messages") renderMessages();
   }
 
@@ -4412,6 +4560,7 @@ Conversation starters:
         }
       });
       attachCallMedia();
+      retryRequestedCallSound();
     };
     peer.onicecandidate = event => {
       if(!event.candidate) return;
@@ -4427,8 +4576,27 @@ Conversation starters:
       ).catch(() => {});
     };
     peer.onconnectionstatechange = () => {
+      if(["connected", "completed"].includes(peer.connectionState)){
+        stopCallDisconnectTimer();
+        return;
+      }
+      if(peer.connectionState === "disconnected"){
+        stopCallDisconnectTimer();
+        state.callDisconnectTimer = setTimeout(() => {
+          state.callDisconnectTimer = null;
+          if(state.callPeer === peer && peer.connectionState === "disconnected"){
+            endCurrentCall("failed", false).finally(() => {
+              showToast("The call connection was lost. Reconnect within 60 seconds to use the remaining free time.");
+            });
+          }
+        }, CALL_DISCONNECT_GRACE_MS);
+        return;
+      }
       if(peer.connectionState === "failed"){
-        endCurrentCall("failed", false).finally(() => showToast("The call could not connect."));
+        stopCallDisconnectTimer();
+        endCurrentCall("failed", false).finally(() => {
+          showToast("The call connection was lost. Reconnect within 60 seconds to use the remaining free time.");
+        });
       }
     };
     return peer;
@@ -4468,7 +4636,8 @@ Conversation starters:
     state.startNextCallWithPaidTime = false;
     renderMessages();
     try{
-      const allowance = await window.ljtFirebase.getFreeCallAllowance(mode);
+      const reconnect = getFreeCallReconnect(mode);
+      const allowance = reconnect ? { allowed:true } : await window.ljtFirebase.getFreeCallAllowance(mode);
       if(!allowance.allowed){
         const callLabel = mode === "video" ? "video" : "voice";
         const notice = allowance.expired
@@ -4488,7 +4657,7 @@ Conversation starters:
         }
       }
       pauseMoodForCall();
-      const localCallStream = await getCallMedia(mode);
+      const localCallStream = await getVerifiedCallMedia(mode);
       state.localCallStream = localCallStream;
       const iceServers = await getCallIceServers();
       const peer = createCallPeer(conversation, "caller", iceServers);
@@ -4498,16 +4667,27 @@ Conversation starters:
         conversation.matchId,
         conversation.memberId,
         mode,
-        peer.localDescription
+        peer.localDescription,
+        {
+          billingMode:state.startNextCallWithPaidTime ? "paid" : "free",
+          freeSessionId:reconnect?.freeSessionId || "",
+          freeSeconds:reconnect?.remainingSeconds || FREE_CALL_SECONDS
+        }
       );
       state.call = {
         id:state.activeCallId,
         callerId:state.authUser.uid,
         calleeId:conversation.memberId,
         mode,
+        billingMode:state.startNextCallWithPaidTime ? "paid" : "free",
+        freeSessionId:reconnect?.freeSessionId || state.activeCallId,
+        freeSeconds:reconnect?.remainingSeconds || FREE_CALL_SECONDS,
         createdAtMs:Date.now(),
         status:"ringing"
       };
+      if(reconnect){
+        showToast(`Reconnecting with ${formatCallDuration(reconnect.remainingSeconds)} of free time remaining.`);
+      }
       scheduleRingTimeout(state.call);
       watchRemoteCallCandidates(conversation, state.activeCallId, "callee");
       await flushLocalCallCandidates(conversation);
@@ -4531,7 +4711,7 @@ Conversation starters:
     renderMessages();
     try{
       pauseMoodForCall();
-      const localCallStream = await getCallMedia(call.mode);
+      const localCallStream = await getVerifiedCallMedia(call.mode);
       state.localCallStream = localCallStream;
       const iceServers = await getCallIceServers();
       state.activeCallId = call.id;
@@ -4572,6 +4752,10 @@ Conversation starters:
       await flushRemoteCallCandidates();
     }
     if(call.id === state.activeCallId && call.status === "active"){
+      if(call.callerId === state.authUser?.uid && call.billingMode !== "paid"){
+        const reconnect = getFreeCallReconnect(call.mode);
+        if(reconnect?.freeSessionId === call.freeSessionId) clearFreeCallReconnect(call.mode);
+      }
       if(call.paidStatus === "active"){
         state.paidCallActive = true;
         state.callDeadline = 0;
@@ -4587,6 +4771,7 @@ Conversation starters:
       call.id === state.activeCallId
       && ["declined", "ended", "failed", "missed"].includes(call.status)
     ){
+      const reconnect = rememberFreeCallReconnect(previous || call);
       if(state.paidCallActive && call.callerId === state.authUser?.uid){
         await finishPaidCallTime();
       }
@@ -4598,7 +4783,9 @@ Conversation starters:
             ? (call.callerId === state.authUser?.uid
                 ? "No answer. The call ended after 20 seconds."
                 : "You missed a call.")
-            : "The call ended.";
+            : reconnect
+              ? `The call ended. Reconnect within 60 seconds to use the remaining ${formatCallDuration(reconnect.remainingSeconds)}.`
+              : "The call ended.";
         showToast(terminalMessage);
       }
     }
@@ -4662,7 +4849,7 @@ Conversation starters:
             <div class="kpi" style="margin-top:10px;"><b>Voice call</b><p>Audio only</p><audio id="remoteCallMedia" autoplay controls></audio></div>` : ``}
           ${!interrupted ? `
             <div class="btnrow">
-              <button class="ok" id="enableCallSoundBtn">Turn Sound On</button>
+              <button class="ok" id="enableCallSoundBtn">Sound Check / Restart Audio</button>
               <button id="muteCallBtn">${state.callMuted ? "Unmute" : "Mute"}</button>
               ${call.mode === "video" ? `<button id="cameraCallBtn">${state.callCameraOff ? "Turn camera on" : "Turn camera off"}</button>` : ``}
               ${connected && call.callerId === userId && !state.paidCallActive
@@ -4672,10 +4859,17 @@ Conversation starters:
             </div>` : ``}
         </div>`;
     }
+    const reconnect = getFreeCallReconnect();
+    const reconnectLabel = reconnect?.mode === "video" ? "video" : "voice";
     return `
       <div class="callToolbar">
-        <div><b>Call your match</b><div class="tiny">Two free 3-minute voice calls and two free 3-minute video calls per allowance period${state.callWallet ? ` • Purchased balance ${formatCallDuration(state.callWallet.balanceSeconds)}` : ``}</div></div>
+        <div>
+          <b>Call your match</b>
+          <div class="tiny">Two free 3-minute voice calls and two free 3-minute video calls per allowance period${state.callWallet ? ` • Purchased balance ${formatCallDuration(state.callWallet.balanceSeconds)}` : ``}</div>
+          ${reconnect ? `<div class="tiny accent">Reconnect within 60 seconds to resume ${formatCallDuration(reconnect.remainingSeconds)} of the same free ${reconnectLabel} call.</div>` : ``}
+        </div>
         <div class="btnrow">
+          ${reconnect ? `<button class="primary" id="reconnectCallBtn">Reconnect ${reconnectLabel}</button>` : ``}
           <button id="startVoiceCallBtn">Voice call</button>
           <button class="ok" id="startVideoCallBtn">Video call</button>
           <button id="callPlansBtn">Buy Call Time</button>
@@ -4684,6 +4878,11 @@ Conversation starters:
   }
 
   function bindCallControls(){
+    document.getElementById("reconnectCallBtn")?.addEventListener("click", () => {
+      const reconnect = getFreeCallReconnect();
+      if(reconnect) startOutgoingCall(reconnect.mode);
+      else showToast("The reconnection period has ended. Start a new call when you are ready.");
+    });
     document.getElementById("startVoiceCallBtn")?.addEventListener("click", () => startOutgoingCall("audio"));
     document.getElementById("startVideoCallBtn")?.addEventListener("click", () => startOutgoingCall("video"));
     document.getElementById("answerCallBtn")?.addEventListener("click", answerIncomingCall);
