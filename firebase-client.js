@@ -553,24 +553,30 @@ async function createCallSignal(matchId, calleeId, mode, offer, callOptions = {}
   const user = requireUser();
   if (!matchId || !calleeId || calleeId === user.uid) throw new Error("That member cannot be called.");
   if (!["audio", "video"].includes(mode)) throw new Error("Choose a voice or video call.");
-  const callReference = doc(collection(db, "matches", matchId, "calls"));
   const billingMode = callOptions.billingMode === "paid" ? "paid" : "free";
-  const freeSessionId = String(callOptions.freeSessionId || callReference.id).slice(0, 180);
+  const freeSessionId = String(callOptions.freeSessionId || "").slice(0, 180);
   const requestedFreeSeconds = Math.floor(Number(callOptions.freeSeconds) || 180);
   const freeSeconds = billingMode === "paid" ? 0 : Math.max(1, Math.min(180, requestedFreeSeconds));
-  await setDoc(callReference, {
-    callerId: user.uid,
-    calleeId,
-    mode,
-    billingMode,
-    freeSessionId,
-    freeSeconds,
-    status: "ringing",
-    offer: safeSessionDescription(offer),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+  const response = await fetch("/.netlify/functions/create-call-signal", {
+    method:"POST",
+    headers:{
+      Authorization:`Bearer ${await getIdToken(user)}`,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      matchId,
+      calleeId,
+      mode,
+      offer:safeSessionDescription(offer),
+      billingMode,
+      freeSessionId,
+      freeSeconds
+    }),
+    cache:"no-store"
   });
-  return callReference.id;
+  const payload = await response.json().catch(() => ({}));
+  if(!response.ok) throw new Error(payload.error || "The call could not start.");
+  return String(payload.callId || "");
 }
 
 async function answerCallSignal(matchId, callId, answer) {
