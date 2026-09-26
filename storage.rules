@@ -17,15 +17,15 @@ service firebase.storage {
     }
 
     match /profilePhotos/{userId}/{fileName} {
-      allow read: if verified()
-        && (request.auth.uid == userId || noBlockBetween(userId));
+      allow read: if signedIn()
+        && (request.auth.uid == userId || (verified() && noBlockBetween(userId)));
 
-      allow create, update: if verified()
+      allow create, update: if signedIn()
         && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
 
-      allow delete: if verified()
+      allow delete: if signedIn()
         && request.auth.uid == userId;
     }
   }

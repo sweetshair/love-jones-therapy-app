@@ -54,6 +54,7 @@ const verificationSettings = {
   url: window.location.origin,
   handleCodeInApp: false
 };
+auth.languageCode = "en";
 const FREE_CALL_PROGRAM_START_MS = Date.parse("2026-09-22T00:00:00.000Z");
 
 const authPersistenceReady = Promise.race([
@@ -76,6 +77,16 @@ function requireUser() {
   return auth.currentUser;
 }
 
+async function deliverVerificationEmail(user) {
+  try {
+    await sendEmailVerification(user, verificationSettings);
+  } catch (error) {
+    if (error?.code !== "auth/unauthorized-continue-uri") throw error;
+    await sendEmailVerification(user);
+  }
+  return user.email || "your email address";
+}
+
 async function getCurrentUserIdToken() {
   return getIdToken(requireUser());
 }
@@ -95,8 +106,15 @@ async function signUp({ name, phone, email, password, consent }) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
-  await sendEmailVerification(user, verificationSettings);
-  return publicUser(user);
+  let verificationEmailSent = true;
+  let verificationEmailError = "";
+  try {
+    await deliverVerificationEmail(user);
+  } catch (error) {
+    verificationEmailSent = false;
+    verificationEmailError = error?.code || error?.message || "verification-email-failed";
+  }
+  return { ...publicUser(user), verificationEmailSent, verificationEmailError };
 }
 
 async function signIn(email, password) {
@@ -116,8 +134,7 @@ async function resetPassword(email) {
 async function resendVerification() {
   const user = requireUser();
   if (user.emailVerified) return false;
-  await sendEmailVerification(user, verificationSettings);
-  return true;
+  return deliverVerificationEmail(user);
 }
 
 async function refreshVerification() {
@@ -691,14 +708,90 @@ function photoExtension(contentType) {
   return extensions[contentType] || null;
 }
 
+function imageFileExtension(file) {
+  return String(file?.name || "").split(".").pop().toLowerCase();
+}
+
+async function decodeImageFile(file) {
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch (error) {
+      try { return await createImageBitmap(file); } catch (fallbackError) {}
+    }
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("This picture format could not be read. Try exporting it as JPEG."));
+      image.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function canvasBlob(canvas, contentType, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("The picture could not be prepared for upload.")), contentType, quality);
+  });
+}
+
+async function prepareProfilePhoto(file) {
+  const safeTypes = ["image/jpeg", "image/png", "image/webp"];
+  const appleTypes = ["image/heic", "image/heif", "image/avif"];
+  const extension = imageFileExtension(file);
+  const looksLikeImage = String(file?.type || "").startsWith("image/")
+    || ["jpg", "jpeg", "png", "webp", "heic", "heif", "avif"].includes(extension);
+  if (!looksLikeImage) throw new Error("Choose a picture from your photo library.");
+
+  const needsConversion = !safeTypes.includes(file.type)
+    || appleTypes.includes(file.type)
+    || ["heic", "heif", "avif"].includes(extension)
+    || file.size >= 4.75 * 1024 * 1024;
+  if (!needsConversion) return file;
+
+  const image = await decodeImageFile(file);
+  try {
+    const sourceWidth = Number(image.width || image.naturalWidth || 0);
+    const sourceHeight = Number(image.height || image.naturalHeight || 0);
+    if (!sourceWidth || !sourceHeight) throw new Error("The picture dimensions could not be read.");
+    const maxDimension = 2200;
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) throw new Error("The picture could not be prepared in this browser.");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let quality = 0.88;
+    let blob = await canvasBlob(canvas, "image/jpeg", quality);
+    while (blob.size >= 4.75 * 1024 * 1024 && quality > 0.58) {
+      quality -= 0.08;
+      blob = await canvasBlob(canvas, "image/jpeg", quality);
+    }
+    if (blob.size >= 5 * 1024 * 1024) throw new Error("This picture is still too large after resizing. Choose a smaller picture.");
+    const baseName = String(file.name || "profile-photo").replace(/\.[^.]+$/, "") || "profile-photo";
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  } finally {
+    if (typeof image.close === "function") image.close();
+  }
+}
+
 async function uploadProfilePhoto(file) {
   const user = requireUser();
-  const extension = photoExtension(file.type);
+  const preparedFile = await prepareProfilePhoto(file);
+  const extension = photoExtension(preparedFile.type);
   if (!extension) throw new Error("Choose a JPEG, PNG or WebP photo.");
-  if (file.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
+  if (preparedFile.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
   const path = `profilePhotos/${user.uid}/${uniqueName}`;
-  await uploadBytes(storageRef(storage, path), file, { contentType: file.type });
+  await uploadBytes(storageRef(storage, path), preparedFile, { contentType: preparedFile.type });
   return path;
 }
 
