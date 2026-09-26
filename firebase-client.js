@@ -712,6 +712,79 @@ function imageFileExtension(file) {
   return String(file?.name || "").split(".").pop().toLowerCase();
 }
 
+const DRAFT_PHOTO_PREFIX = "draftPhoto:";
+const DRAFT_PHOTO_DATABASE = "first-option-dating-private-drafts";
+const DRAFT_PHOTO_STORE = "profilePhotos";
+let draftPhotoDatabasePromise = null;
+
+function openDraftPhotoDatabase() {
+  if (!window.indexedDB) throw new Error("Private picture drafts are not supported in this browser. Verify your email, then try again.");
+  if (draftPhotoDatabasePromise) return draftPhotoDatabasePromise;
+  draftPhotoDatabasePromise = new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(DRAFT_PHOTO_DATABASE, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(DRAFT_PHOTO_STORE)) {
+        request.result.createObjectStore(DRAFT_PHOTO_STORE, { keyPath:"id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Private picture storage could not open."));
+  });
+  return draftPhotoDatabasePromise;
+}
+
+function draftPhotoKey(path) {
+  return String(path || "").startsWith(DRAFT_PHOTO_PREFIX)
+    ? String(path).slice(DRAFT_PHOTO_PREFIX.length)
+    : "";
+}
+
+async function getDraftPhotoRecord(path, user = requireUser()) {
+  const id = draftPhotoKey(path);
+  if (!id || !id.startsWith(`${user.uid}:`)) throw new Error("That private picture draft is unavailable.");
+  const database = await openDraftPhotoDatabase();
+  const record = await new Promise((resolve, reject) => {
+    const request = database.transaction(DRAFT_PHOTO_STORE, "readonly").objectStore(DRAFT_PHOTO_STORE).get(id);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("The private picture draft could not be read."));
+  });
+  if (!record || record.ownerId !== user.uid) throw new Error("That private picture draft is no longer on this device.");
+  return record;
+}
+
+async function saveDraftPhoto(user, file) {
+  const randomId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  const id = `${user.uid}:${randomId}`;
+  const database = await openDraftPhotoDatabase();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_PHOTO_STORE, "readwrite");
+    transaction.objectStore(DRAFT_PHOTO_STORE).put({
+      id,
+      ownerId:user.uid,
+      name:file.name || "profile-photo.jpg",
+      type:file.type || "image/jpeg",
+      blob:file,
+      createdAt:Date.now()
+    });
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error("The private picture draft could not be saved."));
+    transaction.onabort = () => reject(transaction.error || new Error("The private picture draft could not be saved."));
+  });
+  return `${DRAFT_PHOTO_PREFIX}${id}`;
+}
+
+async function deleteDraftPhoto(path, user = requireUser()) {
+  const record = await getDraftPhotoRecord(path, user);
+  const database = await openDraftPhotoDatabase();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_PHOTO_STORE, "readwrite");
+    transaction.objectStore(DRAFT_PHOTO_STORE).delete(record.id);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error("The private picture draft could not be removed."));
+    transaction.onabort = () => reject(transaction.error || new Error("The private picture draft could not be removed."));
+  });
+}
+
 async function decodeImageFile(file) {
   if ("createImageBitmap" in window) {
     try {
@@ -783,9 +856,7 @@ async function prepareProfilePhoto(file) {
   }
 }
 
-async function uploadProfilePhoto(file) {
-  const user = requireUser();
-  const preparedFile = await prepareProfilePhoto(file);
+async function uploadPreparedProfilePhoto(user, preparedFile) {
   const extension = photoExtension(preparedFile.type);
   if (!extension) throw new Error("Choose a JPEG, PNG or WebP photo.");
   if (preparedFile.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
@@ -795,14 +866,51 @@ async function uploadProfilePhoto(file) {
   return path;
 }
 
+async function uploadProfilePhoto(file) {
+  const user = requireUser();
+  const preparedFile = await prepareProfilePhoto(file);
+  if (!user.emailVerified) return saveDraftPhoto(user, preparedFile);
+  return uploadPreparedProfilePhoto(user, preparedFile);
+}
+
+async function commitPendingProfilePhotos(paths) {
+  const user = requireUser();
+  if (!user.emailVerified) throw new Error("Verify your email before uploading your saved pictures.");
+  const pendingPaths = paths.filter(path => draftPhotoKey(path));
+  if (!pendingPaths.length) return paths;
+  const replacements = new Map();
+  const uploadedPaths = [];
+  try {
+    for (const path of pendingPaths) {
+      const record = await getDraftPhotoRecord(path, user);
+      const preparedFile = record.blob instanceof File
+        ? record.blob
+        : new File([record.blob], record.name || "profile-photo.jpg", { type:record.type || record.blob.type || "image/jpeg" });
+      const uploadedPath = await uploadPreparedProfilePhoto(user, preparedFile);
+      replacements.set(path, uploadedPath);
+      uploadedPaths.push(uploadedPath);
+    }
+  } catch (error) {
+    await Promise.allSettled(uploadedPaths.map(path => deleteObject(storageRef(storage, path))));
+    throw error;
+  }
+  await Promise.all(pendingPaths.map(path => deleteDraftPhoto(path, user)));
+  return paths.map(path => replacements.get(path) || path);
+}
+
 async function loadProfilePhoto(path) {
-  requireUser();
+  const user = requireUser();
+  if (draftPhotoKey(path)) {
+    const record = await getDraftPhotoRecord(path, user);
+    return URL.createObjectURL(record.blob);
+  }
   const blob = await getBlob(storageRef(storage, path), 5 * 1024 * 1024);
   return URL.createObjectURL(blob);
 }
 
 async function deleteProfilePhoto(path) {
   const user = requireUser();
+  if (draftPhotoKey(path)) return deleteDraftPhoto(path, user);
   const ownerPrefix = `profilePhotos/${user.uid}/`;
   if (!path.startsWith(ownerPrefix)) throw new Error("You can only delete your own photos.");
   await deleteObject(storageRef(storage, path));
@@ -839,6 +947,7 @@ window.ljtFirebase = {
   blockMember,
   reportMember,
   uploadProfilePhoto,
+  commitPendingProfilePhotos,
   loadProfilePhoto,
   deleteProfilePhoto,
   getCurrentUserIdToken,

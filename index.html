@@ -516,7 +516,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 51</span>
+        <span id="appBuildLabel">Beta build UAT 52</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -3386,7 +3386,7 @@ Conversation starters:
         }
         const nextPaths = [...photoPaths, ...uploadedPaths];
         keepProfileFormWithPhotos(nextPaths);
-        if(profileExists){
+        if(profileExists && emailVerified){
           await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
           state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
         }
@@ -3423,7 +3423,7 @@ Conversation starters:
         try{
           if(action === "main"){
             const nextPaths = [path, ...photoPaths.filter(item => item !== path)];
-            if(profileExists) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+            if(profileExists && emailVerified) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
             keepProfileFormWithPhotos(nextPaths);
             if(profileExists) state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
             state.matchesLoaded = false;
@@ -3431,7 +3431,7 @@ Conversation starters:
           }else{
             const nextPaths = photoPaths.filter(item => item !== path);
             const hidesProfile = profileExists && nextPaths.length === 0 && Boolean(savedProfile.active);
-            if(profileExists) await window.ljtFirebase.saveDatingProfile({
+            if(profileExists && emailVerified) await window.ljtFirebase.saveDatingProfile({
               photoPaths: nextPaths,
               ...(hidesProfile ? { active:false } : {})
             });
@@ -3464,7 +3464,7 @@ Conversation starters:
       try{
         newPath = await window.ljtFirebase.uploadProfilePhoto(file);
         const nextPaths = photoPaths.map(path => path === oldPath ? newPath : path);
-        if(profileExists) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
+        if(profileExists && emailVerified) await window.ljtFirebase.saveDatingProfile({ photoPaths: nextPaths });
         try{ await window.ljtFirebase.deleteProfilePhoto(oldPath); }catch(error){ console.warn("Replaced photo could not be deleted", error); }
         keepProfileFormWithPhotos(nextPaths);
         if(profileExists) state.datingProfile = { ...state.datingProfile, ownerId:state.authUser.uid };
@@ -3498,6 +3498,19 @@ Conversation starters:
         return;
       }
       if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.";
+      if(payload.photoPaths.some(path => String(path).startsWith("draftPhoto:"))){
+        button.disabled = true;
+        button.textContent = "Uploading Saved Pictures…";
+        try{
+          payload.photoPaths = await window.ljtFirebase.commitPendingProfilePhotos(payload.photoPaths);
+          keepProfileFormWithPhotos(payload.photoPaths);
+        }catch(error){
+          errorBox.textContent = error.message || "Your saved pictures could not be uploaded.";
+          button.disabled = false;
+          button.textContent = "Save Complete Profile";
+          return;
+        }
+      }
       const savePrivatelyUntilPhoto = payload.active && !photoPaths.length;
       if(savePrivatelyUntilPhoto) payload.active = false;
       button.disabled = true;
