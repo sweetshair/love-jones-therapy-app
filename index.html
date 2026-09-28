@@ -542,7 +542,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 54</span>
+        <span id="appBuildLabel">Beta build UAT 55</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -2647,6 +2647,7 @@
     if(matchesBtn) matchesBtn.onclick = () => {
       if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
       state.matchView = "discover";
+      state.datingProfileLoaded = false;
       state.screen = "matches";
       render();
     };
@@ -2654,6 +2655,7 @@
     if(connectionsBtn) connectionsBtn.onclick = () => {
       if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
       state.matchView = "connections";
+      state.datingProfileLoaded = false;
       state.connectionsLoaded = false;
       state.screen = "matches";
       render();
@@ -3249,6 +3251,12 @@ Conversation starters:
     const current = (key, fallback="") => profile[key] ?? fallback;
     const acceptedCurrentTerms = current("termsAccepted", false)
       && current("termsVersion", "") === TERMS_VERSION;
+    const savedCurrentTerms = savedProfile.termsAccepted === true
+      && savedProfile.termsVersion === TERMS_VERSION;
+    const canEnterDating = emailVerified
+      && profileExists
+      && savedCurrentTerms
+      && getPhotoPaths(savedProfile).length > 0;
     const options = (items, selected) => items.map(item => {
       const value = typeof item === "string" ? item : item[0];
       const label = typeof item === "string" ? item : item[1];
@@ -3373,19 +3381,24 @@ Conversation starters:
           <span class="tiny">Matched with compatible Relationship IQ types</span>
         </div>
 
+        <div class="safetyNotice" style="margin-top:14px;">
+          <b>Required: Terms and Safety Agreement</b>
+          <label style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
+            <input type="checkbox" id="datingTermsChk" required aria-describedby="datingTermsRecord" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
+            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
+          </label>
+          <p class="tiny" id="datingTermsRecord" style="margin:8px 0 0;">You must check this box before saving a completed profile. The acceptance date and current Terms version are recorded when you save.</p>
+        </div>
         <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="datingTermsChk" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-          <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this step."}</span>
+          <input type="checkbox" id="activeProfileChk" ${emailVerified && acceptedCurrentTerms && current("active", false) ? "checked" : ""} ${emailVerified && acceptedCurrentTerms ? "" : "disabled"} />
+          <span class="tiny" id="activeProfileHelp">Show my dating profile to signed-in members.${emailVerified ? (acceptedCurrentTerms ? "" : " Accept the agreement above first.") : " Email verification is required before publishing."}</span>
         </label>
-        <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="activeProfileChk" ${emailVerified && current("active", false) ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-          <span class="tiny">Show my dating profile to signed-in members.${emailVerified ? "" : " Email verification is required before publishing."}</span>
-        </label>
+        ${canEnterDating ? "" : `<p class="tiny" style="margin-top:10px;">${emailVerified ? "Accept the current Terms and save your completed profile with at least one picture to unlock Discover People and My Matches." : "Verify your email, accept the current Terms, and save your completed profile to unlock Discover People and My Matches."}</p>`}
         <div class="errorText tiny" id="datingProfileError"></div>
         <div class="btnrow">
           <button class="primary" id="saveDatingProfileBtn">${emailVerified ? "Save Complete Profile" : "Save Private Draft"}</button>
-          <button class="ok" id="viewMatchesBtn" ${emailVerified ? "" : "disabled"}>Discover People</button>
-          <button id="viewConnectionsBtn" ${emailVerified ? "" : "disabled"}>My Matches</button>
+          <button class="ok" id="viewMatchesBtn" ${canEnterDating ? "" : "disabled"}>Discover People</button>
+          <button id="viewConnectionsBtn" ${canEnterDating ? "" : "disabled"}>My Matches</button>
           <button id="homeBtn">Home</button>
         </div>
       </div>`;
@@ -3421,17 +3434,32 @@ Conversation starters:
     };
     document.getElementById("viewMatchesBtn").onclick = () => {
       state.matchView = "discover";
+      state.datingProfileLoaded = false;
       state.matchesLoaded = false;
       state.screen = "matches";
       render();
     };
     document.getElementById("viewConnectionsBtn").onclick = () => {
       state.matchView = "connections";
+      state.datingProfileLoaded = false;
       state.connectionsLoaded = false;
       state.screen = "matches";
       render();
     };
     hydrateProfilePhotos();
+
+    const datingTermsCheckbox = document.getElementById("datingTermsChk");
+    const activeProfileCheckbox = document.getElementById("activeProfileChk");
+    const activeProfileHelp = document.getElementById("activeProfileHelp");
+    const syncDatingAgreementControls = () => {
+      activeProfileCheckbox.disabled = !emailVerified || !datingTermsCheckbox.checked;
+      if(!datingTermsCheckbox.checked) activeProfileCheckbox.checked = false;
+      activeProfileHelp.textContent = `Show my dating profile to signed-in members.${emailVerified
+        ? (datingTermsCheckbox.checked ? "" : " Accept the agreement above first.")
+        : " Email verification is required before publishing."}`;
+    };
+    datingTermsCheckbox.onchange = syncDatingAgreementControls;
+    syncDatingAgreementControls();
 
     const bodyPreferenceInputs = [...document.querySelectorAll('input[name="preferredBodyType"]')];
     bodyPreferenceInputs.forEach(input => {
@@ -3470,7 +3498,13 @@ Conversation starters:
 
     const keepProfileFormWithPhotos = (nextPaths, overrides={}) => {
       const draft = saveDatingProfileDraft({ ...readDatingProfileForm(), photoPaths:nextPaths, ...overrides });
-      state.datingProfile = { ...savedProfile, ...draft };
+      state.datingProfile = profileExists
+        ? {
+            ...savedProfile,
+            photoPaths:nextPaths,
+            ...(overrides.active === undefined ? {} : { active:overrides.active })
+          }
+        : { ...savedProfile, ...draft };
       return draft;
     };
 
@@ -3715,6 +3749,16 @@ Conversation starters:
         if(state.screen === "matches") render();
       });
       return;
+    }
+
+    const hasCompletedDatingAgreement = state.datingProfile?.ownerId
+      && state.datingProfile.termsAccepted === true
+      && state.datingProfile.termsVersion === TERMS_VERSION
+      && getPhotoPaths(state.datingProfile).length > 0;
+    if(!hasCompletedDatingAgreement){
+      state.screen = "datingProfile";
+      showToast("Accept the current Terms and save your completed dating profile first.");
+      return render();
     }
 
     if(state.matchView === "connections"){
