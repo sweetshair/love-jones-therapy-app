@@ -542,7 +542,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 53</span>
+        <span id="appBuildLabel">Beta build UAT 54</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -3254,6 +3254,16 @@ Conversation starters:
       const label = typeof item === "string" ? item : item[1];
       return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
     }).join("");
+    const ageOptions = (selected, placeholder="Select age") => {
+      const selectedAge = Number(selected);
+      const hasSelectedAge = Number.isInteger(selectedAge) && selectedAge >= 18 && selectedAge <= 99;
+      return [
+        `<option value="" ${hasSelectedAge ? "" : "selected"}>${escapeHtml(placeholder)}</option>`,
+        ...Array.from({ length:82 }, (_, index) => index + 18).map(age => (
+          `<option value="${age}" ${age === selectedAge ? "selected" : ""}>${age}</option>`
+        ))
+      ].join("");
+    };
     const countryOptions = (selected) => {
       const countries = COUNTRY_GROUPS.flatMap(([, items]) => items);
       if(selected && !countries.includes(selected)) countries.push(selected);
@@ -3303,7 +3313,7 @@ Conversation starters:
 
         <div class="row" style="margin-top:12px;">
           <div class="col"><div class="tiny" style="margin-bottom:6px;">First name or display name</div><input class="in" id="displayNameInput" maxlength="30" value="${escapeAttr(current("displayName", firstName))}" /></div>
-          <div class="col"><div class="tiny" style="margin-bottom:6px;">Age</div><input class="in" id="ageInput" type="number" min="18" max="99" value="${escapeAttr(current("age"))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Age</div><select class="in" id="ageInput">${ageOptions(current("age"), "Select your age")}</select></div>
         </div>
 
         <div class="row" style="margin-top:12px;">
@@ -3327,8 +3337,8 @@ Conversation starters:
         <b>Your Discovery Preferences</b>
         <p class="tiny">These settings help choose profiles for you and are not shown to other members. Members who already Liked you remain visible even when they fall outside your usual preferences.</p>
         <div class="row" style="margin-top:12px;">
-          <div class="col"><div class="tiny" style="margin-bottom:6px;">Youngest age you want to meet</div><input class="in" id="minPreferredAgeInput" type="number" inputmode="numeric" min="18" max="99" value="${escapeAttr(current("minPreferredAge", 18))}" /></div>
-          <div class="col"><div class="tiny" style="margin-bottom:6px;">Oldest age you want to meet</div><input class="in" id="maxPreferredAgeInput" type="number" inputmode="numeric" min="18" max="99" value="${escapeAttr(current("maxPreferredAge", 99))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Youngest age you want to meet</div><select class="in" id="minPreferredAgeInput">${ageOptions(current("minPreferredAge", 18), "Select youngest age")}</select></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Oldest age you want to meet</div><select class="in" id="maxPreferredAgeInput">${ageOptions(current("maxPreferredAge", 99), "Select oldest age")}</select></div>
         </div>
         <div style="margin-top:12px;">
           <div class="tiny">Body types you are open to meeting</div>
