@@ -146,31 +146,9 @@ service cloud.firestore {
 
       match /calls/{callId} {
         allow read: if matchMember(matchId);
-        allow create: if matchMember(matchId)
-          && request.resource.data.callerId == request.auth.uid
-          && request.resource.data.calleeId != request.auth.uid
-          && request.resource.data.calleeId in get(
-            /databases/$(database)/documents/matches/$(matchId)
-          ).data.memberIds
-          && request.resource.data.mode in ["audio", "video"]
-          && request.resource.data.status == "ringing"
-          && request.resource.data.offer is map
-          && request.resource.data.offer.type == "offer"
-          && request.resource.data.offer.sdp is string
-          && request.resource.data.offer.sdp.size() > 0
-          && request.resource.data.offer.sdp.size() <= 20000
-          && request.resource.data.offer.keys().hasOnly(["type", "sdp"])
-          && request.resource.data.createdAt == request.time
-          && request.resource.data.updatedAt == request.time
-          && request.resource.data.keys().hasOnly([
-            "callerId",
-            "calleeId",
-            "mode",
-            "status",
-            "offer",
-            "createdAt",
-            "updatedAt"
-          ]);
+        // Only create-call-signal may reserve and create a call atomically.
+        // Client creation would bypass concurrency, wallet and reconnect checks.
+        allow create: if false;
         allow update: if matchMember(matchId)
           && request.resource.data.callerId == resource.data.callerId
           && request.resource.data.calleeId == resource.data.calleeId

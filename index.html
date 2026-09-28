@@ -542,7 +542,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 56</span>
+        <span id="appBuildLabel">Beta build UAT 57</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -4796,6 +4796,10 @@ Conversation starters:
   }
 
   function openIncomingCallConversation(connection, call, answerNow = false){
+    if(state.callBusy){
+      showToast("Please wait for call setup to finish, then answer the incoming call.");
+      return;
+    }
     const details = connectionMemberDetails(connection);
     stopCallWatch();
     stopMessageWatch();
@@ -5063,6 +5067,7 @@ Conversation starters:
   async function startOutgoingCall(mode){
     const conversation = state.activeConversation;
     if(!conversation || state.callBusy || callIsOpen()) return;
+    let outgoingCallId = "";
     state.callBusy = true;
     state.startNextCallWithPaidTime = false;
     renderMessages();
@@ -5105,6 +5110,7 @@ Conversation starters:
           freeSeconds:reconnect?.remainingSeconds || FREE_CALL_SECONDS
         }
       );
+      outgoingCallId = state.activeCallId;
       state.call = {
         id:state.activeCallId,
         callerId:state.authUser.uid,
@@ -5123,8 +5129,14 @@ Conversation starters:
       watchRemoteCallCandidates(conversation, state.activeCallId, "callee");
       await flushLocalCallCandidates(conversation);
     }catch(error){
-      state.call = null;
+      if(outgoingCallId){
+        await window.ljtFirebase.updateCallStatus(conversation.matchId, outgoingCallId, "failed").catch(() => {});
+      }
+      // A competing caller's snapshot may arrive while our request is rejected.
+      // Keep that incoming call available after releasing our outgoing media.
+      if(state.call?.id === outgoingCallId) state.call = null;
       cleanupCallMedia();
+      if(state.call?.status === "ringing") scheduleRingTimeout(state.call);
       showToast(error.name === "NotAllowedError"
         ? "Allow camera and microphone access to place the call."
         : (error.message || "The call could not start."));
@@ -5137,7 +5149,7 @@ Conversation starters:
   async function answerIncomingCall(){
     const conversation = state.activeConversation;
     const call = state.call;
-    if(!conversation || !call || call.status !== "ringing" || call.calleeId !== state.authUser.uid) return;
+    if(!conversation || state.callBusy || !call || call.status !== "ringing" || call.calleeId !== state.authUser.uid) return;
     state.callBusy = true;
     renderMessages();
     try{

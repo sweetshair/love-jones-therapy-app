@@ -3,6 +3,7 @@ const { Timestamp, firestore, verifiedUser } = require("./_shared/firebase-admin
 
 const FREE_CALL_SECONDS = 180;
 const RECONNECT_WINDOW_MS = 60 * 1000;
+const RING_TIMEOUT_MS = 20 * 1000;
 
 function cleanId(value, label) {
   const result = String(value || "").trim();
@@ -26,11 +27,10 @@ function callDurationSeconds(call) {
   return Math.max(0, Math.ceil((endedAt - answeredAt) / 1000));
 }
 
-async function verifiedReconnect(db, matchId, userId, mode, sessionId) {
-  const snapshot = await db.collection("matches").doc(matchId).collection("calls")
+async function verifiedReconnect(transaction, matchRef, userId, mode, sessionId) {
+  const snapshot = await transaction.get(matchRef.collection("calls")
     .where("freeSessionId", "==", sessionId)
-    .limit(20)
-    .get();
+    .limit(20));
   if (snapshot.empty) throw new Error("The reconnection period is no longer available.");
   let usedSeconds = 0;
   let latestEndedAt = 0;
@@ -63,52 +63,84 @@ exports.handler = async event => {
     const billingMode = body.billingMode === "paid" ? "paid" : "free";
     const db = firestore();
     const matchRef = db.collection("matches").doc(matchId);
-    const matchSnapshot = await matchRef.get();
-    const memberIds = matchSnapshot.data()?.memberIds;
-    if (
-      !matchSnapshot.exists
-      || !Array.isArray(memberIds)
-      || !memberIds.includes(user.uid)
-      || !memberIds.includes(calleeId)
-    ) throw new Error("This match is unavailable.");
-
-    if (billingMode === "paid") {
-      const walletSnapshot = await db.collection("callWallets").doc(user.uid).get();
-      if (Math.max(0, Number(walletSnapshot.data()?.balanceSeconds) || 0) <= 0) {
-        throw new Error("Purchase call time before placing this call.");
-      }
-    }
-
     const callRef = matchRef.collection("calls").doc();
     let freeSessionId = callRef.id;
     let freeSeconds = billingMode === "paid" ? 0 : FREE_CALL_SECONDS;
     const requestedSessionId = String(body.freeSessionId || "").trim();
     if (billingMode === "free" && requestedSessionId) {
-      const cleanSessionId = cleanId(requestedSessionId, "The free call session");
-      const remainingSeconds = await verifiedReconnect(db, matchId, user.uid, mode, cleanSessionId);
-      freeSessionId = cleanSessionId;
-      freeSeconds = Math.min(
-        remainingSeconds,
-        Math.max(1, Math.floor(Number(body.freeSeconds) || remainingSeconds))
-      );
+      freeSessionId = cleanId(requestedSessionId, "The free call session");
     }
-    const now = Timestamp.now();
-    await callRef.create({
-      callerId:user.uid,
-      calleeId,
-      mode,
-      billingMode,
-      freeSessionId,
-      freeSeconds,
-      status:"ringing",
-      offer,
-      createdAt:now,
-      updatedAt:now
+    await db.runTransaction(async transaction => {
+      const [matchSnapshot, outgoingBlock, incomingBlock, openCalls] = await Promise.all([
+        transaction.get(matchRef),
+        transaction.get(db.collection("blocks").doc(`${user.uid}_${calleeId}`)),
+        transaction.get(db.collection("blocks").doc(`${calleeId}_${user.uid}`)),
+        transaction.get(matchRef.collection("calls").where("status", "in", ["ringing", "active"]))
+      ]);
+      const match = matchSnapshot.data();
+      if (
+        !matchSnapshot.exists
+        || match.status !== "active"
+        || !Array.isArray(match.memberIds)
+        || match.memberIds.length !== 2
+        || !match.memberIds.includes(user.uid)
+        || !match.memberIds.includes(calleeId)
+        || outgoingBlock.exists
+        || incomingBlock.exists
+      ) throw new Error("This match is unavailable.");
+
+      if (billingMode === "paid") {
+        const walletSnapshot = await transaction.get(db.collection("callWallets").doc(user.uid));
+        if (Math.max(0, Number(walletSnapshot.data()?.balanceSeconds) || 0) <= 0) {
+          throw new Error("Purchase call time before placing this call.");
+        }
+      }
+      if (billingMode === "free" && requestedSessionId) {
+        const remainingSeconds = await verifiedReconnect(transaction, matchRef, user.uid, mode, freeSessionId);
+        freeSeconds = Math.min(
+          remainingSeconds,
+          Math.max(1, Math.floor(Number(body.freeSeconds) || remainingSeconds))
+        );
+      }
+
+      const now = Timestamp.now();
+      const expiredRinging = [];
+      for (const snapshot of openCalls.docs) {
+        const call = snapshot.data();
+        const createdAt = call.createdAt?.toMillis?.();
+        if (call.status === "ringing" && Number.isFinite(createdAt)
+          && now.toMillis() - createdAt >= RING_TIMEOUT_MS) {
+          expiredRinging.push(snapshot.ref);
+        } else {
+          const error = new Error("A call is already in progress with this match. Answer the incoming call or wait for it to end.");
+          error.statusCode = 409;
+          throw error;
+        }
+      }
+      for (const expiredRef of expiredRinging) {
+        transaction.update(expiredRef, { status:"missed", endedAt:now, updatedAt:now });
+      }
+      // Every reservation writes this same document, including the first call.
+      // Competing transactions retry and see the winning call before creating one.
+      // Querying open calls also protects calls created before this reservation existed.
+      transaction.update(matchRef, { activeCallId:callRef.id });
+      transaction.create(callRef, {
+        callerId:user.uid,
+        calleeId,
+        mode,
+        billingMode,
+        freeSessionId,
+        freeSeconds,
+        status:"ringing",
+        offer,
+        createdAt:now,
+        updatedAt:now
+      });
     });
     return jsonResponse(200, { callId:callRef.id, freeSessionId, freeSeconds, billingMode });
   } catch (error) {
     console.error("Call signal creation failed:", error.message);
-    const statusCode = /Sign in/i.test(error.message) ? 401 : /Purchase call time/i.test(error.message) ? 402 : 400;
+    const statusCode = error.statusCode === 409 ? 409 : /Sign in/i.test(error.message) ? 401 : /Purchase call time/i.test(error.message) ? 402 : 400;
     return jsonResponse(statusCode, { error:error.message || "The call could not start." });
   }
 };
