@@ -91,7 +91,7 @@ async function getCurrentUserIdToken() {
   return getIdToken(requireUser());
 }
 
-async function signUp({ name, phone, email, password, consent }) {
+async function signUp({ name, phone, email, password, consent, termsVersion }) {
   await authPersistenceReady;
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const user = credential.user;
@@ -103,6 +103,7 @@ async function signUp({ name, phone, email, password, consent }) {
     consent: Boolean(consent),
     ageConfirmed: true,
     termsAcceptedAt: serverTimestamp(),
+    termsAcceptedVersion: String(termsVersion || ""),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -180,15 +181,39 @@ async function saveQuizResult(result) {
 
 async function saveDatingProfile(profile) {
   const user = requireUser();
+  const {
+    minPreferredAge,
+    maxPreferredAge,
+    preferredBodyTypes,
+    ...publicProfile
+  } = profile;
+  const includesDiscoveryPreferences = (
+    minPreferredAge !== undefined
+    || maxPreferredAge !== undefined
+    || preferredBodyTypes !== undefined
+  );
   if (profile.termsAccepted === true) {
     await setDoc(doc(db, "users", user.uid), {
       ageConfirmed: true,
       termsAcceptedAt: serverTimestamp(),
+      termsAcceptedVersion: String(profile.termsVersion || ""),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }
+  if (includesDiscoveryPreferences) {
+    await setDoc(doc(db, "users", user.uid), {
+      datingPreferences: {
+        minPreferredAge: Number(minPreferredAge) || 18,
+        maxPreferredAge: Number(maxPreferredAge) || 99,
+        preferredBodyTypes: Array.isArray(preferredBodyTypes)
+          ? preferredBodyTypes.slice(0, 8)
+          : []
+      },
       updatedAt: serverTimestamp()
     }, { merge: true });
   }
   await setDoc(doc(db, "datingProfiles", user.uid), {
-    ...profile,
+    ...publicProfile,
     ownerId: user.uid,
     updatedAt: serverTimestamp()
   }, { merge: true });
@@ -196,8 +221,15 @@ async function saveDatingProfile(profile) {
 
 async function getMyDatingProfile() {
   const user = requireUser();
-  const snapshot = await getDoc(doc(db, "datingProfiles", user.uid));
-  return snapshot.exists() ? snapshot.data() : null;
+  const [profileSnapshot, userSnapshot] = await Promise.all([
+    getDoc(doc(db, "datingProfiles", user.uid)),
+    getDoc(doc(db, "users", user.uid))
+  ]);
+  if (!profileSnapshot.exists()) return null;
+  const privatePreferences = userSnapshot.exists()
+    ? userSnapshot.data().datingPreferences || {}
+    : {};
+  return { ...profileSnapshot.data(), ...privatePreferences };
 }
 
 async function findDatingProfiles(relationshipTypes = []) {
@@ -280,6 +312,7 @@ function publicProfileSnapshot(profile = {}) {
     city: String(profile.city || "").slice(0, 60),
     region: String(profile.region || "").slice(0, 60),
     country: String(profile.country || "").slice(0, 60),
+    bodyType: String(profile.bodyType || "").slice(0, 30),
     relationshipType: String(profile.relationshipType || "").slice(0, 10),
     photoPath: Array.isArray(profile.photoPaths) ? String(profile.photoPaths[0] || "") : ""
   };

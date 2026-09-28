@@ -281,6 +281,32 @@
     }
     .badge strong{ color: var(--text); }
 
+    .preferenceChecks{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+      gap:8px;
+      margin-top:8px;
+    }
+    .preferenceOption{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      min-height:42px;
+      padding:9px 11px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      background:rgba(255,255,255,.025);
+      color:var(--muted);
+      font-size:12px;
+      cursor:pointer;
+    }
+    .preferenceOption:has(input:checked){
+      border-color:rgba(246,195,74,.38);
+      background:rgba(246,195,74,.08);
+      color:var(--text);
+    }
+    .preferenceOption input{ margin:0; accent-color:var(--accent); }
+
     input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], input.in, select.in, textarea.in{
       width:100%;
       background: rgba(255,255,255,.05);
@@ -516,7 +542,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 52</span>
+        <span id="appBuildLabel">Beta build UAT 53</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -732,6 +758,19 @@
       "Tonga", "Tuvalu", "Vanuatu"
     ]]
   ];
+
+  const BODY_TYPES = [
+    "Prefer not to say",
+    "Slim",
+    "Average build",
+    "Athletic",
+    "Muscular",
+    "Curvy",
+    "Plus-size",
+    "Stocky"
+  ];
+  const BODY_TYPE_OPEN = "Open to all body types";
+  const TERMS_VERSION = "2026-09-27";
 
   // =================== QUIZ ===================
   const QUIZ = {
@@ -1864,11 +1903,11 @@
       title: "Privacy",
       subtitle: "Your information and choices",
       html: `
-        <p class="tiny">Effective July 26, 2026</p>
-        <p><b>Information we collect:</b> Account and contact details, consent choices, Relationship IQ answers and results, dating profile details, photos, likes, matches, messages, call connection metadata, blocks, and reports.</p>
+        <p class="tiny">Effective September 27, 2026</p>
+        <p><b>Information we collect:</b> Account and contact details, consent choices, Relationship IQ answers and results, dating profile details and private discovery preferences, photos, likes, matches, messages, call connection metadata, blocks, and reports.</p>
         <p><b>How we use it:</b> To operate accounts, save results, recommend compatible members, create mutual matches, deliver messages, prevent abuse, respond to reports, and send updates only when you choose them.</p>
-        <p><b>Voice and video calls:</b> First Option Dating uses encrypted browser calling between matched members. We store temporary technical connection information and call status, but the app does not record or store the audio or video content of calls.</p>
-        <p><b>What other members see:</b> When your dating profile is active, signed-in members may see your display name, age, general location, photos, dating preferences, bio, relationship goal, and Relationship IQ type. Your email, phone number, and full account name are not displayed.</p>
+        <p><b>Voice and video calls:</b> First Option Dating uses encrypted browser calling between matched members. We store technical connection information and call status, but the app does not record or store the audio or video content of calls.</p>
+        <p><b>What other members see:</b> When your dating profile is active, signed-in members may see your display name, age, general location, photos, who you want to meet, bio, relationship goal, Relationship IQ type, and the body type you choose to share. Your email, phone number, full account name, preferred age range, and preferred body types are not displayed.</p>
         <p><b>Service providers:</b> Firebase provides authentication, database, and photo storage services. Netlify hosts the web application. We do not sell personal information.</p>
         <p><b>Your controls:</b> You can hide or edit your dating profile, remove photos, unmatch, block, and report. Contact us to request account deletion or a copy of your information.</p>
         <p><b>Retention and security:</b> We retain information while your account is active and as reasonably needed for safety, disputes, and legal obligations. No online service can guarantee absolute security.</p>
@@ -1878,13 +1917,18 @@
       title: "Terms of Use",
       subtitle: "Rules for using First Option Dating",
       html: `
-        <p class="tiny">Effective July 26, 2026</p>
+        <p class="tiny">Effective September 27, 2026</p>
         <p><b>Eligibility:</b> You must be at least 18 years old and legally able to enter an agreement. You may not use the service if prohibited by law.</p>
         <p><b>Your account:</b> Provide accurate information, use your own photos, protect your password, and notify us of unauthorized access. One person may not impersonate another.</p>
         <p><b>Acceptable use:</b> Do not harass, threaten, discriminate, scam, solicit money, scrape data, upload illegal or sexually explicit content, or use the service for commercial sexual activity.</p>
         <p><b>Member content:</b> You keep ownership of your content and give First Option Dating permission to store, display, and process it only as needed to operate and improve the service.</p>
         <p><b>Calls and recording:</b> Voice and video are not recorded by First Option Dating. You may not record or distribute a call without every participant’s consent and compliance with applicable law.</p>
-        <p><b>No guarantee:</b> Relationship IQ and compatibility suggestions are informational. We do not guarantee matches, relationships, identity, background, conduct, or safety. Use your judgment and follow the Dating Safety guidance.</p>
+        <p><b>Assumption of risk and member responsibility:</b> Communicating with or meeting people online or in person carries inherent risk. You decide whom to contact, meet, trust, or share information with and are responsible for those choices and for taking reasonable safety precautions. Use the service and interact with members at your own risk.</p>
+        <p><b>Identity and background checks:</b> Unless First Option Dating expressly says otherwise for a particular feature, we do not perform criminal, sex-offender-registry, or other background checks and do not independently verify every member’s identity, age, statements, photos, or conduct. Email, photo, voice, or video features are not a guarantee that a member is truthful or safe.</p>
+        <p><b>No guarantee:</b> Relationship IQ, discovery filters, and compatibility suggestions are informational. We do not guarantee matches, relationships, uninterrupted service, identity, background, conduct, or safety. Use your judgment and follow the Dating Safety guidance.</p>
+        <p><b>Member conduct:</b> Members—not First Option Dating—are responsible for their own content, statements, decisions, communications, and conduct. Report suspicious or harmful behavior promptly. First Option Dating is not an emergency service; contact local emergency services if anyone is in immediate danger.</p>
+        <p><b>Limitation of liability:</b> To the fullest extent permitted by applicable law, First Option Dating and its owners, personnel, and service providers are not liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for losses arising from member content, conduct, communications, interactions, or in-person meetings. Nothing in these Terms excludes liability or consumer rights that cannot lawfully be excluded or limited.</p>
+        <p><b>Your responsibility for misuse:</b> To the extent permitted by law, you are responsible for claims, losses, or costs caused by your unlawful use of the service, your content, or your violation of these Terms or another person’s rights.</p>
         <p><b>Enforcement:</b> We may investigate reports, restrict features, remove content, suspend accounts, or preserve records when reasonably necessary for safety or law.</p>
         <p><b>Changes:</b> Features and these terms may change. Material changes will be communicated through the service when reasonably possible.</p>`
     },
@@ -1904,6 +1948,7 @@
       subtitle: "Meet with care",
       html: `
         <div class="safetyNotice"><b>Never send money or financial information</b> to someone you meet through a dating service—even if the situation sounds urgent.</div>
+        <p><b>Member interactions are at your own risk.</b> First Option Dating does not supervise conversations or in-person meetings and cannot guarantee a member’s identity, intentions, statements, or conduct.</p>
         <ul class="list">
           <li>Keep early conversations inside the app and protect your home address, workplace, passwords, banking details, and identification numbers.</li>
           <li>Use video or voice verification when available, but remember that it does not replace good judgment.</li>
@@ -2300,7 +2345,7 @@
         ${state.accountMode === "register" ? `
           <label style="display:flex;gap:8px;margin-top:12px;">
             <input type="checkbox" id="termsChk" ${state.termsOk ? "checked" : ""} />
-            <span class="tiny">I confirm I am 18 or older and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.</span>
+            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.</span>
           </label>
           <label style="display:flex;gap:8px;margin-top:10px;">
             <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
@@ -2521,13 +2566,14 @@
         if(state.accountMode === "register"){
           if(state.userName.length < 2) throw new Error("Enter your full name.");
           if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid telephone number, including the country code when needed.");
-          if(!state.termsOk) throw new Error("Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.");
+          if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.");
           const createdUser = await window.ljtFirebase.signUp({
             name: state.userName,
             phone: state.userPhone,
             email: state.userEmail,
             password,
-            consent: state.consentOk
+            consent: state.consentOk,
+            termsVersion: TERMS_VERSION
           });
           if(createdUser.verificationEmailSent){
             showToast(`Account created ✅ Verification sent to ${createdUser.email}`);
@@ -3201,6 +3247,8 @@ Conversation starters:
     const profileExists = Boolean(savedProfile.ownerId);
     const firstName = (state.userName || "Member").trim().split(/\s+/)[0];
     const current = (key, fallback="") => profile[key] ?? fallback;
+    const acceptedCurrentTerms = current("termsAccepted", false)
+      && current("termsVersion", "") === TERMS_VERSION;
     const options = (items, selected) => items.map(item => {
       const value = typeof item === "string" ? item : item[0];
       const label = typeof item === "string" ? item : item[1];
@@ -3212,6 +3260,19 @@ Conversation starters:
       countries.sort((first, second) => first.localeCompare(second));
       return options(countries, selected);
     };
+    const selectedBodyPreferences = (() => {
+      const saved = current("preferredBodyTypes", [BODY_TYPE_OPEN]);
+      const valid = Array.isArray(saved)
+        ? saved.filter(value => value === BODY_TYPE_OPEN || BODY_TYPES.includes(value))
+        : [];
+      return valid.length ? valid : [BODY_TYPE_OPEN];
+    })();
+    const bodyPreferenceChoices = [BODY_TYPE_OPEN, ...BODY_TYPES.filter(value => value !== "Prefer not to say")]
+      .map(value => `
+        <label class="preferenceOption">
+          <input type="checkbox" name="preferredBodyType" value="${escapeAttr(value)}" ${selectedBodyPreferences.includes(value) ? "checked" : ""} />
+          <span>${escapeHtml(value)}</span>
+        </label>`).join("");
 
     app.innerHTML = `
       <div class="topbar">
@@ -3256,8 +3317,24 @@ Conversation starters:
           <div class="col"><div class="tiny" style="margin-bottom:6px;">I want to meet</div><select class="in" id="lookingForInput">${options(["Women","Men","Nonbinary people","Everyone"], current("lookingFor"))}</select></div>
         </div>
 
-        <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">Relationship goal</div><select class="in" id="goalInput">${options(["Long term relationship","Marriage","Dating with intention","Friendship first"], current("relationshipGoal"))}</select></div>
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Relationship goal</div><select class="in" id="goalInput">${options(["Long term relationship","Marriage","Dating with intention","Friendship first"], current("relationshipGoal"))}</select></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Body type (optional)</div><select class="in" id="bodyTypeInput">${options(BODY_TYPES, current("bodyType", "Prefer not to say"))}</select><div class="tiny" style="margin-top:5px;">Shown only if you choose something other than “Prefer not to say.”</div></div>
+        </div>
         <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">About me</div><textarea class="in" id="bioInput" maxlength="600" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Share what matters to you and what kind of connection you want.">${escapeHtml(current("bio"))}</textarea><div class="tiny" style="margin-top:5px;">Spelling and sentence correction are enabled through your browser or device.</div></div>
+
+        <div class="hr"></div>
+        <b>Your Discovery Preferences</b>
+        <p class="tiny">These settings help choose profiles for you and are not shown to other members. Members who already Liked you remain visible even when they fall outside your usual preferences.</p>
+        <div class="row" style="margin-top:12px;">
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Youngest age you want to meet</div><input class="in" id="minPreferredAgeInput" type="number" inputmode="numeric" min="18" max="99" value="${escapeAttr(current("minPreferredAge", 18))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Oldest age you want to meet</div><input class="in" id="maxPreferredAgeInput" type="number" inputmode="numeric" min="18" max="99" value="${escapeAttr(current("maxPreferredAge", 99))}" /></div>
+        </div>
+        <div style="margin-top:12px;">
+          <div class="tiny">Body types you are open to meeting</div>
+          <div class="preferenceChecks" id="bodyTypePreferenceChecks">${bodyPreferenceChoices}</div>
+          <div class="tiny" style="margin-top:6px;">“Open to all body types” is the default. A specific selection applies only when another member has chosen to share their body type.</div>
+        </div>
 
         <div class="hr"></div>
         <b>Profile Photos</b>
@@ -3287,8 +3364,8 @@ Conversation starters:
         </div>
 
         <label style="display:flex;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="datingTermsChk" ${current("termsAccepted", false) ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-          <span class="tiny">I confirm I am 18 or older and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this step."}</span>
+          <input type="checkbox" id="datingTermsChk" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
+          <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this step."}</span>
         </label>
         <label style="display:flex;gap:8px;margin-top:12px;">
           <input type="checkbox" id="activeProfileChk" ${emailVerified && current("active", false) ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
@@ -3346,6 +3423,19 @@ Conversation starters:
     };
     hydrateProfilePhotos();
 
+    const bodyPreferenceInputs = [...document.querySelectorAll('input[name="preferredBodyType"]')];
+    bodyPreferenceInputs.forEach(input => {
+      input.onchange = () => {
+        const openChoice = bodyPreferenceInputs.find(item => item.value === BODY_TYPE_OPEN);
+        if(input.value === BODY_TYPE_OPEN && input.checked){
+          bodyPreferenceInputs.forEach(item => { if(item !== input) item.checked = false; });
+        }else if(input.checked && openChoice){
+          openChoice.checked = false;
+        }
+        if(!bodyPreferenceInputs.some(item => item.checked) && openChoice) openChoice.checked = true;
+      };
+    });
+
     const readDatingProfileForm = () => ({
       displayName: document.getElementById("displayNameInput").value.trim(),
       age: Number(document.getElementById("ageInput").value),
@@ -3355,10 +3445,16 @@ Conversation starters:
       gender: document.getElementById("genderInput").value,
       lookingFor: document.getElementById("lookingForInput").value,
       relationshipGoal: document.getElementById("goalInput").value,
+      bodyType: document.getElementById("bodyTypeInput").value,
+      minPreferredAge: Number(document.getElementById("minPreferredAgeInput").value),
+      maxPreferredAge: Number(document.getElementById("maxPreferredAgeInput").value),
+      preferredBodyTypes: [...document.querySelectorAll('input[name="preferredBodyType"]:checked')]
+        .map(input => input.value),
       bio: document.getElementById("bioInput").value.trim(),
       relationshipType: state.relationshipType,
       secondaryType: state.secondaryType,
       termsAccepted: document.getElementById("datingTermsChk").checked,
+      termsVersion: TERMS_VERSION,
       active: document.getElementById("activeProfileChk").checked
     });
 
@@ -3486,6 +3582,9 @@ Conversation starters:
       errorBox.textContent = "";
       if(payload.displayName.length < 2) return errorBox.textContent = "Enter a first name or display name.";
       if(!Number.isInteger(payload.age) || payload.age < 18 || payload.age > 99) return errorBox.textContent = "Members must be 18 or older. Enter a valid age.";
+      if(!Number.isInteger(payload.minPreferredAge) || payload.minPreferredAge < 18 || payload.minPreferredAge > 99) return errorBox.textContent = "Enter a youngest preferred age from 18 to 99.";
+      if(!Number.isInteger(payload.maxPreferredAge) || payload.maxPreferredAge < 18 || payload.maxPreferredAge > 99) return errorBox.textContent = "Enter an oldest preferred age from 18 to 99.";
+      if(payload.minPreferredAge > payload.maxPreferredAge) return errorBox.textContent = "The youngest preferred age cannot be higher than the oldest preferred age.";
       if(!payload.city || !payload.region || !payload.country) return errorBox.textContent = "Enter your city, region, and country.";
       if(payload.bio.length < 20) return errorBox.textContent = "Write at least 20 characters in About me.";
       if(emailVerified && !payload.photoPaths.length) return errorBox.textContent = "Add at least one profile picture before saving your complete profile.";
@@ -3497,7 +3596,7 @@ Conversation starters:
         render();
         return;
       }
-      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older and accept the Terms, Privacy, and Community Guidelines.";
+      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.";
       if(payload.photoPaths.some(path => String(path).startsWith("draftPhoto:"))){
         button.disabled = true;
         button.textContent = "Uploading Saved Pictures…";
@@ -3538,14 +3637,47 @@ Conversation starters:
     return false;
   }
 
+  function agePreferenceAllows(profile, age){
+    const numericAge = Number(age);
+    if(!Number.isInteger(numericAge)) return false;
+    const minimum = Number.isInteger(Number(profile?.minPreferredAge))
+      ? Math.max(18, Math.min(99, Number(profile.minPreferredAge)))
+      : 18;
+    const maximum = Number.isInteger(Number(profile?.maxPreferredAge))
+      ? Math.max(18, Math.min(99, Number(profile.maxPreferredAge)))
+      : 99;
+    return numericAge >= Math.min(minimum, maximum) && numericAge <= Math.max(minimum, maximum);
+  }
+
+  function bodyTypePreferenceAllows(profile, bodyType){
+    const preferences = Array.isArray(profile?.preferredBodyTypes)
+      ? profile.preferredBodyTypes.filter(value => value === BODY_TYPE_OPEN || BODY_TYPES.includes(value))
+      : [];
+    if(!preferences.length || preferences.includes(BODY_TYPE_OPEN)) return true;
+    if(!bodyType || bodyType === "Prefer not to say") return true;
+    return preferences.includes(bodyType);
+  }
+
+  function preferenceMatchDetails(own, candidate){
+    if(!own) return { ownPreferenceMatch:true, mutualMatch:true };
+    const candidateGenderFits = !own.lookingFor || !candidate?.gender
+      || preferenceAllows(own.lookingFor, candidate.gender);
+    const ownGenderFits = !own.gender || !candidate?.lookingFor
+      || preferenceAllows(candidate.lookingFor, own.gender);
+    const candidateAgeFits = agePreferenceAllows(own, candidate?.age);
+    const ownAgeFits = agePreferenceAllows(candidate, own.age);
+    const candidateBodyTypeFits = bodyTypePreferenceAllows(own, candidate?.bodyType);
+    const ownBodyTypeFits = bodyTypePreferenceAllows(candidate, own.bodyType);
+    const ownPreferenceMatch = candidateGenderFits && candidateAgeFits && candidateBodyTypeFits;
+    return {
+      ownPreferenceMatch,
+      mutualMatch: ownPreferenceMatch && ownGenderFits && ownAgeFits && ownBodyTypeFits
+    };
+  }
+
   function mutuallyCompatiblePreferences(own, candidate){
     if(candidate?.likedYou) return true;
-    if(!own || !own.gender || !own.lookingFor) return true;
-    const candidateFitsOwnPreference = !candidate?.gender
-      || preferenceAllows(own.lookingFor, candidate.gender);
-    const ownFitsCandidatePreference = !candidate?.lookingFor
-      || preferenceAllows(candidate.lookingFor, own.gender);
-    return candidateFitsOwnPreference && ownFitsCandidatePreference;
+    return preferenceMatchDetails(own, candidate).mutualMatch;
   }
 
   function formatLikeDate(value){
@@ -3654,6 +3786,10 @@ Conversation starters:
       const location = [candidate.city, candidate.region, candidate.country].filter(Boolean).join(", ");
       const typeName = TYPES[candidate.relationshipType]?.name || "Relationship IQ member";
       const mainPhoto = getPhotoPaths(candidate)[0];
+      const preferenceDetails = preferenceMatchDetails(state.datingProfile, candidate);
+      const visibleBodyType = candidate.bodyType && candidate.bodyType !== "Prefer not to say"
+        ? candidate.bodyType
+        : "";
       return `
         <div class="discoveryShell">
           <article class="discoveryCard" id="discoveryCard">
@@ -3665,8 +3801,10 @@ Conversation starters:
               <div class="tiny">${escapeHtml(location)}</div>
               <div class="badgeGrid">
                 ${candidate.likedYou ? `<span class="badge"><strong>Liked you</strong></span>` : ``}
+                ${candidate.likedYou && !preferenceDetails.ownPreferenceMatch ? `<span class="badge">Outside your selected preferences</span>` : ``}
                 <span class="badge"><strong>${escapeHtml(typeName)}</strong></span>
                 <span class="badge">${escapeHtml(candidate.relationshipGoal || "Dating with intention")}</span>
+                ${visibleBodyType ? `<span class="badge">${escapeHtml(visibleBodyType)}</span>` : ``}
               </div>
               <p>${escapeHtml(candidate.bio || "This member is still completing their profile.")}</p>
               <div class="tiny">Looking to meet: ${escapeHtml(candidate.lookingFor || "Not specified")}</div>
@@ -3716,6 +3854,9 @@ Conversation starters:
       const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
       const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
       const mainPhoto = getPhotoPaths(profile)[0] || profile.photoPath;
+      const visibleBodyType = profile.bodyType && profile.bodyType !== "Prefer not to say"
+        ? profile.bodyType
+        : "";
       return `
         <article class="matchCard sentLikeCard">
           ${mainPhoto
@@ -3728,6 +3869,7 @@ Conversation starters:
               <span class="badge"><strong>${profile.likeStatus === "matched" ? "Matched" : profile.likeStatus === "previously_matched" ? "Previously matched" : "Waiting for their response"}</strong></span>
               <span class="badge">${escapeHtml(typeName)}</span>
               <span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span>
+              ${visibleBodyType ? `<span class="badge">${escapeHtml(visibleBodyType)}</span>` : ``}
             </div>
             <p>${escapeHtml(profile.bio || "This member is still completing their profile.")}</p>
             <div class="tiny">Looking to meet: ${escapeHtml(profile.lookingFor || "Not specified")}</div>
