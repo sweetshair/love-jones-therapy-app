@@ -179,6 +179,40 @@ async function saveQuizResult(result) {
   }, { merge: true });
 }
 
+function normalizeDatingPreferences({ minPreferredAge, maxPreferredAge, preferredBodyTypes } = {}) {
+  const minimum = Number(minPreferredAge);
+  const maximum = Number(maxPreferredAge);
+  if (!Number.isInteger(minimum) || minimum < 18 || minimum > 99) {
+    throw new Error("Choose a youngest preferred age from 18 to 99.");
+  }
+  if (!Number.isInteger(maximum) || maximum < 18 || maximum > 99) {
+    throw new Error("Choose an oldest preferred age from 18 to 99.");
+  }
+  if (minimum > maximum) throw new Error("The youngest preferred age cannot be higher than the oldest preferred age.");
+  const bodyTypes = Array.isArray(preferredBodyTypes)
+    ? [...new Set(preferredBodyTypes
+      .filter(value => typeof value === "string" && value.trim())
+      .map(value => value.trim().slice(0, 60)))]
+      .slice(0, 8)
+    : [];
+  return {
+    minPreferredAge: minimum,
+    maxPreferredAge: maximum,
+    preferredBodyTypes: bodyTypes
+  };
+}
+
+async function saveDatingPreferences(preferences) {
+  const user = requireUser();
+  const datingPreferences = normalizeDatingPreferences(preferences);
+  await setDoc(doc(db, "users", user.uid), {
+    datingPreferences,
+    datingPreferencesUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return datingPreferences;
+}
+
 async function saveDatingProfile(profile) {
   const user = requireUser();
   const {
@@ -201,16 +235,7 @@ async function saveDatingProfile(profile) {
     }, { merge: true });
   }
   if (includesDiscoveryPreferences) {
-    await setDoc(doc(db, "users", user.uid), {
-      datingPreferences: {
-        minPreferredAge: Number(minPreferredAge) || 18,
-        maxPreferredAge: Number(maxPreferredAge) || 99,
-        preferredBodyTypes: Array.isArray(preferredBodyTypes)
-          ? preferredBodyTypes.slice(0, 8)
-          : []
-      },
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await saveDatingPreferences({ minPreferredAge, maxPreferredAge, preferredBodyTypes });
   }
   await setDoc(doc(db, "datingProfiles", user.uid), {
     ...publicProfile,
@@ -225,10 +250,12 @@ async function getMyDatingProfile() {
     getDoc(doc(db, "datingProfiles", user.uid)),
     getDoc(doc(db, "users", user.uid))
   ]);
-  if (!profileSnapshot.exists()) return null;
   const privatePreferences = userSnapshot.exists()
     ? userSnapshot.data().datingPreferences || {}
     : {};
+  if (!profileSnapshot.exists()) {
+    return Object.keys(privatePreferences).length ? privatePreferences : null;
+  }
   return { ...profileSnapshot.data(), ...privatePreferences };
 }
 
@@ -959,6 +986,7 @@ window.ljtFirebase = {
   getMyProfile,
   saveMyProfile,
   saveQuizResult,
+  saveDatingPreferences,
   saveDatingProfile,
   getMyDatingProfile,
   findDatingProfiles,

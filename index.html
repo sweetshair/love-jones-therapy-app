@@ -542,7 +542,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 55</span>
+        <span id="appBuildLabel">Beta build UAT 56</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -2639,6 +2639,7 @@
 
     const datingProfileBtn = document.getElementById("datingProfileBtn");
     if(datingProfileBtn) datingProfileBtn.onclick = () => {
+      state.datingProfileLoaded = false;
       state.screen = "datingProfile";
       render();
     };
@@ -2930,7 +2931,7 @@
     document.getElementById("privacyLink2").onclick = (e) => { e.preventDefault(); openPrivacyModal(); };
     document.getElementById("shareBtn").onclick = () => shareResultText(r);
     document.getElementById("saveShareBtn").onclick = () => shareResultText(r);
-    document.getElementById("profileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    document.getElementById("profileBtn").onclick = () => { state.datingProfileLoaded = false; state.screen = "datingProfile"; render(); };
     if(state.resultSaveStatus === "idle"){
       state.resultSaveStatus = "saving";
       window.ljtFirebase.saveQuizResult({
@@ -3240,6 +3241,9 @@ Conversation starters:
     const profile = {
       ...savedProfile,
       ...profileDraft,
+      minPreferredAge: savedProfile.minPreferredAge ?? profileDraft.minPreferredAge,
+      maxPreferredAge: savedProfile.maxPreferredAge ?? profileDraft.maxPreferredAge,
+      preferredBodyTypes: savedProfile.preferredBodyTypes ?? profileDraft.preferredBodyTypes,
       photoPaths: savedProfile.ownerId
         ? (Array.isArray(savedProfile.photoPaths) ? savedProfile.photoPaths : [])
         : (Array.isArray(profileDraft.photoPaths) ? profileDraft.photoPaths : [])
@@ -3285,6 +3289,11 @@ Conversation starters:
         : [];
       return valid.length ? valid : [BODY_TYPE_OPEN];
     })();
+    const discoveryPreferencesNeedSync = (
+      Number(savedProfile.minPreferredAge) !== Number(current("minPreferredAge", 18))
+      || Number(savedProfile.maxPreferredAge) !== Number(current("maxPreferredAge", 99))
+      || JSON.stringify(savedProfile.preferredBodyTypes || []) !== JSON.stringify(selectedBodyPreferences)
+    );
     const bodyPreferenceChoices = [BODY_TYPE_OPEN, ...BODY_TYPES.filter(value => value !== "Prefer not to say")]
       .map(value => `
         <label class="preferenceOption">
@@ -3352,6 +3361,7 @@ Conversation starters:
           <div class="tiny">Body types you are open to meeting</div>
           <div class="preferenceChecks" id="bodyTypePreferenceChecks">${bodyPreferenceChoices}</div>
           <div class="tiny" style="margin-top:6px;">“Open to all body types” is the default. A specific selection applies only when another member has chosen to share their body type.</div>
+          <div class="tiny" id="datingPreferenceSaveStatus" role="status" aria-live="polite" style="margin-top:6px;color:var(--accent);">Your age range and body-type choices are saved privately to your account automatically.</div>
         </div>
 
         <div class="hr"></div>
@@ -3461,6 +3471,7 @@ Conversation starters:
     datingTermsCheckbox.onchange = syncDatingAgreementControls;
     syncDatingAgreementControls();
 
+    let schedulePreferenceSave = () => {};
     const bodyPreferenceInputs = [...document.querySelectorAll('input[name="preferredBodyType"]')];
     bodyPreferenceInputs.forEach(input => {
       input.onchange = () => {
@@ -3471,6 +3482,7 @@ Conversation starters:
           openChoice.checked = false;
         }
         if(!bodyPreferenceInputs.some(item => item.checked) && openChoice) openChoice.checked = true;
+        schedulePreferenceSave();
       };
     });
 
@@ -3495,6 +3507,58 @@ Conversation starters:
       termsVersion: TERMS_VERSION,
       active: document.getElementById("activeProfileChk").checked
     });
+
+    const preferenceSaveStatus = document.getElementById("datingPreferenceSaveStatus");
+    let preferenceSaveTimer = 0;
+    let preferenceSaveInFlight = false;
+    let preferenceSaveQueued = false;
+    let pendingDiscoveryPreferences = null;
+    const currentDiscoveryPreferences = () => {
+      const form = readDatingProfileForm();
+      return {
+        minPreferredAge:form.minPreferredAge,
+        maxPreferredAge:form.maxPreferredAge,
+        preferredBodyTypes:form.preferredBodyTypes
+      };
+    };
+    const persistDiscoveryPreferences = async () => {
+      if(preferenceSaveInFlight){
+        preferenceSaveQueued = true;
+        return;
+      }
+      preferenceSaveInFlight = true;
+      do{
+        preferenceSaveQueued = false;
+        const preferences = pendingDiscoveryPreferences || currentDiscoveryPreferences();
+        if(!Number.isInteger(preferences.minPreferredAge) || !Number.isInteger(preferences.maxPreferredAge)
+          || preferences.minPreferredAge < 18 || preferences.maxPreferredAge > 99
+          || preferences.minPreferredAge > preferences.maxPreferredAge){
+          preferenceSaveStatus.textContent = "Choose a valid age range from 18 to 99 to save these preferences.";
+          break;
+        }
+        try{
+          if(typeof window.ljtFirebase.saveDatingPreferences !== "function"){
+            preferenceSaveStatus.textContent = "Select Save Complete Profile once to store these choices.";
+            break;
+          }
+          const savedPreferences = await window.ljtFirebase.saveDatingPreferences(preferences);
+          state.datingProfile = { ...(state.datingProfile || {}), ...savedPreferences };
+          preferenceSaveStatus.textContent = "Preferences saved to your account ✅";
+        }catch(error){
+          preferenceSaveStatus.textContent = error.message || "Preferences could not be saved automatically. Use Save Complete Profile to try again.";
+        }
+      }while(preferenceSaveQueued);
+      preferenceSaveInFlight = false;
+    };
+    schedulePreferenceSave = () => {
+      clearTimeout(preferenceSaveTimer);
+      pendingDiscoveryPreferences = currentDiscoveryPreferences();
+      preferenceSaveStatus.textContent = "Saving your preferences…";
+      preferenceSaveTimer = setTimeout(persistDiscoveryPreferences, 400);
+    };
+    document.getElementById("minPreferredAgeInput").onchange = schedulePreferenceSave;
+    document.getElementById("maxPreferredAgeInput").onchange = schedulePreferenceSave;
+    if(discoveryPreferencesNeedSync) schedulePreferenceSave();
 
     const keepProfileFormWithPhotos = (nextPaths, overrides={}) => {
       const draft = saveDatingProfileDraft({ ...readDatingProfileForm(), photoPaths:nextPaths, ...overrides });
@@ -3990,7 +4054,7 @@ Conversation starters:
       state.connectionsLoaded = false;
       render();
     };
-    document.getElementById("editDatingProfileBtn").onclick = () => { state.screen = "datingProfile"; render(); };
+    document.getElementById("editDatingProfileBtn").onclick = () => { state.datingProfileLoaded = false; state.screen = "datingProfile"; render(); };
     document.getElementById("enableCallAlertsBtn").onclick = () => enableCallAlerts().catch(() => showToast("Call alert permission could not be updated."));
     document.getElementById("refreshMatchesBtn").onclick = () => {
       if(state.matchView === "connections"){
