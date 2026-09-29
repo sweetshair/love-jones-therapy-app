@@ -213,12 +213,23 @@ async function saveDatingPreferences(preferences) {
   return datingPreferences;
 }
 
+async function savePreferredLanguage(language) {
+  const user = requireUser();
+  const cleanLanguage = String(language || "en").trim().toLowerCase().slice(0, 12) || "en";
+  await setDoc(doc(db, "users", user.uid), {
+    preferredLanguage: cleanLanguage,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return cleanLanguage;
+}
+
 async function saveDatingProfile(profile) {
   const user = requireUser();
   const {
     minPreferredAge,
     maxPreferredAge,
     preferredBodyTypes,
+    preferredLanguage,
     ...publicProfile
   } = profile;
   const includesDiscoveryPreferences = (
@@ -237,6 +248,7 @@ async function saveDatingProfile(profile) {
   if (includesDiscoveryPreferences) {
     await saveDatingPreferences({ minPreferredAge, maxPreferredAge, preferredBodyTypes });
   }
+  if (preferredLanguage !== undefined) await savePreferredLanguage(preferredLanguage);
   await setDoc(doc(db, "datingProfiles", user.uid), {
     ...publicProfile,
     ownerId: user.uid,
@@ -250,9 +262,11 @@ async function getMyDatingProfile() {
     getDoc(doc(db, "datingProfiles", user.uid)),
     getDoc(doc(db, "users", user.uid))
   ]);
-  const privatePreferences = userSnapshot.exists()
-    ? userSnapshot.data().datingPreferences || {}
-    : {};
+  const userData = userSnapshot.exists() ? userSnapshot.data() : {};
+  const privatePreferences = {
+    ...(userData.datingPreferences || {}),
+    preferredLanguage: String(userData.preferredLanguage || "en")
+  };
   if (!profileSnapshot.exists()) {
     return Object.keys(privatePreferences).length ? privatePreferences : null;
   }
@@ -603,6 +617,26 @@ async function sendMessage(matchId, text) {
     text: cleanText,
     createdAt: serverTimestamp()
   });
+}
+
+async function translateMessage(text, targetLanguage) {
+  const user = requireUser();
+  const cleanText = String(text || "").trim();
+  const target = String(targetLanguage || "en").trim().toLowerCase();
+  if (!cleanText || target === "en") return cleanText;
+  const idToken = await getIdToken(user);
+  const response = await fetch("/.netlify/functions/translate-message", {
+    method:"POST",
+    headers:{
+      Authorization:"Bearer " + idToken,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({ text:cleanText, target }),
+    cache:"no-store"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if(!response.ok) throw new Error(payload.error || "Translation is temporarily unavailable.");
+  return String(payload.translation || cleanText);
 }
 
 function safeSessionDescription(description) {
@@ -987,6 +1021,7 @@ window.ljtFirebase = {
   saveMyProfile,
   saveQuizResult,
   saveDatingPreferences,
+  savePreferredLanguage,
   saveDatingProfile,
   getMyDatingProfile,
   findDatingProfiles,
@@ -997,6 +1032,7 @@ window.ljtFirebase = {
   withdrawLike,
   watchMessages,
   sendMessage,
+  translateMessage,
   watchLatestCall,
   createCallSignal,
   answerCallSignal,
