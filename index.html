@@ -540,7 +540,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 59</span>
+        <span id="appBuildLabel">Beta build UAT 60</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -959,6 +959,7 @@
     preferredLanguage: "en",
     messageTranslations: {},
     messageTranslationPending: {},
+    messageOriginalVisible: {},
     messageUnsubscribe: null,
     callUnsubscribe: null,
     incomingCallUnsubscribes: [],
@@ -5457,9 +5458,15 @@ Conversation starters:
       const mine = message.senderId === state.authUser.uid;
       const translation = !mine && state.preferredLanguage !== "en" ? state.messageTranslations[messageTranslationKey(message)] : "";
       const pending = !mine && state.preferredLanguage !== "en" && state.messageTranslationPending[messageTranslationKey(message)];
+      const originalVisible = Boolean(state.messageOriginalVisible[message.id]);
+      const shownText = translation && !originalVisible ? translation : message.text;
+      const translationControl = translation ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">" +
+        (originalVisible ? "Showing original message" : "Translated from the original message") +
+        " · <button type=\"button\" class=\"linkButton messageTranslationToggle\" data-message-id=\"" + escapeHtml(message.id) + "\">" +
+        (originalVisible ? "View translation" : "View original") + "</button></div>" : "";
       return "<div class=\"messageBubble " + (mine ? "mine" : "") + "\">" +
-        "<p>" + escapeHtml(translation || message.text) + "</p>" +
-        (translation ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">Translated from the original message</div>" : "") +
+        "<p>" + escapeHtml(shownText) + "</p>" +
+        translationControl +
         (pending ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">Translating…</div>" : "") +
         "<time>" + escapeHtml(formatMessageTime(message.createdAt)) + "</time></div>";
     }).join("");
@@ -5493,6 +5500,14 @@ Conversation starters:
     const list = document.getElementById("messageList");
     requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
     bindCallControls();
+    document.querySelectorAll(".messageTranslationToggle").forEach(button => {
+      button.onclick = () => {
+        const messageId = button.dataset.messageId;
+        if(!messageId) return;
+        state.messageOriginalVisible[messageId] = !state.messageOriginalVisible[messageId];
+        renderMessages();
+      };
+    });
     document.getElementById("backToMatchesBtn").onclick = () => {
       if(callIsOpen()) endCurrentCall("ended", false);
       stopCallWatch();
@@ -5638,6 +5653,7 @@ Conversation starters:
       state.preferredLanguage = "en";
       state.messageTranslations = {};
       state.messageTranslationPending = {};
+      state.messageOriginalVisible = {};
       state.datingProfile = null;
       state.datingProfileLoaded = false;
       state.matches = [];
