@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v57";
+const VERSION = "fod-riq-v58";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -15,6 +15,7 @@ const ASSETS = [
   "./hero-white.webp",
   "./hero-women.webp",
   "./manifest.webmanifest",
+  "./first-option-logo-v58.png",
   "./icon-192.png",
   "./icon-512.png"
 ];
