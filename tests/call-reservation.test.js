@@ -85,17 +85,23 @@ test("a duplicate request cannot displace the ringing call", async () => {
   assert.equal((await calls.get()).size, 1);
 });
 
-test("an active call stays reserved regardless of its age", async () => {
-  const active = await seedCall("active", 300);
+test("a recent active call stays reserved", async () => {
+  const active = await seedCall("active", 30);
   assert.equal((await handlerFor()(request())).statusCode, 409);
   assert.equal((await active.get()).data().status, "active");
+});
+
+test("an orphaned free active call expires and permits recovery", async () => {
+  const active = await seedCall("active", 300);
+  assert.equal((await handlerFor()(request())).statusCode, 200);
+  assert.equal((await active.get()).data().status, "failed");
 });
 
 test("abandoned ringing expires and permits the next call", async () => {
   const abandoned = await seedCall("ringing", 30);
   assert.equal((await handlerFor()(request())).statusCode, 200);
   const expired = (await abandoned.get()).data();
-  assert.equal(expired.status, "missed");
+  assert.equal(expired.status, "failed");
   assert.ok(expired.endedAt);
   assert.equal((await calls.where("status", "==", "ringing").get()).size, 1);
 });
@@ -131,6 +137,16 @@ test("free reconnection keeps the remaining allowance", async () => {
   const result = await handlerFor()(request({ freeSessionId: "free_session_123", freeSeconds: 180 }));
   assert.equal(result.statusCode, 200);
   assert.equal(JSON.parse(result.body).freeSeconds, 140);
+});
+
+test("server rejects the third answered voice call while video remains separate", async () => {
+  const now = Date.now();
+  for (let index = 0; index < 2; index += 1) {
+    await seedCall("ended", 5, { mode:"audio", billingMode:"free", freeSessionId:`voice_session_${index}`,
+      answeredAt:Timestamp.fromMillis(now - 60000 + index), endedAt:Timestamp.fromMillis(now - 30000 + index) });
+  }
+  assert.equal((await handlerFor()(request({ mode:"audio" }))).statusCode, 400);
+  assert.equal((await handlerFor()(request({ mode:"video" }))).statusCode, 200);
 });
 
 test("paid reservation requires a balance and does not spend it", async () => {

@@ -275,71 +275,15 @@ async function getMyDatingProfile() {
 
 async function findDatingProfiles(relationshipTypes = []) {
   const user = requireUser();
-  const profiles = [];
-  const outgoingDecisions = new Map();
-  const incomingLikes = new Set();
-  const activeProfileIds = new Set();
-  const blocked = new Set();
-  const [outgoingBlocks, incomingBlocks, outgoingSwipes, incomingSwipes] = await Promise.all([
-    getDocs(query(
-      collection(db, "blocks"),
-      where("blockerId", "==", user.uid),
-      limit(250)
-    )),
-    getDocs(query(
-      collection(db, "blocks"),
-      where("blockedId", "==", user.uid),
-      limit(250)
-    )),
-    getDocs(query(
-      collection(db, "swipes"),
-      where("fromId", "==", user.uid),
-      limit(250)
-    )),
-    getDocs(query(
-      collection(db, "swipes"),
-      where("toId", "==", user.uid),
-      limit(250)
-    ))
-  ]);
-  outgoingBlocks.forEach(item => blocked.add(item.data().blockedId));
-  incomingBlocks.forEach(item => blocked.add(item.data().blockerId));
-  outgoingSwipes.forEach(item => {
-    const data = item.data();
-    outgoingDecisions.set(data.toId, data.decision);
+  const response = await fetch("/.netlify/functions/discover-profiles", {
+    headers:{ Authorization:`Bearer ${await getIdToken(user)}` }, cache:"no-store"
   });
-  incomingSwipes.forEach(item => {
-    const data = item.data();
-    if (data.decision === "like") incomingLikes.add(data.fromId);
-  });
-  const snapshot = await getDocs(query(
-    collection(db, "datingProfiles"),
-    where("active", "==", true)
-  ));
-  snapshot.forEach(item => {
-    const data = item.data();
-    activeProfileIds.add(item.id);
-    const outgoingDecision = outgoingDecisions.get(item.id);
-    const likedYou = incomingLikes.has(item.id);
-    if (
-      item.id !== user.uid
-      && (!outgoingDecision || likedYou)
-      && !blocked.has(item.id)
-      && (likedYou || !relationshipTypes.length || relationshipTypes.includes(data.relationshipType))
-    ) {
-      profiles.push({ id: item.id, ...data, likedYou });
-    }
-  });
-  return {
-    profiles,
-    status: {
-      incomingLikes: incomingLikes.size,
-      visibleIncomingLikes: profiles.filter(profile => profile.likedYou).length,
-      unavailableIncomingLikes: [...incomingLikes].filter(id => (
-        id !== user.uid && !activeProfileIds.has(id) && !blocked.has(id)
-      )).length
-    }
-  };
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Profiles could not be loaded.");
+  if (relationshipTypes.length) payload.profiles = payload.profiles.filter(profile =>
+    profile.likedYou || relationshipTypes.includes(profile.relationshipType));
+  return payload;
+
 }
 
 function matchIdFor(firstId, secondId) {
@@ -623,7 +567,7 @@ async function translateMessage(text, targetLanguage) {
   const user = requireUser();
   const cleanText = String(text || "").trim();
   const target = String(targetLanguage || "en").trim().toLowerCase();
-  if (!cleanText || target === "en") return cleanText;
+  if (!cleanText) return cleanText;
   const idToken = await getIdToken(user);
   const response = await fetch("/.netlify/functions/translate-message", {
     method:"POST",

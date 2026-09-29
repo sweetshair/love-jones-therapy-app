@@ -540,7 +540,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 60</span>
+        <span id="appBuildLabel">Beta build UAT 61</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -4259,14 +4259,17 @@ Conversation starters:
   }
 
   async function translateIncomingMessages(){
-    if(state.preferredLanguage === "en" || !state.authUser) return;
+    if(!state.authUser) return;
     const incoming = state.messages.filter(message => message.senderId !== state.authUser.uid && message.text);
     const work = incoming.filter(message => {
       const key = messageTranslationKey(message);
       return !state.messageTranslations[key] && !state.messageTranslationPending[key];
     });
     if(!work.length) return;
-    await Promise.all(work.map(async message => {
+    const queue = [...work];
+    const worker = async () => {
+      while(queue.length){
+        const message = queue.shift();
       const key = messageTranslationKey(message);
       state.messageTranslationPending[key] = true;
       try{
@@ -4276,7 +4279,9 @@ Conversation starters:
       }finally{
         delete state.messageTranslationPending[key];
       }
-    }));
+      }
+    };
+    await Promise.all(Array.from({ length:Math.min(3, queue.length) }, worker));
     if(state.screen === "messages") renderMessages();
   }
 
@@ -4555,7 +4560,9 @@ Conversation starters:
         openCallPlans(false, "Your purchased call-time balance has been used.");
       }
     }catch(error){
-      showToast(error.message || "Purchased call time could not be updated.");
+      stopPaidCallHeartbeat();
+      await endCurrentCall("failed", false);
+      showToast(error.message || "The call ended because purchased time could not be safely metered.");
     }
   }
 
@@ -5456,8 +5463,8 @@ Conversation starters:
 
     const messageHtml = state.messages.map(message => {
       const mine = message.senderId === state.authUser.uid;
-      const translation = !mine && state.preferredLanguage !== "en" ? state.messageTranslations[messageTranslationKey(message)] : "";
-      const pending = !mine && state.preferredLanguage !== "en" && state.messageTranslationPending[messageTranslationKey(message)];
+      const translation = !mine ? state.messageTranslations[messageTranslationKey(message)] : "";
+      const pending = !mine && state.messageTranslationPending[messageTranslationKey(message)];
       const originalVisible = Boolean(state.messageOriginalVisible[message.id]);
       const shownText = translation && !originalVisible ? translation : message.text;
       const translationControl = translation ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">" +
@@ -5477,7 +5484,7 @@ Conversation starters:
         ${headerRightPill()}
       </div>
       <div class="safetyNotice tiny">Keep early conversations in the app. Never send money, passwords, banking information, or identification numbers.</div>
-      ${state.preferredLanguage !== "en" ? `<div class="accountStatus" style="margin-top:10px;"><span class="tiny">Incoming messages: <strong style="color:var(--text);">${escapeHtml(preferredLanguageName(state.preferredLanguage))}</strong></span><span class="tiny">Automatic translation is on</span></div>` : ``}
+      <div class="accountStatus" style="margin-top:10px;"><span class="tiny">Incoming messages: <strong style="color:var(--text);">${escapeHtml(preferredLanguageName(state.preferredLanguage))}</strong></span><span class="tiny">Automatic translation is on</span></div>
       ${renderCallPanel()}
       <div class="messagePanel" style="margin-top:12px;">
         <div class="messageList" id="messageList">

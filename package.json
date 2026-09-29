@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test:calls": "node --test tests/call-*.test.js"
+    "test:calls": "node --test tests/call-*.test.js",
+    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js"
   },
   "engines": {
     "node": "22.x"

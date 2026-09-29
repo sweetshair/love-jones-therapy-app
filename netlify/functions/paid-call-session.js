@@ -117,6 +117,10 @@ exports.handler = async event => {
         paidEndedAt: now,
         updatedAt: now
       }, { merge: true });
+    } else {
+      // This server-authenticated heartbeat is also the active-call lease. A
+      // stale lease is recoverable by create-call-signal after 45 seconds.
+      await callRef.set({ updatedAt: now, paidHeartbeatAt: now }, { merge: true });
     }
 
     return jsonResponse(200, result);
