@@ -956,6 +956,9 @@
     activeConversation: null,
     messages: [],
     messagesLoading: false,
+    preferredLanguage: "en",
+    messageTranslations: {},
+    messageTranslationPending: {},
     messageUnsubscribe: null,
     callUnsubscribe: null,
     incomingCallUnsubscribes: [],
@@ -1034,6 +1037,18 @@
     const date = new Date(value || "");
     if(Number.isNaN(date.getTime())) return "";
     return new Intl.DateTimeFormat(undefined, { dateStyle:"medium", timeStyle:"short" }).format(date);
+  }
+
+  const MESSAGE_LANGUAGES = [
+    ["en","English"],["es","Spanish"],["fr","French"],["ht","Haitian Creole"],
+    ["pt","Portuguese"],["de","German"],["it","Italian"],["nl","Dutch"],
+    ["pl","Polish"],["ru","Russian"],["uk","Ukrainian"],["ar","Arabic"],
+    ["hi","Hindi"],["pa","Punjabi"],["zh","Chinese"],["ja","Japanese"],
+    ["ko","Korean"],["vi","Vietnamese"],["tl","Filipino / Tagalog"]
+  ];
+
+  function preferredLanguageName(code){
+    return MESSAGE_LANGUAGES.find(([value]) => value === code)?.[1] || "English";
   }
 
   const app = document.getElementById("app");
@@ -3242,6 +3257,7 @@ Conversation starters:
       minPreferredAge: savedProfile.minPreferredAge ?? profileDraft.minPreferredAge,
       maxPreferredAge: savedProfile.maxPreferredAge ?? profileDraft.maxPreferredAge,
       preferredBodyTypes: savedProfile.preferredBodyTypes ?? profileDraft.preferredBodyTypes,
+      preferredLanguage: savedProfile.preferredLanguage ?? profileDraft.preferredLanguage ?? state.preferredLanguage,
       photoPaths: savedProfile.ownerId
         ? (Array.isArray(savedProfile.photoPaths) ? savedProfile.photoPaths : [])
         : (Array.isArray(profileDraft.photoPaths) ? profileDraft.photoPaths : [])
@@ -3347,6 +3363,17 @@ Conversation starters:
           <div class="col"><div class="tiny" style="margin-bottom:6px;">Body type (optional)</div><select class="in" id="bodyTypeInput">${options(BODY_TYPES, current("bodyType", "Prefer not to say"))}</select><div class="tiny" style="margin-top:5px;">Shown only if you choose something other than “Prefer not to say.”</div></div>
         </div>
         <div style="margin-top:12px;"><div class="tiny" style="margin-bottom:6px;">About me</div><textarea class="in" id="bioInput" maxlength="600" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Share what matters to you and what kind of connection you want.">${escapeHtml(current("bio"))}</textarea><div class="tiny" style="margin-top:5px;">Spelling and sentence correction are enabled through your browser or device.</div></div>
+
+        <div class="hr"></div>
+        <b>Message Language</b>
+        <p class="tiny">Choose the language you want incoming messages translated into. Your original messages stay unchanged.</p>
+        <div class="row" style="margin-top:12px;">
+          <div class="col">
+            <div class="tiny" style="margin-bottom:6px;">Translate incoming messages to</div>
+            <select class="in" id="preferredLanguageInput">${options(MESSAGE_LANGUAGES, current("preferredLanguage", state.preferredLanguage || "en"))}</select>
+            <div class="tiny" id="languageSaveStatus" role="status" aria-live="polite" style="margin-top:6px;color:var(--accent);">Saved privately to your account.</div>
+          </div>
+        </div>
 
         <div class="hr"></div>
         <b>Your Discovery Preferences</b>
@@ -3494,6 +3521,7 @@ Conversation starters:
       lookingFor: document.getElementById("lookingForInput").value,
       relationshipGoal: document.getElementById("goalInput").value,
       bodyType: document.getElementById("bodyTypeInput").value,
+      preferredLanguage: document.getElementById("preferredLanguageInput").value,
       minPreferredAge: Number(document.getElementById("minPreferredAgeInput").value),
       maxPreferredAge: Number(document.getElementById("maxPreferredAgeInput").value),
       preferredBodyTypes: [...document.querySelectorAll('input[name="preferredBodyType"]:checked')]
@@ -3505,6 +3533,30 @@ Conversation starters:
       termsVersion: TERMS_VERSION,
       active: document.getElementById("activeProfileChk").checked
     });
+
+    const preferredLanguageInput = document.getElementById("preferredLanguageInput");
+    const languageSaveStatus = document.getElementById("languageSaveStatus");
+    preferredLanguageInput.onchange = async () => {
+      const previousLanguage = state.preferredLanguage;
+      const nextLanguage = preferredLanguageInput.value || "en";
+      languageSaveStatus.textContent = "Saving language…";
+      preferredLanguageInput.disabled = true;
+      try{
+        const savedLanguage = await window.ljtFirebase.savePreferredLanguage(nextLanguage);
+        state.preferredLanguage = savedLanguage;
+        state.messageTranslations = {};
+        state.messageTranslationPending = {};
+        state.datingProfile = { ...(state.datingProfile || {}), preferredLanguage:savedLanguage };
+        saveDatingProfileDraft({ ...readDatingProfileForm(), preferredLanguage:savedLanguage, photoPaths });
+        languageSaveStatus.textContent = "Incoming messages will be translated to " + preferredLanguageName(savedLanguage) + " ✅";
+      }catch(error){
+        state.preferredLanguage = previousLanguage;
+        preferredLanguageInput.value = previousLanguage;
+        languageSaveStatus.textContent = error.message || "Could not save the language.";
+      }finally{
+        preferredLanguageInput.disabled = false;
+      }
+    };
 
     const preferenceSaveStatus = document.getElementById("datingPreferenceSaveStatus");
     let preferenceSaveTimer = 0;
@@ -4199,6 +4251,32 @@ Conversation starters:
     const date = value?.toDate ? value.toDate() : null;
     if(!date) return "Sending…";
     return date.toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+
+  function messageTranslationKey(message){
+    return state.preferredLanguage + ":" + message.id;
+  }
+
+  async function translateIncomingMessages(){
+    if(state.preferredLanguage === "en" || !state.authUser) return;
+    const incoming = state.messages.filter(message => message.senderId !== state.authUser.uid && message.text);
+    const work = incoming.filter(message => {
+      const key = messageTranslationKey(message);
+      return !state.messageTranslations[key] && !state.messageTranslationPending[key];
+    });
+    if(!work.length) return;
+    await Promise.all(work.map(async message => {
+      const key = messageTranslationKey(message);
+      state.messageTranslationPending[key] = true;
+      try{
+        state.messageTranslations[key] = await window.ljtFirebase.translateMessage(message.text, state.preferredLanguage);
+      }catch(error){
+        state.messageTranslations[key] = "";
+      }finally{
+        delete state.messageTranslationPending[key];
+      }
+    }));
+    if(state.screen === "messages") renderMessages();
   }
 
   const FREE_CALL_SECONDS = 3 * 60;
@@ -5363,7 +5441,10 @@ Conversation starters:
         messages => {
           state.messages = messages;
           state.messagesLoading = false;
-          if(state.screen === "messages") renderMessages();
+          if(state.screen === "messages"){
+            renderMessages();
+            translateIncomingMessages().catch(() => {});
+          }
         },
         error => {
           state.messagesLoading = false;
@@ -5372,11 +5453,16 @@ Conversation starters:
       );
     }
 
-    const messageHtml = state.messages.map(message => `
-      <div class="messageBubble ${message.senderId === state.authUser.uid ? "mine" : ""}">
-        <p>${escapeHtml(message.text)}</p>
-        <time>${escapeHtml(formatMessageTime(message.createdAt))}</time>
-      </div>`).join("");
+    const messageHtml = state.messages.map(message => {
+      const mine = message.senderId === state.authUser.uid;
+      const translation = !mine && state.preferredLanguage !== "en" ? state.messageTranslations[messageTranslationKey(message)] : "";
+      const pending = !mine && state.preferredLanguage !== "en" && state.messageTranslationPending[messageTranslationKey(message)];
+      return "<div class=\"messageBubble " + (mine ? "mine" : "") + "\">" +
+        "<p>" + escapeHtml(translation || message.text) + "</p>" +
+        (translation ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">Translated from the original message</div>" : "") +
+        (pending ? "<div class=\"tiny\" style=\"margin-top:6px;color:var(--muted);\">Translating…</div>" : "") +
+        "<time>" + escapeHtml(formatMessageTime(message.createdAt)) + "</time></div>";
+    }).join("");
 
     app.innerHTML = `
       <div class="topbar">
@@ -5384,6 +5470,7 @@ Conversation starters:
         ${headerRightPill()}
       </div>
       <div class="safetyNotice tiny">Keep early conversations in the app. Never send money, passwords, banking information, or identification numbers.</div>
+      ${state.preferredLanguage !== "en" ? `<div class="accountStatus" style="margin-top:10px;"><span class="tiny">Incoming messages: <strong style="color:var(--text);">${escapeHtml(preferredLanguageName(state.preferredLanguage))}</strong></span><span class="tiny">Automatic translation is on</span></div>` : ``}
       ${renderCallPanel()}
       <div class="messagePanel" style="margin-top:12px;">
         <div class="messageList" id="messageList">
@@ -5531,6 +5618,7 @@ Conversation starters:
           state.termsOk = Boolean(profile.ageConfirmed && profile.termsAcceptedAt);
           state.relationshipType = profile.relationshipType || "";
           state.secondaryType = profile.secondaryType || "";
+          state.preferredLanguage = String(profile.preferredLanguage || "en");
         }
       }catch(error){
         showToast("Signed in, but the profile could not load yet");
@@ -5547,6 +5635,9 @@ Conversation starters:
       state.resultSaveStatus = "idle";
       state.relationshipType = "";
       state.secondaryType = "";
+      state.preferredLanguage = "en";
+      state.messageTranslations = {};
+      state.messageTranslationPending = {};
       state.datingProfile = null;
       state.datingProfileLoaded = false;
       state.matches = [];
