@@ -156,9 +156,12 @@ exports.handler = async event => {
         const call = snapshot.data();
         const createdAt = call.createdAt?.toMillis?.();
         const updatedAt = call.updatedAt?.toMillis?.() || createdAt;
+        const answeredAt = call.answeredAt?.toMillis?.() || createdAt;
+        const paidLeaseAt = call.paidHeartbeatAt?.toMillis?.() || updatedAt;
+        const activeLeaseAt = call.billingMode === "paid" ? paidLeaseAt : answeredAt;
         const activeTimeout = call.billingMode === "paid" ? ACTIVE_PAID_TIMEOUT_MS : ACTIVE_FREE_TIMEOUT_MS;
         if ((call.status === "ringing" && Number.isFinite(createdAt) && now.toMillis() - createdAt >= RING_TIMEOUT_MS)
-          || (call.status === "active" && Number.isFinite(updatedAt) && now.toMillis() - updatedAt >= activeTimeout)) {
+          || (call.status === "active" && Number.isFinite(activeLeaseAt) && now.toMillis() - activeLeaseAt >= activeTimeout)) {
           expiredRinging.push(snapshot.ref);
         } else {
           const error = new Error("A call is already in progress with this match. Answer the incoming call or wait for it to end.");
