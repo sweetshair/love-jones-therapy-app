@@ -22,14 +22,14 @@ service cloud.firestore {
     }
 
     function activeDatingMember() {
-      return verified()
+      return eligibleMember()
         && exists(/databases/$(database)/documents/datingProfiles/$(request.auth.uid))
         && get(/databases/$(database)/documents/datingProfiles/$(request.auth.uid)).data.ownerId == request.auth.uid
         && get(/databases/$(database)/documents/datingProfiles/$(request.auth.uid)).data.active == true;
     }
 
     function noBlockBetween(userId) {
-      return signedIn()
+      return eligibleMember()
         && !exists(/databases/$(database)/documents/blocks/$(request.auth.uid + "_" + userId))
         && !exists(/databases/$(database)/documents/blocks/$(userId + "_" + request.auth.uid));
     }
@@ -80,6 +80,10 @@ service cloud.firestore {
     }
 
     match /swipes/{swipeId} {
+      // The client reads a deterministic swipe document before its first write.
+      // Existing documents and query results remain participant-only below.
+      allow get: if activeDatingMember()
+        && !exists(/databases/$(database)/documents/swipes/$(swipeId));
       allow read: if activeDatingMember()
         && (resource.data.fromId == request.auth.uid
           || resource.data.toId == request.auth.uid);

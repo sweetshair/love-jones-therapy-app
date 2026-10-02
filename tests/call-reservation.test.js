@@ -7,7 +7,7 @@ const { createRequire } = require("node:module");
 const { initializeApp, deleteApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require("@firebase/rules-unit-testing");
-const { doc, setDoc, updateDoc, serverTimestamp } = require("firebase/firestore");
+const { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serverTimestamp } = require("firebase/firestore");
 
 // Refuse to use a real project or credentials. Authentication is stubbed, but
 // transactions and permission checks run against the real Firestore emulator.
@@ -64,6 +64,10 @@ before(async () => {
 beforeEach(async () => {
   await environment.clearFirestore();
   await matchRef.set({ memberIds: [callerId, calleeId], status: "active" });
+  for (const uid of [callerId, calleeId]) {
+    await db.collection("users").doc(uid).set({ ageConfirmed: true, termsAcceptedAt: Timestamp.now() });
+    await db.collection("datingProfiles").doc(uid).set({ ownerId: uid, active: true });
+  }
 });
 after(async () => { await environment?.cleanup(); await deleteApp(adminApp); });
 
@@ -181,4 +185,98 @@ test("callee can answer and caller can end a reserved call", async () => {
     status: "ended", endedAt: serverTimestamp(), updatedAt: serverTimestamp()
   }));
   assert.equal((await handlerFor()(request())).statusCode, 200);
+});
+
+function memberClient(uid = callerId, verified = true) {
+  return environment.authenticatedContext(uid, { email_verified: verified }).firestore();
+}
+
+test("first Like and Pass can read missing swipes and save without exposing others", async () => {
+  const client = memberClient();
+  const id = callerId + "_" + calleeId;
+  const ref = doc(client, "swipes", id);
+  assert.equal((await assertSucceeds(getDoc(ref))).exists(), false);
+  assert.equal((await assertSucceeds(getDoc(doc(client, "swipes", calleeId + "_" + callerId)))).exists(), false);
+  for (const decision of ["like", "pass"]) {
+    await assertSucceeds(setDoc(ref, { fromId: callerId, toId: calleeId, decision,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+    assert.equal((await assertSucceeds(getDoc(ref))).data().decision, decision);
+  }
+  assert.equal((await assertSucceeds(getDocs(query(collection(client, "swipes"),
+    where("fromId", "==", callerId))))).size, 1);
+  await db.collection("swipes").doc("other_a_other_b").set({ fromId: "other_a", toId: "other_b", decision: "like" });
+  await assertFails(getDoc(doc(client, "swipes", "other_a_other_b")));
+  await assertFails(getDocs(collection(client, "swipes")));
+});
+
+test("swipes require verified email, age, Terms and an owned active profile", async () => {
+  const id = callerId + "_" + calleeId;
+  async function denied(client) {
+    await assertFails(getDoc(doc(client, "swipes", id)));
+    await assertFails(setDoc(doc(client, "swipes", id), { fromId: callerId, toId: calleeId,
+      decision: "like", createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  }
+  await denied(environment.unauthenticatedContext().firestore());
+  await denied(memberClient(callerId, false));
+  for (const patch of [{ ageConfirmed: false }, { termsAcceptedAt: null }]) {
+    await db.collection("users").doc(callerId).set(patch, { merge: true });
+    await denied(memberClient());
+    await db.collection("users").doc(callerId).set({ ageConfirmed: true, termsAcceptedAt: Timestamp.now() });
+  }
+  for (const patch of [{ active: false }, { ownerId: calleeId }]) {
+    await db.collection("datingProfiles").doc(callerId).set(patch, { merge: true });
+    await denied(memberClient());
+    await db.collection("datingProfiles").doc(callerId).set({ ownerId: callerId, active: true });
+  }
+});
+
+test("messages and call updates retain email, age and Terms gates", async () => {
+  const call = await seedCall("ringing");
+  async function denied(client) {
+    await assertFails(getDoc(doc(client, "matches", matchId, "calls", call.id)));
+    await assertFails(updateDoc(doc(client, "matches", matchId, "calls", call.id), {
+      status: "ended", endedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(client, "matches", matchId, "messages", "gated_message"), {
+      senderId: callerId, text: "Test", createdAt: serverTimestamp() }));
+  }
+  await denied(memberClient(callerId, false));
+  for (const patch of [{ ageConfirmed: false }, { termsAcceptedAt: null }]) {
+    await db.collection("users").doc(callerId).set(patch, { merge: true });
+    await denied(memberClient());
+    await db.collection("users").doc(callerId).set({ ageConfirmed: true, termsAcceptedAt: Timestamp.now() });
+  }
+  await assertSucceeds(setDoc(doc(memberClient(), "matches", matchId, "messages", "allowed_message"), {
+    senderId: callerId, text: "Test", createdAt: serverTimestamp() }));
+});
+
+test("both block directions deny client messages and call access", async () => {
+  const call = await seedCall("ringing");
+  const client = memberClient();
+  for (const id of [callerId + "_" + calleeId, calleeId + "_" + callerId]) {
+    const block = db.collection("blocks").doc(id);
+    await block.set({});
+    await assertFails(getDoc(doc(client, "matches", matchId, "calls", call.id)));
+    await assertFails(setDoc(doc(client, "matches", matchId, "messages", "blocked_message"), {
+      senderId: callerId, text: "Test", createdAt: serverTimestamp() }));
+    await block.delete();
+  }
+});
+
+test("wallet, purchase and paid-session reads are owner-only and writes are server-only", async () => {
+  for (const [name, id] of [["callWallets", callerId], ["callPurchases", "purchase_123"], ["paidCallSessions", "paid_123"]]) {
+    await db.collection(name).doc(id).set({ ownerId: callerId, balanceSeconds: 600 });
+    await assertSucceeds(getDoc(doc(memberClient(), name, id)));
+    await assertFails(getDoc(doc(memberClient(calleeId), name, id)));
+    await assertFails(getDoc(doc(environment.unauthenticatedContext().firestore(), name, id)));
+    await assertFails(updateDoc(doc(memberClient(), name, id), { balanceSeconds: 9999 }));
+    await assertFails(setDoc(doc(memberClient(), name, "forged_record"), { ownerId: callerId }));
+  }
+});
+
+test("reservation and translation cache collections remain inaccessible to clients", async () => {
+  for (const name of ["freeCallReservations", "messageTranslationCache"]) {
+    await db.collection(name).doc("private_record").set({ ownerId: callerId });
+    await assertFails(getDoc(doc(memberClient(), name, "private_record")));
+    await assertFails(setDoc(doc(memberClient(), name, "private_record"), { ownerId: callerId }));
+  }
 });
