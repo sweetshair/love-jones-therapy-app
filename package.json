@@ -1,0 +1,20 @@
+{
+  "name": "first-option-dating-beta",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:calls": "node --test tests/call-*.test.js",
+    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "stripe": "^18.5.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0"
+  }
+}
