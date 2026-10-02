@@ -197,11 +197,13 @@ test("first Like and Pass can read missing swipes and save without exposing othe
   const ref = doc(client, "swipes", id);
   assert.equal((await assertSucceeds(getDoc(ref))).exists(), false);
   assert.equal((await assertSucceeds(getDoc(doc(client, "swipes", calleeId + "_" + callerId)))).exists(), false);
-  for (const decision of ["like", "pass"]) {
-    await assertSucceeds(setDoc(ref, { fromId: callerId, toId: calleeId, decision,
-      createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
-    assert.equal((await assertSucceeds(getDoc(ref))).data().decision, decision);
-  }
+  await assertSucceeds(setDoc(ref, { fromId: callerId, toId: calleeId, decision: "like",
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(ref, { decision: "pass", updatedAt: serverTimestamp() }, { merge: true }));
+  assert.equal((await assertSucceeds(getDoc(ref))).data().decision, "pass");
+  const reverse = doc(memberClient(calleeId), "swipes", calleeId + "_" + callerId);
+  await assertSucceeds(setDoc(reverse, { fromId: calleeId, toId: callerId, decision: "pass",
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
   assert.equal((await assertSucceeds(getDocs(query(collection(client, "swipes"),
     where("fromId", "==", callerId))))).size, 1);
   await db.collection("swipes").doc("other_a_other_b").set({ fromId: "other_a", toId: "other_b", decision: "like" });
