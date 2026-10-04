@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "test:calls": "node --test tests/call-*.test.js",
-    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js tests/profile-photo.test.js"
+    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js tests/profile-photo.test.js tests/unblock.test.js"
   },
   "engines": {
     "node": "22.x"

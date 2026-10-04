@@ -540,7 +540,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 62</span>
+        <span id="appBuildLabel">Beta build UAT 63</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -2400,6 +2400,7 @@
           <button class="primary" id="datingProfileBtn">Dating Profile</button>
           <button class="ok" id="matchesBtn">Discover People</button>
           <button id="connectionsBtn">My Matches</button>
+          <button id="blockedMembersBtn">Blocked Members</button>
           ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
           <button class="danger" id="signOutBtn">Sign Out</button>
           <button id="privacyBtn">Privacy</button>
@@ -2666,6 +2667,8 @@
       state.screen = "matches";
       render();
     };
+    const blockedMembersBtn = document.getElementById("blockedMembersBtn");
+    if(blockedMembersBtn) blockedMembersBtn.onclick = () => { state.screen = "blockedMembers"; render(); };
     const connectionsBtn = document.getElementById("connectionsBtn");
     if(connectionsBtn) connectionsBtn.onclick = () => {
       if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
@@ -5584,7 +5587,51 @@ Conversation starters:
   }
 
   // =================== ROUTER ===================
+  async function renderBlockedMembers(){
+    if(!state.authUser){ state.screen = "home"; return render(); }
+    const uid = state.authUser.uid;
+    app.innerHTML = `<div class="kpi">
+      <h2>Blocked Members</h2>
+      <p class="tiny">Unblocking removes your block. It does not restore a previous match or conversation, and any block set by the other member still applies.</p>
+      <div id="blockedMembersList" aria-live="polite">Loading blocked members…</div>
+      <div class="btnrow"><button id="blockedHomeBtn">Home</button></div>
+    </div>`;
+    document.getElementById("blockedHomeBtn").onclick = () => { state.screen = "home"; render(); };
+    const list = document.getElementById("blockedMembersList");
+    try{
+      const members = await window.ljtFirebase.getBlockedMembers();
+      if(!list.isConnected || state.authUser?.uid !== uid) return;
+      list.innerHTML = members.length ? members.map(member => `
+        <div class="kpi" style="margin-top:10px;">
+          <b>${escapeHtml(member.name)}</b>
+          <div class="tiny">Member reference: ${escapeHtml(member.targetId)}</div>
+          <div class="btnrow"><button data-unblock-member="${escapeAttr(member.targetId)}">Unblock</button></div>
+        </div>`).join("") : '<p>You have no blocked members.</p>';
+      list.querySelectorAll("[data-unblock-member]").forEach(button => {
+        button.onclick = async () => {
+          if(!window.confirm("Unblock this member? Your previous match will not be restored.")) return;
+          button.disabled = true;
+          try{
+            await window.ljtFirebase.unblockMember(button.dataset.unblockMember);
+            if(!list.isConnected || state.authUser?.uid !== uid) return;
+            state.matchesLoaded = false;
+            state.connectionsLoaded = false;
+            showToast("Member unblocked.");
+            renderBlockedMembers();
+          }catch(error){
+            if(!list.isConnected) return;
+            button.disabled = false;
+            showToast(error.message || "Could not unblock this member.");
+          }
+        };
+      });
+    }catch(error){
+      if(list.isConnected) list.textContent = error.message || "Could not load blocked members. Return Home and try again.";
+    }
+  }
+
   function render(){
+    if(state.screen === "blockedMembers") return renderBlockedMembers();
     if(state.screen === "home") return renderHome();
 
     if(state.screen === "quiz"){

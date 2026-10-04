@@ -7,7 +7,7 @@ const { createRequire } = require("node:module");
 const { initializeApp, deleteApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require("@firebase/rules-unit-testing");
-const { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serverTimestamp } = require("firebase/firestore");
+const { deleteDoc, doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serverTimestamp } = require("firebase/firestore");
 
 // Refuse to use a real project or credentials. Authentication is stubbed, but
 // transactions and permission checks run against the real Firestore emulator.
@@ -281,4 +281,19 @@ test("reservation and translation cache collections remain inaccessible to clien
     await assertFails(getDoc(doc(memberClient(), name, "private_record")));
     await assertFails(setDoc(doc(memberClient(), name, "private_record"), { ownerId: callerId }));
   }
+});
+
+test("members can list and remove their own blocks without removing reciprocal blocks", async () => {
+  const owner = environment.authenticatedContext(callerId, { email_verified: true }).firestore();
+  const other = environment.authenticatedContext(calleeId, { email_verified: true }).firestore();
+  const ownPath = `blocks/${callerId}_${calleeId}`;
+  const reversePath = `blocks/${calleeId}_${callerId}`;
+  await db.doc(ownPath).set({ blockerId: callerId, blockedId: calleeId, createdAt: Timestamp.now() });
+  await db.doc(reversePath).set({ blockerId: calleeId, blockedId: callerId, createdAt: Timestamp.now() });
+  const listed = await assertSucceeds(getDocs(query(collection(owner, "blocks"), where("blockerId", "==", callerId))));
+  assert.equal(listed.size, 1);
+  await assertFails(deleteDoc(doc(other, ownPath)));
+  await assertFails(deleteDoc(doc(environment.unauthenticatedContext().firestore(), ownPath)));
+  await assertSucceeds(deleteDoc(doc(owner, ownPath)));
+  assert.equal((await db.doc(reversePath).get()).exists, true);
 });

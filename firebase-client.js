@@ -16,6 +16,7 @@ import {
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -721,6 +722,28 @@ async function blockMember(targetId, matchId = "") {
   if (matchId) await unmatch(matchId);
 }
 
+async function getBlockedMembers() {
+  const user = requireUser();
+  const snapshot = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", user.uid)));
+  return Promise.all(snapshot.docs.map(async entry => {
+    const targetId = entry.data().blockedId;
+    let name = "Unavailable profile";
+    try {
+      const profile = await getDoc(doc(db, "datingProfiles", targetId));
+      if (profile.exists()) name = profile.data().displayName || "Member";
+    } catch (error) {
+      if (error.code !== "permission-denied") throw error;
+    }
+    return { targetId, name };
+  }));
+}
+
+async function unblockMember(targetId) {
+  const user = requireUser();
+  if (!targetId || targetId === user.uid || targetId.includes("/")) throw new Error("Choose a blocked member.");
+  await deleteDoc(doc(db, "blocks", `${user.uid}_${targetId}`));
+}
+
 async function reportMember({ targetId, reason, details = "", matchId = "" }) {
   const user = requireUser();
   const allowedReasons = ["Fake profile", "Harassment", "Inappropriate content", "Underage concern", "Spam or scam", "Other"];
@@ -989,6 +1012,8 @@ window.ljtFirebase = {
   watchCallCandidates,
   unmatch,
   blockMember,
+  getBlockedMembers,
+  unblockMember,
   reportMember,
   uploadProfilePhoto,
   commitPendingProfilePhotos,
