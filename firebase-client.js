@@ -900,6 +900,9 @@ async function uploadPreparedProfilePhoto(user, preparedFile) {
   if (preparedFile.size >= 5 * 1024 * 1024) throw new Error("Each photo must be smaller than 5 MB.");
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
   const path = `profilePhotos/${user.uid}/${uniqueName}`;
+  // Email verification can change while this browser still holds an older token.
+  await getIdToken(user, true);
+  if (requireUser() !== user) throw new Error("Your account changed. Please try uploading again.");
   await uploadBytes(storageRef(storage, path), preparedFile, { contentType: preparedFile.type });
   return path;
 }
