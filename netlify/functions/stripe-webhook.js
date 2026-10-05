@@ -15,14 +15,15 @@ async function creditCompletedCheckout(session) {
   const purchaseRef = db.collection("callPurchases").doc(session.id);
   const walletRef = db.collection("callWallets").doc(userId);
   await db.runTransaction(async transaction => {
-    const [purchaseSnapshot, walletSnapshot] = await Promise.all([
+    const [purchaseSnapshot, walletSnapshot, deletionSnapshot] = await Promise.all([
       transaction.get(purchaseRef),
-      transaction.get(walletRef)
+      transaction.get(walletRef),
+      transaction.get(db.collection("accountDeletions").doc(userId))
     ]);
     if (purchaseSnapshot.exists) return;
     const wallet = walletSnapshot.exists ? walletSnapshot.data() : {};
     const balanceSeconds = Math.max(0, Number(wallet.balanceSeconds) || 0) + selected.seconds;
-    transaction.set(walletRef, {
+    if (!deletionSnapshot.exists) transaction.set(walletRef, {
       ownerId: userId,
       balanceSeconds,
       purchasedSeconds: Math.max(0, Number(wallet.purchasedSeconds) || 0) + selected.seconds,
@@ -37,7 +38,7 @@ async function creditCompletedCheckout(session) {
       seconds: selected.seconds,
       amount: selected.amount,
       currency: selected.currency,
-      status: "paid",
+      status: deletionSnapshot.exists ? "paid_account_deleted" : "paid",
       createdAt: Timestamp.now()
     });
   });
@@ -64,3 +65,4 @@ exports.handler = async event => {
     return jsonResponse(400, { error: "Webhook verification failed." });
   }
 };
+

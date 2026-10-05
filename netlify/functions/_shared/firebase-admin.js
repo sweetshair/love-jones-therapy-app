@@ -21,16 +21,26 @@ function firebaseApp() {
   });
 }
 
-async function verifiedUser(event) {
+async function authenticatedUser(event, checkRevoked = true) {
   const authorization = String(event.headers?.authorization || event.headers?.Authorization || "");
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
-  const decoded = await getAuth(firebaseApp()).verifyIdToken(match[1], true);
-  return decoded.email_verified ? decoded : null;
+  const decoded = await getAuth(firebaseApp()).verifyIdToken(match[1], checkRevoked);
+  return decoded;
 }
+
+async function verifiedUser(event) {
+  const decoded = await authenticatedUser(event);
+  if (!decoded?.email_verified) return null;
+  const deletion = await firestore().collection("accountDeletions").doc(decoded.uid).get();
+  return deletion.exists ? null : decoded;
+}
+
+function authAdmin() { return getAuth(firebaseApp()); }
 
 function firestore() {
   return getFirestore(firebaseApp());
 }
 
-module.exports = { FieldValue, Timestamp, firestore, verifiedUser };
+module.exports = { FieldValue, Timestamp, firestore, verifiedUser, authenticatedUser, authAdmin, firebaseApp };
+

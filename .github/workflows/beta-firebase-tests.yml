@@ -33,5 +33,6 @@ jobs:
         run: npm ci
       - name: Unit tests
         run: npm run test:unit
-      - name: Firestore rules and calling tests
-        run: npm exec --yes --package firebase-tools@13.35.1 -- firebase emulators:exec --only firestore --config firebase.emulator.json --project demo-fod-call-tests 'npm run test:calls'
+      - name: Firestore, Storage rules and calling tests
+        run: npm exec --yes --package firebase-tools@13.35.1 -- firebase emulators:exec --only firestore,storage --config firebase.emulator.json --project demo-fod-call-tests 'npm run test:calls'
+

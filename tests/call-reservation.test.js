@@ -58,7 +58,8 @@ async function seedCall(status, ageSeconds = 0, extras = {}) {
 before(async () => {
   const [host, port] = emulator.split(":");
   environment = await initializeTestEnvironment({ projectId,
-    firestore: { host, port: Number(port), rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8") }
+    firestore: { host, port: Number(port), rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8") },
+    storage: { host: "127.0.0.1", port: 9199, rules: fs.readFileSync(path.resolve(__dirname, "../storage.rules"), "utf8") }
   });
 });
 beforeEach(async () => {
@@ -296,4 +297,92 @@ test("members can list and remove their own blocks without removing reciprocal b
   await assertFails(deleteDoc(doc(environment.unauthenticatedContext().firestore(), ownPath)));
   await assertSucceeds(deleteDoc(doc(owner, ownPath)));
   assert.equal((await db.doc(reversePath).get()).exists, true);
+});
+
+
+test("deletion tombstone blocks stale tokens, recreation, and a new call to the member", async () => {
+  await db.collection('accountDeletions').doc(callerId).set({status:'pending'});
+  const client=environment.authenticatedContext(callerId,{email_verified:true}).firestore();
+  await assertFails(getDoc(doc(client,'users',callerId)));
+  await assertFails(setDoc(doc(client,'users',callerId),{ageConfirmed:true,termsAcceptedAt:serverTimestamp()}));
+  await assertFails(setDoc(doc(client,'accountDeletions',callerId),{status:'complete'}));
+  await assertFails(deleteDoc(doc(client,'accountDeletions',callerId)));
+  await assertFails(getDoc(doc(client,'callWallets',callerId)));
+  const response=await handlerFor(calleeId)(request({calleeId:callerId}));
+  assert.notEqual(response.statusCode,200);
+  assert.equal((await calls.get()).size,0);
+});
+
+test("account cleanup resumes after storage failure and preserves other accounts and retained records", async () => {
+  const {cleanAccountStep}=require('../netlify/functions/delete-account');
+  await db.collection('accountDeletions').doc(callerId).set({status:'pending'});
+  await db.collection('users').doc(callerId).collection('results').doc('quiz').set({private:true});
+  await matchRef.collection('messages').doc('message').set({text:'private'});
+  const call=await seedCall('ended');
+  await call.collection('callerCandidates').doc('ice').set({candidate:'private'});
+  await db.collection('swipes').doc('like').set({fromId:calleeId,toId:callerId});
+  await db.collection('blocks').doc('block').set({blockerId:callerId,blockedId:calleeId});
+  await db.collection('callWallets').doc(callerId).set({balanceSeconds:900});
+  await db.collection('callWallets').doc(calleeId).set({balanceSeconds:120});
+  await db.collection('callPurchases').doc('receipt').set({ownerId:callerId,status:'paid'});
+  await db.collection('reports').doc('report').set({targetId:callerId,reason:'Other'});
+  const removed=[];let storageFails=true;let hasPhoto=true;
+  const bucket={getFiles:async options=>{
+    assert.equal(options.prefix,`profilePhotos/${callerId}/`);
+    if(storageFails) throw Error('Storage unavailable');
+    return [hasPhoto?[{delete:async()=>{hasPhoto=false;}}]:[]];
+  }};
+  const auth={deleteUser:async uid=>removed.push(uid)};
+  for(let step=0;step<3;step++) assert.equal(await cleanAccountStep(db,callerId,bucket,auth),false);
+  await assert.rejects(cleanAccountStep(db,callerId,bucket,auth),/Storage unavailable/);
+  assert.deepEqual(removed,[]);
+  assert.equal((await db.collection('accountDeletions').doc(callerId).get()).data().status,'pending');
+  storageFails=false;
+  assert.equal(await cleanAccountStep(db,callerId,bucket,auth),false);
+  assert.equal(await cleanAccountStep(db,callerId,bucket,auth),true);
+  assert.deepEqual(removed,[callerId]);
+  assert.equal((await call.collection('callerCandidates').get()).size,0);
+  assert.equal((await matchRef.collection('messages').get()).size,0);
+  assert.equal((await db.collection('users').doc(callerId).collection('results').get()).size,0);
+  for(const collection of ['users','datingProfiles','callWallets']) {
+    assert.equal((await db.collection(collection).doc(callerId).get()).exists,false);
+    assert.equal((await db.collection(collection).doc(calleeId).get()).exists,true);
+  }
+  assert.equal((await db.collection('callPurchases').doc('receipt').get()).exists,true);
+  assert.equal((await db.collection('reports').doc('report').get()).exists,true);
+  assert.equal((await db.collection('accountDeletions').doc(callerId).get()).data().status,'complete');
+});
+
+
+test("late Stripe payment records a receipt without recreating a deleted wallet", async () => {
+  await db.collection('accountDeletions').doc(callerId).set({status:'complete'});
+  const filename=path.resolve(__dirname,'../netlify/functions/stripe-webhook.js');
+  const localRequire=createRequire(filename); const exports={};
+  const session={id:'cs_test_late',payment_status:'paid',currency:'cad',amount_total:699,
+    metadata:{userId:callerId,packageId:'minutes_15'},payment_intent:'pi_test'};
+  vm.compileFunction(fs.readFileSync(filename,'utf8'),['exports','require','process','console'],{filename})(exports,
+    name=>name==='./_shared/firebase-admin'?{Timestamp,firestore:()=>db}:
+    name==='./_shared/stripe'?{packageFor:()=>({id:'minutes_15',seconds:900,amount:699,currency:'cad'}),
+      stripeClient:()=>({webhooks:{constructEvent:()=>({type:'checkout.session.completed',data:{object:session}})}})}:localRequire(name),
+    {env:{STRIPE_WEBHOOK_SECRET:'whsec_mock'}},console);
+  for(let retry=0;retry<2;retry++) assert.equal((await exports.handler({httpMethod:'POST',headers:{'stripe-signature':'mock'},body:'mock'})).statusCode,200);
+  assert.equal((await db.collection('callWallets').doc(callerId).get()).exists,false);
+  assert.equal((await db.collection('callPurchases').get()).size,1);
+  assert.equal((await db.collection('callPurchases').doc(session.id).get()).data().status,'paid_account_deleted');
+});
+
+
+test("Storage denies deleted members and hides their photos from other members", async () => {
+  const owner=environment.authenticatedContext(callerId,{email_verified:true}).storage();
+  const other=environment.authenticatedContext(calleeId,{email_verified:true}).storage();
+  const photo=`profilePhotos/${callerId}/deletion-test.jpg`;
+  const otherPhoto=`profilePhotos/${calleeId}/deletion-test.jpg`;
+  await assertSucceeds(owner.ref(photo).put(new Uint8Array([1,2,3]),{contentType:'image/jpeg'}));
+  await assertSucceeds(other.ref(photo).getMetadata());
+  await db.collection('accountDeletions').doc(callerId).set({status:'pending'});
+  await assertFails(owner.ref(photo).getMetadata());
+  await assertFails(owner.ref(photo).put(new Uint8Array([1]),{contentType:'image/jpeg'}));
+  await assertFails(other.ref(photo).getMetadata());
+  await assertSucceeds(other.ref(otherPhoto).put(new Uint8Array([1]),{contentType:'image/jpeg'}));
+  await assertSucceeds(other.ref(otherPhoto).getMetadata());
 });

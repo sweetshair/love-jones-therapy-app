@@ -540,7 +540,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 63</span>
+        <span id="appBuildLabel">Beta build UAT 64</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -2401,6 +2401,7 @@
           <button class="ok" id="matchesBtn">Discover People</button>
           <button id="connectionsBtn">My Matches</button>
           <button id="blockedMembersBtn">Blocked Members</button>
+          <button class="danger" id="deleteAccountBtn">Delete Account</button>
           ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
           <button class="danger" id="signOutBtn">Sign Out</button>
           <button id="privacyBtn">Privacy</button>
@@ -2667,6 +2668,8 @@
       state.screen = "matches";
       render();
     };
+    const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+    if(deleteAccountBtn) deleteAccountBtn.onclick = () => { state.screen = "deleteAccount"; render(); };
     const blockedMembersBtn = document.getElementById("blockedMembersBtn");
     if(blockedMembersBtn) blockedMembersBtn.onclick = () => { state.screen = "blockedMembers"; render(); };
     const connectionsBtn = document.getElementById("connectionsBtn");
@@ -5587,6 +5590,66 @@ Conversation starters:
   }
 
   // =================== ROUTER ===================
+  async function renderDeleteAccount(){
+    if(!state.authUser){ state.screen = "home"; return renderHome(); }
+    const uid = state.authUser.uid;
+    app.innerHTML = `
+      <div class="card">
+        <h2>Delete Account</h2>
+        <p>You are deleting <strong>${escapeHtml(state.authUser.email)}</strong>.</p>
+        <p>This permanently removes your profile, photos, private details, quiz results, likes, matches, and shared conversations for both members. You will lose access to your unused call minutes. Deletion does not issue a refund.</p>
+        <p class="tiny">Payment records and safety reports are retained for payment handling and member safety. A minimal deletion record prevents old sessions from restoring the account. Private drafts on this browser are removed; clear site data on any other devices you used.</p>
+        <form id="deleteAccountForm">
+          <label for="deletePassword">Current password</label>
+          <input class="in" id="deletePassword" type="password" autocomplete="current-password" required />
+          <label for="deleteConfirmation">Type DELETE to confirm</label>
+          <input class="in" id="deleteConfirmation" type="text" autocomplete="off" autocapitalize="characters" required pattern="DELETE" />
+          <p id="deleteAccountStatus" role="status" aria-live="polite">Checking availability…</p>
+          <div class="btnrow">
+            <button class="danger" id="confirmDeleteAccountBtn" type="submit" disabled>Permanently Delete My Account</button>
+            <button id="cancelDeleteAccountBtn" type="button">Cancel</button>
+          </div>
+        </form>
+      </div>`;
+    const form = document.getElementById("deleteAccountForm");
+    const status = document.getElementById("deleteAccountStatus");
+    const submit = document.getElementById("confirmDeleteAccountBtn");
+    const cancel = document.getElementById("cancelDeleteAccountBtn");
+    cancel.onclick = () => { state.screen = "home"; render(); };
+    let available = false;
+    try{
+      const response = await fetch("/.netlify/functions/delete-account", { cache:"no-store" });
+      const result = await response.json();
+      if(!form.isConnected || state.authUser?.uid !== uid) return;
+      available = response.ok && result.enabled === true;
+      submit.disabled = !available;
+      status.textContent = available ? "This cannot be undone." : "Account deletion is awaiting its security update. Please try again once setup is complete.";
+    }catch(error){ status.textContent = "Could not check availability. Return home and try again."; }
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if(!available || submit.disabled || state.authUser?.uid !== uid) return;
+      if(callIsOpen()){ status.textContent = "Finish your call before deleting your account."; return; }
+      const password = document.getElementById("deletePassword");
+      const confirmation = document.getElementById("deleteConfirmation");
+      if(confirmation.value !== "DELETE"){ status.textContent = "Type DELETE to confirm."; return; }
+      submit.disabled = true;
+      cancel.disabled = true;
+      status.textContent = "Deleting your account… Keep this page open until it finishes.";
+      try{
+        await window.ljtFirebase.deleteMyAccount(password.value, confirmation.value);
+        // Reload discards in-memory quiz answers, media blobs, and profile caches.
+        window.location.replace(window.location.pathname + "?account=deleted");
+      }catch(error){
+        if(!form.isConnected) return;
+        status.textContent = String(error.code || "").startsWith("auth/")
+          ? "Your password could not be confirmed. Check it and try again."
+          : error.message || "Deletion did not finish. Retry to resume safely.";
+        submit.disabled = false;
+        cancel.disabled = false;
+      }finally{ password.value = ""; }
+    };
+  }
+
   async function renderBlockedMembers(){
     if(!state.authUser){ state.screen = "home"; return render(); }
     const uid = state.authUser.uid;
@@ -5631,6 +5694,7 @@ Conversation starters:
   }
 
   function render(){
+    if(state.screen === "deleteAccount") return renderDeleteAccount();
     if(state.screen === "blockedMembers") return renderBlockedMembers();
     if(state.screen === "home") return renderHome();
 
@@ -5738,6 +5802,10 @@ Conversation starters:
 
   // =================== START ===================
   render();
+  if(new URLSearchParams(window.location.search).get("account") === "deleted"){
+    showToast("Your account has been deleted.");
+    window.history.replaceState({}, "", window.location.pathname);
+  }
   showCookieBannerIfNeeded();
   registerSW();
 
@@ -5748,3 +5816,4 @@ Conversation starters:
 </script>
 </body>
 </html>
+

@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v63";
+const VERSION = "fod-riq-v64";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -45,6 +45,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+  if (url.pathname.startsWith("/.netlify/functions/")) return;
   const isSameOrigin = url.origin === self.location.origin;
   // External account, media, and API requests must go directly to their providers.
   // Caching cross-origin Firebase modules can prevent member sign-in after an update.
@@ -89,3 +90,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

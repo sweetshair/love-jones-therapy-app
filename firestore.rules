@@ -3,7 +3,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && !exists(/databases/$(database)/documents/accountDeletions/$(request.auth.uid));
     }
 
     function owns(userId) {
@@ -30,6 +31,7 @@ service cloud.firestore {
 
     function noBlockBetween(userId) {
       return eligibleMember()
+        && !exists(/databases/$(database)/documents/accountDeletions/$(userId))
         && !exists(/databases/$(database)/documents/blocks/$(request.auth.uid + "_" + userId))
         && !exists(/databases/$(database)/documents/blocks/$(userId + "_" + request.auth.uid));
     }
@@ -42,7 +44,8 @@ service cloud.firestore {
       return signedIn()
         && request.auth.uid in matchData.memberIds
         && matchData.status == "active"
-        && noBlockBetween(otherId);
+        && noBlockBetween(otherId)
+        && !exists(/databases/$(database)/documents/accountDeletions/$(otherId));
     }
 
     function validDatingProfile(userId) {
@@ -293,3 +296,4 @@ service cloud.firestore {
     }
   }
 }
+

@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
   browserLocalPersistence,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   createUserWithEmailAndPassword,
   getAuth,
   getIdToken,
@@ -127,6 +129,54 @@ async function signIn(email, password) {
 
 async function logOut() {
   await signOut(auth);
+}
+
+async function clearDeletedAccountDrafts(uid) {
+  if (window.indexedDB) {
+    const database = await openDraftPhotoDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(DRAFT_PHOTO_STORE, "readwrite");
+      const cursor = transaction.objectStore(DRAFT_PHOTO_STORE).openCursor();
+      cursor.onsuccess = () => {
+        const entry = cursor.result;
+        if (!entry) return;
+        if (entry.value.ownerId === uid) entry.delete();
+        entry.continue();
+      };
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+  window.localStorage.removeItem(`fod_dating_profile_draft_${uid}`);
+  for (const mode of ["audio", "video"]) window.localStorage.removeItem(`fodFreeCallReconnect:${uid}:${mode}`);
+}
+
+async function deleteMyAccount(password, confirmation) {
+  if (confirmation !== "DELETE") throw new Error("Type DELETE to confirm.");
+  const user = requireUser();
+  if (!password) throw new Error("Enter your current password.");
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  if (requireUser() !== user) throw new Error("Your account changed. Please try again.");
+  // Clear local private drafts before starting; never report complete if this fails.
+  await clearDeletedAccountDrafts(user.uid);
+  const token = await getIdToken(user, true);
+  for (let step = 0; step < 500; step++) {
+    if (requireUser() !== user) throw new Error("Your account changed. Sign back in to resume deletion.");
+    const response = await fetch("/.netlify/functions/delete-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ confirmation })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Deletion did not finish. Please retry.");
+    if (result.deleted === true) {
+      await signOut(auth);
+      return;
+    }
+    if (response.status !== 202) throw new Error("Deletion did not finish. Please retry.");
+  }
+  throw new Error("Cleanup is still in progress. Enter your password again and retry to continue.");
 }
 
 async function resetPassword(email) {
@@ -984,6 +1034,7 @@ window.ljtFirebase = {
   signUp,
   signIn,
   signOut: logOut,
+  deleteMyAccount,
   resetPassword,
   resendVerification,
   refreshVerification,
@@ -1030,3 +1081,4 @@ onAuthStateChanged(auth, user => {
     detail: { user: publicUser(user) }
   }));
 });
+
