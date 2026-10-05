@@ -99,7 +99,7 @@ exports.handler = async event => {
       freeSessionId = cleanId(requestedSessionId, "The free call session");
     }
     await db.runTransaction(async transaction => {
-      const [matchSnapshot, outgoingBlock, incomingBlock, openCalls, memberMatches, allowanceReservation, callerDeletion, calleeDeletion] = await Promise.all([
+      const [matchSnapshot, outgoingBlock, incomingBlock, openCalls, memberMatches, allowanceReservation, callerDeletion, calleeDeletion, callerSuspension, calleeSuspension] = await Promise.all([
         transaction.get(matchRef),
         transaction.get(db.collection("blocks").doc(`${user.uid}_${calleeId}`)),
         transaction.get(db.collection("blocks").doc(`${calleeId}_${user.uid}`)),
@@ -107,13 +107,17 @@ exports.handler = async event => {
         transaction.get(db.collection("matches").where("memberIds", "array-contains", user.uid).limit(80)),
         transaction.get(allowanceRef),
         transaction.get(db.collection("accountDeletions").doc(user.uid)),
-        transaction.get(db.collection("accountDeletions").doc(calleeId))
+        transaction.get(db.collection("accountDeletions").doc(calleeId)),
+        transaction.get(db.collection("accountSuspensions").doc(user.uid)),
+        transaction.get(db.collection("accountSuspensions").doc(calleeId))
       ]);
       const match = matchSnapshot.data();
       if (
         !matchSnapshot.exists
         || callerDeletion.exists
         || calleeDeletion.exists
+        || callerSuspension.exists
+        || calleeSuspension.exists
         || match.status !== "active"
         || !Array.isArray(match.memberIds)
         || match.memberIds.length !== 2
@@ -206,4 +210,5 @@ exports.handler = async event => {
     return jsonResponse(statusCode, { error:error.message || "The call could not start." });
   }
 };
+
 

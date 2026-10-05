@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Member Reports • First Option Dating</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101018;color:#f3f3fa}*{box-sizing:border-box}body{margin:0}main{max-width:900px;margin:auto;padding:24px 16px}a{color:#ffd564}header{display:flex;justify-content:space-between;gap:16px;align-items:center}h1{font-size:1.6rem}p{line-height:1.5}.toolbar,.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}button,select,input,textarea{font:inherit;padding:12px;border:1px solid #727284;border-radius:8px;background:#20202c;color:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}.danger{background:#6c2534}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #ffd564;outline-offset:2px}article{border:1px solid #454557;border-radius:14px;padding:20px;margin:18px 0;background:#191924}h2{margin:0 0 12px;font-size:1.2rem}label{display:block;margin:14px 0 6px}textarea,input{display:block;width:100%}textarea{min-height:90px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:#222230;padding:12px;border-radius:8px}.meta{font-size:.85rem;color:#c4c4d4;overflow-wrap:anywhere}.notice{padding:12px;border-left:3px solid #ffd564}#status{min-height:24px}#next{margin:12px 0}[hidden]{display:none!important}
+</style>
+<script type="module" src="firebase-client.js"></script><script defer src="moderation.js"></script></head>
+<body><main><header><h1>Member Reports</h1><a href="/">Back Home</a></header>
+<p>Review reports, record your decision, and manage account suspensions. A report is an allegation; review its details before taking action.</p>
+<p id="status" role="status" aria-live="polite">Checking administrator access…</p>
+<section id="controls" hidden><div class="toolbar"><label for="filter">Report status</label><select id="filter"><option value="new">New</option><option value="under_review">Under review</option><option value="resolved">Resolved</option></select><button id="refresh">Refresh</button></div>
+<p id="suspensionNotice" class="notice" hidden>Suspension controls are awaiting their security update. Reports can still be reviewed.</p>
+<div id="reports"></div><button id="next" hidden>Next page</button></section>
+<noscript>Enable JavaScript and sign in from the home page to review reports.</noscript>
+</main></body></html>

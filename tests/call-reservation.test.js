@@ -72,6 +72,82 @@ beforeEach(async () => {
 });
 after(async () => { await environment?.cleanup(); await deleteApp(adminApp); });
 
+test('moderation transactions record decisions, reject stale edits, and only target the saved report member', async () => {
+  const {applyAction}=require('../netlify/functions/moderate-reports');
+  const report=db.doc('reports/moderation_test');
+  await report.set({targetId:callerId,reporterId:calleeId,status:'new',createdAt:Timestamp.now()});
+  const body={reportId:report.id,version:0,action:'status',status:'under_review',note:'Review in progress'};
+  await applyAction(db,'admin',body,['admin'],true);
+  assert.equal((await report.get()).data().status,'under_review');
+  await assert.rejects(applyAction(db,'admin',body,['admin'],true),error=>error.status===409);
+  assert.equal((await db.collection('moderationAudit').get()).size,1);
+  await applyAction(db,'admin',{...body,version:1,action:'suspend',confirmation:'SUSPEND',targetId:calleeId},['admin'],true);
+  assert.equal((await db.doc(`accountSuspensions/${callerId}`).get()).exists,true);
+  assert.equal((await db.doc(`accountSuspensions/${calleeId}`).get()).exists,false);
+  assert.equal((await db.doc(`datingProfiles/${callerId}`).get()).data().active,false);
+  await assertFails(getDoc(doc(memberClient(),'users',callerId)));
+  await assertFails(updateDoc(doc(memberClient(),'datingProfiles',callerId),{active:true}));
+  await assertFails(setDoc(doc(memberClient(calleeId),'matches',matchId,'messages','suspended_message'),{
+    senderId:calleeId,text:'Test',createdAt:serverTimestamp()}));
+  assert.notEqual((await handlerFor(calleeId)(request({calleeId:callerId}))).statusCode,200);
+  assert.notEqual((await handlerFor(callerId)(request())).statusCode,200);
+  await applyAction(db,'admin',{...body,version:2,action:'restore',confirmation:'RESTORE'},['admin'],true);
+  assert.equal((await db.doc(`accountSuspensions/${callerId}`).get()).exists,false);
+  assert.equal((await db.doc(`datingProfiles/${callerId}`).get()).data().active,false);
+  await assertSucceeds(getDoc(doc(memberClient(),'users',callerId)));
+  assert.equal((await db.collection('moderationAudit').get()).size,3);
+});
+
+test('moderation cannot suspend administrators or deleted members and client moderation data stays private',async()=>{
+  const {applyAction}=require('../netlify/functions/moderate-reports');
+  const report=db.doc('reports/protected_report');
+  await report.set({targetId:callerId,reporterId:calleeId,status:'new'});
+  const body={reportId:report.id,version:0,action:'suspend',confirmation:'SUSPEND',note:'Reviewed'};
+  await assert.rejects(applyAction(db,'admin',body,['admin',callerId],true),error=>error.status===403);
+  await db.doc(`accountDeletions/${callerId}`).set({status:'pending'});
+  await assert.rejects(applyAction(db,'admin',body,['admin'],true),error=>error.status===409);
+  assert.equal((await db.collection('moderationAudit').get()).size,0);
+  const client=memberClient(calleeId);
+  for(const name of ['reports','moderationAudit','accountSuspensions']) {
+    await assertFails(getDoc(doc(client,name,'protected_report')));
+    await assertFails(setDoc(doc(client,name,'protected_report'),{status:'resolved'}));
+  }
+});
+
+test('administrator report list paginates and excludes private member fields',async()=>{
+  const filename=path.resolve(__dirname,'../netlify/functions/moderate-reports.js');
+  const localRequire=createRequire(filename);const result={};
+  vm.compileFunction(fs.readFileSync(filename,'utf8'),['exports','require','process'],{filename})(result,
+    name=>name==='./_shared/firebase-admin'?{Timestamp,firestore:()=>db,
+      authenticatedUser:async()=>({uid:'admin',email_verified:true})}:localRequire(name),
+    {env:{MODERATOR_UIDS:'admin'}});
+  await db.doc(`datingProfiles/${callerId}`).update({displayName:'Test Member',email:'private@example.test'});
+  const batch=db.batch();
+  for(let i=0;i<27;i++) batch.set(db.doc(`reports/report_${String(i).padStart(2,'0')}`),{
+    targetId:callerId,reporterId:calleeId,status:'new',reason:'Other',details:'Test',createdAt:Timestamp.now(),secret:'private'});
+  await batch.commit();
+  const first=await result.handler({httpMethod:'GET'});
+  assert.equal(first.statusCode,200);
+  const page=JSON.parse(first.body);assert.equal(page.reports.length,25);assert.equal(page.next,'report_24');
+  assert.equal(page.reports[0].memberName,'Test Member');assert.equal(first.body.includes('private'),false);
+  const second=JSON.parse((await result.handler({httpMethod:'GET',queryStringParameters:{after:page.next}})).body);
+  assert.equal(second.reports.length,2);assert.equal(second.next,null);
+});
+
+test('suspension hides Storage photos and denies old-token uploads; restoration permits owner access',async()=>{
+  const owner=environment.authenticatedContext(callerId,{email_verified:true}).storage();
+  const other=environment.authenticatedContext(calleeId,{email_verified:true}).storage();
+  const photo=`profilePhotos/${callerId}/suspension-test.jpg`;
+  await assertSucceeds(owner.ref(photo).put(new Uint8Array([1]),{contentType:'image/jpeg'}));
+  await assertSucceeds(other.ref(photo).getMetadata());
+  await db.doc(`accountSuspensions/${callerId}`).set({reason:'Emulator test'});
+  await assertFails(owner.ref(photo).getMetadata());
+  await assertFails(owner.ref(photo).put(new Uint8Array([1]),{contentType:'image/jpeg'}));
+  await assertFails(other.ref(photo).getMetadata());
+  await db.doc(`accountSuspensions/${callerId}`).delete();
+  await assertSucceeds(owner.ref(photo).getMetadata());
+});
+
 test("simultaneous cross-calls admit exactly one caller", async () => {
   const results = await Promise.all([
     handlerFor(callerId)(request()),

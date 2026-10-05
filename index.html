@@ -540,7 +540,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 64</span>
+        <span id="appBuildLabel">Beta build UAT 65</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -2401,6 +2401,8 @@
           <button class="ok" id="matchesBtn">Discover People</button>
           <button id="connectionsBtn">My Matches</button>
           <button id="blockedMembersBtn">Blocked Members</button>
+          <button id="moderationBtn" style="display:none">Member Reports</button>
+          <p id="suspensionStatus" role="status"></p>
           <button class="danger" id="deleteAccountBtn">Delete Account</button>
           ${state.authUser.emailVerified ? `` : `<button class="primary" id="resendVerificationBtn">Resend Verification Email</button>`}
           <button class="danger" id="signOutBtn">Sign Out</button>
@@ -2668,6 +2670,18 @@
       state.screen = "matches";
       render();
     };
+    const moderationBtn = document.getElementById("moderationBtn");
+    if(moderationBtn){
+      const uid = state.authUser.uid;
+      moderationBtn.onclick = () => { window.location.href = "moderation.html"; };
+      window.ljtFirebase.getCurrentUserIdToken().then(token => fetch("/.netlify/functions/moderate-reports?action=access", {
+        cache:"no-store", headers:{Authorization:`Bearer ${token}`}
+      })).then(response => response.ok ? response.json() : null).then(access => {
+        if(!moderationBtn.isConnected || state.authUser?.uid !== uid || !access) return;
+        moderationBtn.style.display = access.allowed ? "" : "none";
+        if(access.suspended) document.getElementById("suspensionStatus").textContent = "Your account is suspended. Contact support@firstoptiondating.com for a review. You can still use Delete Account.";
+      }).catch(() => {});
+    }
     const deleteAccountBtn = document.getElementById("deleteAccountBtn");
     if(deleteAccountBtn) deleteAccountBtn.onclick = () => { state.screen = "deleteAccount"; render(); };
     const blockedMembersBtn = document.getElementById("blockedMembersBtn");
@@ -5334,7 +5348,17 @@ Conversation starters:
             if(state.screen === "messages") renderMessages();
           });
       },
-      error => showToast(error.message || "Calling is temporarily unavailable.")
+      error => {
+        if(String(error?.code || "").endsWith("permission-denied")){
+          // Stop media immediately when a block, suspension or deletion removes access.
+          finishPaidCallTime().catch(() => {});
+          stopCallWatch();
+          if(state.screen === "messages") renderMessages();
+          showToast("This call is no longer available.");
+          return;
+        }
+        showToast(error.message || "Calling is temporarily unavailable.");
+      }
     );
   }
 

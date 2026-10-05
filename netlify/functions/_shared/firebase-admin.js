@@ -32,8 +32,11 @@ async function authenticatedUser(event, checkRevoked = true) {
 async function verifiedUser(event) {
   const decoded = await authenticatedUser(event);
   if (!decoded?.email_verified) return null;
-  const deletion = await firestore().collection("accountDeletions").doc(decoded.uid).get();
-  return deletion.exists ? null : decoded;
+  const [deletion, suspension] = await Promise.all([
+    firestore().collection("accountDeletions").doc(decoded.uid).get(),
+    firestore().collection("accountSuspensions").doc(decoded.uid).get()
+  ]);
+  return deletion.exists || suspension.exists ? null : decoded;
 }
 
 function authAdmin() { return getAuth(firebaseApp()); }
@@ -43,4 +46,5 @@ function firestore() {
 }
 
 module.exports = { FieldValue, Timestamp, firestore, verifiedUser, authenticatedUser, authAdmin, firebaseApp };
+
 

@@ -4,7 +4,8 @@ service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() {
       return request.auth != null
-        && !firestore.exists(/databases/(default)/documents/accountDeletions/$(request.auth.uid));
+        && !firestore.exists(/databases/(default)/documents/accountDeletions/$(request.auth.uid))
+        && !firestore.exists(/databases/(default)/documents/accountSuspensions/$(request.auth.uid));
     }
 
     function verified() {
@@ -14,6 +15,7 @@ service firebase.storage {
     function noBlockBetween(userId) {
       return verified()
         && !firestore.exists(/databases/(default)/documents/accountDeletions/$(userId))
+        && !firestore.exists(/databases/(default)/documents/accountSuspensions/$(userId))
         && !firestore.exists(/databases/(default)/documents/blocks/$(request.auth.uid + "_" + userId))
         && !firestore.exists(/databases/(default)/documents/blocks/$(userId + "_" + request.auth.uid));
     }
@@ -32,4 +34,5 @@ service firebase.storage {
     }
   }
 }
+
 

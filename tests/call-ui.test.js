@@ -5,6 +5,17 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(path.resolve(__dirname, "../index.html"), "utf8");
+test('losing call permission immediately releases media even if settlement is pending',()=>{
+  let onError;const actions=[];
+  const sandbox={state:{screen:'messages'},window:{ljtFirebase:{watchLatestCall:(_id,_next,error)=>{onError=error;return ()=>{};}}},
+    finishPaidCallTime:()=>{actions.push('settle');return new Promise(()=>{});},
+    stopCallWatch:()=>actions.push('stop'),renderMessages:()=>actions.push('render'),showToast:()=>{}};
+  vm.createContext(sandbox);
+  vm.runInContext(functionSource('ensureCallWatch','function renderCallPanel'),sandbox);
+  sandbox.ensureCallWatch({matchId:'match'});
+  onError({code:'permission-denied'});
+  assert.deepEqual(actions,['settle','stop','render']);
+});
 function functionSource(name, nextName) {
   const start = html.search(new RegExp(`  (?:async )?function ${name}\\(`));
   const end = html.indexOf(`\n  ${nextName}`, start);
