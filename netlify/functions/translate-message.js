@@ -41,3 +41,6 @@ exports.handler = async (event) => {
     return jsonResponse(500, { error:"Translation is temporarily unavailable." });
   }
 };
+
+
+exports.SUPPORTED_LANGUAGES = SUPPORTED_LANGUAGES;

@@ -318,6 +318,8 @@ test("account cleanup resumes after storage failure and preserves other accounts
   await db.collection('accountDeletions').doc(callerId).set({status:'pending'});
   await db.collection('users').doc(callerId).collection('results').doc('quiz').set({private:true});
   await matchRef.collection('messages').doc('message').set({text:'private'});
+  const translationId=require('node:crypto').createHash('sha256').update('v1\0fr\0private').digest('hex');
+  await db.collection('messageTranslationCache').doc(translationId).set({translation:'private translation'});
   const call=await seedCall('ended');
   await call.collection('callerCandidates').doc('ice').set({candidate:'private'});
   await db.collection('swipes').doc('like').set({fromId:calleeId,toId:callerId});
@@ -333,7 +335,7 @@ test("account cleanup resumes after storage failure and preserves other accounts
     return [hasPhoto?[{delete:async()=>{hasPhoto=false;}}]:[]];
   }};
   const auth={deleteUser:async uid=>removed.push(uid)};
-  for(let step=0;step<3;step++) assert.equal(await cleanAccountStep(db,callerId,bucket,auth),false);
+  for(let step=0;step<4;step++) assert.equal(await cleanAccountStep(db,callerId,bucket,auth),false);
   await assert.rejects(cleanAccountStep(db,callerId,bucket,auth),/Storage unavailable/);
   assert.deepEqual(removed,[]);
   assert.equal((await db.collection('accountDeletions').doc(callerId).get()).data().status,'pending');
@@ -343,6 +345,7 @@ test("account cleanup resumes after storage failure and preserves other accounts
   assert.deepEqual(removed,[callerId]);
   assert.equal((await call.collection('callerCandidates').get()).size,0);
   assert.equal((await matchRef.collection('messages').get()).size,0);
+  assert.equal((await db.collection('messageTranslationCache').doc(translationId).get()).exists,false);
   assert.equal((await db.collection('users').doc(callerId).collection('results').get()).size,0);
   for(const collection of ['users','datingProfiles','callWallets']) {
     assert.equal((await db.collection(collection).doc(callerId).get()).exists,false);

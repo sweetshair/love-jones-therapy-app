@@ -1,6 +1,8 @@
 const { jsonResponse, parseJsonBody } = require("./_shared/http");
 const { Timestamp, firestore, authenticatedUser, authAdmin, firebaseApp } = require("./_shared/firebase-admin");
 const { getStorage } = require("firebase-admin/storage");
+const { createHash } = require("node:crypto");
+const { SUPPORTED_LANGUAGES } = require("./translate-message");
 
 // Enable only after BOTH deletion-aware Firestore and Storage rules are published.
 // A persistent server-only tombstone blocks stale tokens and late wallet credits.
@@ -18,6 +20,22 @@ async function cleanAccountStep(db, uid, bucket, auth) {
   if (!matches.empty) {
     const ref = matches.docs[0].ref;
     await ref.update({ status: "closed", closedBy: uid, updatedAt: Timestamp.now() });
+    // Delete derived translations before source messages so a retry can still
+    // derive every cache key. Shared cache misses are safe to regenerate.
+    const messages = await ref.collection("messages").limit(20).get();
+    if (!messages.empty) {
+      const batch = db.batch();
+      for (const message of messages.docs) {
+        const text = String(message.data().text || "").trim();
+        for (const target of SUPPORTED_LANGUAGES) {
+          const id = createHash("sha256").update(`v1\0${target}\0${text}`).digest("hex");
+          batch.delete(db.collection("messageTranslationCache").doc(id));
+        }
+        batch.delete(message.ref);
+      }
+      await batch.commit();
+      return false;
+    }
     await removeTree(db, ref);
     return false;
   }
