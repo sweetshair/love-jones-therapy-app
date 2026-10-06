@@ -93,13 +93,22 @@ async function getCurrentUserIdToken() {
   return getIdToken(requireUser());
 }
 
-async function signUp({ name, phone, email, password, consent, termsVersion }) {
+async function signUp({ firstName, lastName, displayName, phone, email, password, consent, termsVersion }) {
   await authPersistenceReady;
+  const cleanFirstName = String(firstName || "").trim().slice(0, 60);
+  const cleanLastName = String(lastName || "").trim().slice(0, 60);
+  const cleanDisplayName = String(displayName || "").trim().slice(0, 30);
+  const name = [cleanFirstName, cleanLastName].filter(Boolean).join(" ");
+  if (!cleanFirstName || !cleanLastName) throw new Error("Enter your first and last name.");
+  if (cleanDisplayName.length < 2) throw new Error("Choose a display name with at least 2 characters.");
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const user = credential.user;
-  await updateProfile(user, { displayName: name });
+  await updateProfile(user, { displayName: cleanDisplayName });
   await setDoc(doc(db, "users", user.uid), {
     name,
+    firstName: cleanFirstName,
+    lastName: cleanLastName,
+    displayName: cleanDisplayName,
     phone,
     email: user.email,
     consent: Boolean(consent),
@@ -201,11 +210,21 @@ async function getMyProfile() {
   return snapshot.exists() ? snapshot.data() : null;
 }
 
-async function saveMyProfile({ name, phone, consent }) {
+async function saveMyProfile({ firstName, lastName, displayName, phone, consent, name = "" }) {
   const user = requireUser();
-  if (name && name !== user.displayName) await updateProfile(user, { displayName: name });
+  const legacyParts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  const cleanFirstName = String(firstName || legacyParts[0] || "").trim().slice(0, 60);
+  const cleanLastName = String(lastName || legacyParts.slice(1).join(" ") || "").trim().slice(0, 60);
+  const cleanDisplayName = String(displayName || user.displayName || cleanFirstName || "").trim().slice(0, 30);
+  const fullName = [cleanFirstName, cleanLastName].filter(Boolean).join(" ");
+  if (!cleanFirstName || !cleanLastName) throw new Error("Enter your first and last name.");
+  if (cleanDisplayName.length < 2) throw new Error("Choose a display name with at least 2 characters.");
+  if (cleanDisplayName !== user.displayName) await updateProfile(user, { displayName: cleanDisplayName });
   await setDoc(doc(db, "users", user.uid), {
-    name,
+    name: fullName,
+    firstName: cleanFirstName,
+    lastName: cleanLastName,
+    displayName: cleanDisplayName,
     phone,
     email: user.email,
     consent: Boolean(consent),

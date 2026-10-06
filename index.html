@@ -555,7 +555,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 67</span>
+        <span id="appBuildLabel">Beta build UAT 68</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -955,6 +955,9 @@
     questionOptionOrders: [],
 
     userName: "",
+    userFirstName: "",
+    userLastName: "",
+    userDisplayName: "",
     userPhone: "",
     userEmail: "",
     consentOk: false,
@@ -1931,6 +1934,8 @@
     if(state.authUser){
       const accountName = String(
         state.datingProfile?.displayName
+        || state.userDisplayName
+        || state.userFirstName
         || state.userName
         || state.authUser.displayName
         || "Member"
@@ -2373,7 +2378,11 @@
 
         ${state.accountMode === "register" ? `
           <div class="row" style="margin-top:12px;">
-            <div class="col"><label class="tiny" for="nameInput">Full name</label><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" style="margin-top:6px;" /></div>
+            <div class="col"><label class="tiny" for="firstNameInput">First name</label><input id="firstNameInput" class="in" type="text" autocomplete="given-name" maxlength="60" placeholder="First name" value="${escapeAttr(state.userFirstName)}" style="margin-top:6px;" /></div>
+            <div class="col"><label class="tiny" for="lastNameInput">Last name</label><input id="lastNameInput" class="in" type="text" autocomplete="family-name" maxlength="60" placeholder="Last name" value="${escapeAttr(state.userLastName)}" style="margin-top:6px;" /></div>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <div class="col"><label class="tiny" for="accountDisplayNameInput">Display name</label><input id="accountDisplayNameInput" class="in" type="text" autocomplete="nickname" maxlength="30" placeholder="Name other members will see" value="${escapeAttr(state.userDisplayName)}" style="margin-top:6px;" /><div class="tiny" style="margin-top:5px;">This becomes the default name on your dating profile. Your first and last name stay private.</div></div>
             <div class="col"><label class="tiny" for="phoneInput">Private telephone number</label><input id="phoneInput" class="in" type="tel" inputmode="tel" autocomplete="tel" placeholder="Telephone number with country code" value="${escapeAttr(state.userPhone)}" style="margin-top:6px;" /><div class="tiny" style="margin-top:5px;">Include your country code when needed. This will never appear on your dating profile.</div></div>
           </div>
         ` : ``}
@@ -2419,7 +2428,11 @@
         ${state.authUser.emailVerified ? `` : `<div class="safetyNotice tiny" style="margin-top:10px;">Verification was sent to <strong style="color:var(--text);">${escapeHtml(state.authUser.email)}</strong>. Check Spam, Junk, and Promotions. You can build a private profile while you wait, but it cannot go public until the address is verified.</div>`}
 
         <div class="row" style="margin-top:12px;">
-          <div class="col"><label class="tiny" for="nameInput">Full name</label><input id="nameInput" class="in" type="text" autocomplete="name" placeholder="Full name" value="${escapeAttr(state.userName)}" style="margin-top:6px;" /></div>
+          <div class="col"><label class="tiny" for="firstNameInput">First name</label><input id="firstNameInput" class="in" type="text" autocomplete="given-name" maxlength="60" placeholder="First name" value="${escapeAttr(state.userFirstName)}" style="margin-top:6px;" /></div>
+          <div class="col"><label class="tiny" for="lastNameInput">Last name</label><input id="lastNameInput" class="in" type="text" autocomplete="family-name" maxlength="60" placeholder="Last name" value="${escapeAttr(state.userLastName)}" style="margin-top:6px;" /></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <div class="col"><label class="tiny" for="accountDisplayNameInput">Display name</label><input id="accountDisplayNameInput" class="in" type="text" autocomplete="nickname" maxlength="30" placeholder="Name other members will see" value="${escapeAttr(state.userDisplayName)}" style="margin-top:6px;" /><div class="tiny" style="margin-top:5px;">Used as the default on your dating profile. First and last name remain private.</div></div>
           <div class="col"><label class="tiny" for="phoneInput">Private telephone number</label><input id="phoneInput" class="in" type="tel" inputmode="tel" autocomplete="tel" placeholder="Telephone number with country code" value="${escapeAttr(state.userPhone)}" style="margin-top:6px;" /><div class="tiny" style="margin-top:5px;">Include your country code when needed. Not shown to other members.</div></div>
         </div>
         <div style="margin-top:10px;">
@@ -2527,7 +2540,9 @@
     const privacyBtn = document.getElementById("privacyBtn");
     const privacyLink = document.getElementById("privacyLink");
 
-    const nameInput = document.getElementById("nameInput");
+    const firstNameInput = document.getElementById("firstNameInput");
+    const lastNameInput = document.getElementById("lastNameInput");
+    const accountDisplayNameInput = document.getElementById("accountDisplayNameInput");
     const phoneInput = document.getElementById("phoneInput");
     const emailInput = document.getElementById("emailInput");
     const consentChk = document.getElementById("consentChk");
@@ -2542,36 +2557,43 @@
     function canProceed(){
       return (
         state.authUser &&
-        (nameInput.value||"").trim().length >= 2 &&
+        (firstNameInput?.value||"").trim().length >= 1 &&
+        (lastNameInput?.value||"").trim().length >= 1 &&
+        (accountDisplayNameInput?.value||"").trim().length >= 2 &&
         isValidPhone(phoneInput.value) &&
         isValidEmail(emailInput.value)
       );
     }
 
     function syncState(){
-      if(nameInput) state.userName = nameInput.value.trim();
+      if(firstNameInput) state.userFirstName = firstNameInput.value.trim();
+      if(lastNameInput) state.userLastName = lastNameInput.value.trim();
+      if(accountDisplayNameInput) state.userDisplayName = accountDisplayNameInput.value.trim();
+      state.userName = [state.userFirstName, state.userLastName].filter(Boolean).join(" ").trim();
       if(phoneInput) state.userPhone = phoneInput.value.trim();
       if(emailInput) state.userEmail = emailInput.value.trim();
       if(consentChk) state.consentOk = !!consentChk.checked;
       if(termsChk) state.termsOk = !!termsChk.checked;
 
-      if(state.authUser && nameInput && phoneInput && consentChk){
+      if(state.authUser && firstNameInput && lastNameInput && accountDisplayNameInput && phoneInput && consentChk){
         const ok = canProceed();
         singleBtn.disabled = !ok;
         couplesBtn.disabled = !ok;
       }
     }
 
-    [nameInput, phoneInput, emailInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
+    [firstNameInput, lastNameInput, accountDisplayNameInput, phoneInput, emailInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
     if(consentChk) consentChk.addEventListener("change", syncState);
     if(termsChk) termsChk.addEventListener("change", syncState);
     syncState();
 
     async function saveProfile(){
       syncState();
-      if(!canProceed()) throw new Error("Enter your name and a valid phone number first.");
+      if(!canProceed()) throw new Error("Enter your first name, last name, display name, and a valid phone number first.");
       await window.ljtFirebase.saveMyProfile({
-        name: state.userName,
+        firstName: state.userFirstName,
+        lastName: state.userLastName,
+        displayName: state.userDisplayName,
         phone: state.userPhone,
         consent: state.consentOk
       });
@@ -2617,11 +2639,16 @@
         if(!isValidEmail(state.userEmail)) throw new Error("Enter a valid email address.");
         if(password.length < 6) throw new Error("Your password must be at least 6 characters.");
         if(state.accountMode === "register"){
-          if(state.userName.length < 2) throw new Error("Enter your full name.");
+          if(state.userFirstName.length < 1) throw new Error("Enter your first name.");
+          if(state.userLastName.length < 1) throw new Error("Enter your last name.");
+          if(state.userDisplayName.length < 2) throw new Error("Choose a display name with at least 2 characters.");
+          if(state.userDisplayName.length > 30) throw new Error("Keep your display name to 30 characters or fewer.");
           if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid telephone number, including the country code when needed.");
           if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.");
           const createdUser = await window.ljtFirebase.signUp({
-            name: state.userName,
+            firstName: state.userFirstName,
+            lastName: state.userLastName,
+            displayName: state.userDisplayName,
             phone: state.userPhone,
             email: state.userEmail,
             password,
@@ -3321,7 +3348,7 @@ Conversation starters:
     const emailVerified = Boolean(state.authUser.emailVerified);
     const photoPaths = getPhotoPaths(profile);
     const profileExists = Boolean(savedProfile.ownerId);
-    const firstName = (state.userName || "Member").trim().split(/\s+/)[0];
+    const firstName = (state.userFirstName || state.userName || "Member").trim().split(/\s+/)[0];
     const current = (key, fallback="") => profile[key] ?? fallback;
     const acceptedCurrentTerms = current("termsAccepted", false)
       && current("termsVersion", "") === TERMS_VERSION;
@@ -3399,7 +3426,7 @@ Conversation starters:
         <p class="tiny">Your full name, phone number and email address remain private.</p>
 
         <div class="row" style="margin-top:12px;">
-          <div class="col"><div class="tiny" style="margin-bottom:6px;">First name or display name</div><input class="in" id="displayNameInput" maxlength="30" value="${escapeAttr(current("displayName", firstName))}" /></div>
+          <div class="col"><div class="tiny" style="margin-bottom:6px;">Display name</div><input class="in" id="displayNameInput" maxlength="30" value="${escapeAttr(current("displayName", state.userDisplayName || firstName))}" /></div>
           <div class="col"><div class="tiny" style="margin-bottom:6px;">Age</div><select class="in" id="ageInput">${ageOptions(current("age"), "Select your age")}</select></div>
         </div>
 
@@ -5810,7 +5837,12 @@ Conversation starters:
       try{
         const profile = await window.ljtFirebase.getMyProfile();
         if(profile){
-          state.userName = profile.name || state.authUser.displayName || "";
+          const legacyName = String(profile.name || "").trim();
+          const legacyParts = legacyName ? legacyName.split(/\s+/) : [];
+          state.userFirstName = String(profile.firstName || legacyParts[0] || "").trim();
+          state.userLastName = String(profile.lastName || legacyParts.slice(1).join(" ") || "").trim();
+          state.userName = [state.userFirstName, state.userLastName].filter(Boolean).join(" ").trim() || legacyName;
+          state.userDisplayName = String(profile.displayName || state.authUser.displayName || state.userFirstName || "").trim();
           state.userPhone = profile.phone || "";
           state.consentOk = Boolean(profile.consent);
           state.termsOk = Boolean(profile.ageConfirmed && profile.termsAcceptedAt);
@@ -5826,6 +5858,9 @@ Conversation starters:
       handleStripeReturn();
     }else{
       state.userName = "";
+      state.userFirstName = "";
+      state.userLastName = "";
+      state.userDisplayName = "";
       state.userPhone = "";
       state.userEmail = "";
       state.consentOk = false;
