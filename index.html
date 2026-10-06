@@ -314,6 +314,21 @@
       color: var(--text);
       outline: none;
     }
+    .passwordField{ position:relative; }
+    .passwordField .in{ padding-right:48px; }
+    .passwordToggle{
+      position:absolute; right:6px; top:50%; transform:translateY(-50%);
+      width:36px; height:36px; min-width:36px; padding:0;
+      display:grid; place-items:center;
+      border:0; border-radius:9px; background:transparent;
+      color:var(--muted); box-shadow:none;
+    }
+    .passwordToggle:hover{ background:rgba(255,255,255,.07); transform:translateY(-50%); }
+    .passwordToggle:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+    .passwordToggle svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .passwordToggle .eyeClosed{ display:none; }
+    .passwordToggle[aria-pressed="true"] .eyeOpen{ display:none; }
+    .passwordToggle[aria-pressed="true"] .eyeClosed{ display:block; }
     select.in option{ color:#111; }
     textarea.in{ min-height:110px; resize:vertical; font:inherit; }
     input:focus, select:focus, textarea:focus{ border-color: rgba(246,195,74,.55); box-shadow: var(--glowGold); }
@@ -540,7 +555,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 66</span>
+        <span id="appBuildLabel">Beta build UAT 67</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -669,6 +684,20 @@
  */
 
 (() => {
+  document.addEventListener("click", (event) => {
+    const toggle = event.target.closest?.("[data-password-toggle]");
+    if(!toggle) return;
+    const input = document.getElementById(toggle.dataset.passwordToggle || "");
+    if(!input || input.type !== "password" && input.type !== "text") return;
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    const label = showing ? "Show password" : "Hide password";
+    toggle.setAttribute("aria-pressed", String(!showing));
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+    input.focus({ preventScroll:true });
+  });
+
   // =================== TYPES ===================
   const TYPES = {
     SB: { name:"Secure Builder", tagline:"Calm, clear, and consistent — you build trust over time.",
@@ -2353,7 +2382,13 @@
           <input id="emailInput" class="in" type="email" autocomplete="email" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
         </div>
         <div style="margin-top:10px;">
-          <input id="passwordInput" class="in" type="password" autocomplete="${state.accountMode === "register" ? "new-password" : "current-password"}" placeholder="Password" />
+          <div class="passwordField">
+            <input id="passwordInput" class="in" type="password" autocomplete="${state.accountMode === "register" ? "new-password" : "current-password"}" placeholder="Password" />
+            <button class="passwordToggle" type="button" data-password-toggle="passwordInput" aria-label="Show password" aria-pressed="false" title="Show password">
+              <svg class="eyeOpen" aria-hidden="true" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              <svg class="eyeClosed" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3 3.7"/><path d="M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.3 0 2.5-.3 3.5-.7"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
         </div>
 
         ${state.accountMode === "register" ? `
@@ -5625,7 +5660,13 @@ Conversation starters:
         <p class="tiny">Payment records and safety reports are retained for payment handling and member safety. A minimal deletion record prevents old sessions from restoring the account. Private drafts on this browser are removed; clear site data on any other devices you used.</p>
         <form id="deleteAccountForm">
           <label for="deletePassword">Current password</label>
-          <input class="in" id="deletePassword" type="password" autocomplete="current-password" required />
+          <div class="passwordField">
+            <input class="in" id="deletePassword" type="password" autocomplete="current-password" required />
+            <button class="passwordToggle" type="button" data-password-toggle="deletePassword" aria-label="Show password" aria-pressed="false" title="Show password">
+              <svg class="eyeOpen" aria-hidden="true" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              <svg class="eyeClosed" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3 3.7"/><path d="M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.3 0 2.5-.3 3.5-.7"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
           <label for="deleteConfirmation">Type DELETE to confirm</label>
           <input class="in" id="deleteConfirmation" type="text" autocomplete="off" autocapitalize="characters" required pattern="DELETE" />
           <p id="deleteAccountStatus" role="status" aria-live="polite">Checking availability…</p>
