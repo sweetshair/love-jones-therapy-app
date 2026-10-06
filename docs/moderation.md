@@ -21,3 +21,23 @@ Suspension requires typing SUSPEND and confirming the exact member. It hides the
 RESTORE removes the restriction but leaves the profile hidden until the member republishes it. Suspension does not delete personal data, issue refunds, or remove already downloaded content. Existing payment receipts and balances are retained; do not use moderation to adjust billing. Contact: support@firstoptiondating.com.
 
 The feature is gated until manual activation. Code/emulator validation does not prove dashboard configuration or live two-device behavior.
+
+## UAT 66: authenticated photo delivery
+
+Cloud Storage rules allow only two distinct Firestore document lookups per
+request. The deletion, suspension and both-direction block checks exceed that
+limit for other members' photos. Emulator success did not establish production
+compatibility with that limit.
+
+`profile-photo.mjs` now authenticates a verified, non-revoked Firebase token and
+checks both members' deletion/suspension records and both block directions using
+the Admin SDK before reading the photo. Responses are private/no-store streamed
+bytes, never public download URLs. Object paths, content types, sizes and object
+generations are validated. Local photo drafts remain local; upload/delete flows
+are unchanged. Existing Storage rules stay fail-closed; this beta fix does not
+require republishing rules or migrating member data.
+
+Validation: `npm run test:unit` includes authenticated photo-delivery tests. A
+signed-in beta check must still confirm a previously unavailable photo returns
+and a blocked/suspended member remains unable to fetch it. The authenticated
+endpoint uses the same configured service account/bucket as account deletion.

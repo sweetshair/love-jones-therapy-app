@@ -34,7 +34,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
   deleteObject,
-  getBlob,
   getStorage,
   ref as storageRef,
   uploadBytes
@@ -1018,7 +1017,15 @@ async function loadProfilePhoto(path) {
     const record = await getDraftPhotoRecord(path, user);
     return URL.createObjectURL(record.blob);
   }
-  const blob = await getBlob(storageRef(storage, path), 5 * 1024 * 1024);
+  const token = await getIdToken(user);
+  const response = await fetch(`/.netlify/functions/profile-photo?path=${encodeURIComponent(path)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("Photo unavailable.");
+  const blob = await response.blob();
+  if (auth.currentUser?.uid !== user.uid) throw new Error("Your account changed. Please try again.");
+  if (blob.size > 5 * 1024 * 1024) throw new Error("Photo unavailable.");
   return URL.createObjectURL(blob);
 }
 
