@@ -29,18 +29,21 @@ async function registerClaim(event, body) {
   if (!user) return jsonResponse(401, { error:"Sign in first." });
   const code = cleanReferralCode(body.referralCode);
   const db = firestore();
-  const [ownUser, referrers] = await Promise.all([
+  const [ownUser, codeSnap] = await Promise.all([
     db.collection("users").doc(user.uid).get(),
-    db.collection("users").where("referralCode", "==", code).limit(2).get()
+    db.collection("referralCodes").doc(code).get()
   ]);
   if (!ownUser.exists) return jsonResponse(400, { error:"Finish creating your account first." });
-  const referrer = referrers.docs.find(doc => doc.id !== user.uid);
-  if (!referrer) return jsonResponse(400, { error:"That referral code was not found." });
+  if (!codeSnap.exists) return jsonResponse(400, { error:"That referral code was not found." });
+  const referrerId = String(codeSnap.data().ownerId || "");
+  if (!referrerId || referrerId === user.uid) return jsonResponse(400, { error:"You cannot refer yourself." });
 
-  const [referrerDeletion, referrerSuspension] = await Promise.all([
-    db.collection("accountDeletions").doc(referrer.id).get(),
-    db.collection("accountSuspensions").doc(referrer.id).get()
+  const [referrerUser, referrerDeletion, referrerSuspension] = await Promise.all([
+    db.collection("users").doc(referrerId).get(),
+    db.collection("accountDeletions").doc(referrerId).get(),
+    db.collection("accountSuspensions").doc(referrerId).get()
   ]);
+  if (!referrerUser.exists) return jsonResponse(400, { error:"That referral code is unavailable." });
   if (referrerDeletion.exists || referrerSuspension.exists) {
     return jsonResponse(400, { error:"That referral code is unavailable." });
   }
@@ -49,14 +52,14 @@ async function registerClaim(event, body) {
   const existing = await claimRef.get();
   if (existing.exists) {
     return jsonResponse(200, {
-      registered: existing.data().referrerId === referrer.id,
+      registered: existing.data().referrerId === referrerId,
       status: existing.data().status || "pending"
     });
   }
 
   await claimRef.create({
     referredId:user.uid,
-    referrerId:referrer.id,
+    referrerId,
     referralCode:code,
     status:"pending",
     rewardSeconds:REFERRAL_REWARD_SECONDS,
@@ -79,9 +82,15 @@ async function referralStatus(event) {
 
   if (!userSnap.exists) return jsonResponse(400, { error:"Complete your member account first." });
   const referralCode = referralCodeForUid(user.uid);
-  if (userSnap.data().referralCode !== referralCode) {
-    await userRef.set({ referralCode, updatedAt:Timestamp.now() }, { merge:true });
-  }
+  const codeRef = db.collection("referralCodes").doc(referralCode);
+  await db.runTransaction(async transaction => {
+    const codeSnap = await transaction.get(codeRef);
+    if (codeSnap.exists && codeSnap.data().ownerId !== user.uid) {
+      throw new Error("Your referral code could not be reserved. Contact support.");
+    }
+    if (!codeSnap.exists) transaction.create(codeRef, { ownerId:user.uid, createdAt:Timestamp.now() });
+    transaction.set(userRef, { referralCode, updatedAt:Timestamp.now() }, { merge:true });
+  });
 
   let successfulReferrals = 0;
   let pendingReferrals = 0;
