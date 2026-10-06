@@ -2,6 +2,11 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+[functions."profile-photo"]
+  # Keep Firebase Admin's package structure intact for the ESM photo endpoint.
+  # The bundled form omitted internal auth modules at runtime in Deploy Preview.
+  external_node_modules = ["firebase-admin"]
+
 [build.environment]
   NODE_VERSION = "22"
 
