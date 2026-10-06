@@ -247,6 +247,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /referralClaims/{referralId} {
+      allow read, write: if false;
+    }
+
     match /callPurchases/{purchaseId} {
       allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
