@@ -1,3 +1,4 @@
+// UAT 68 keeps private legal-name fields separate from the public-facing display name.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
