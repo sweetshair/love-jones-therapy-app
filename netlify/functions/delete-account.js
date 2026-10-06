@@ -43,7 +43,8 @@ async function cleanAccountStep(db, uid, bucket, auth) {
     ["swipes", "fromId"], ["swipes", "toId"],
     ["blocks", "blockerId"], ["blocks", "blockedId"],
     ["freeCallReservations", "ownerId"], ["paidCallSessions", "ownerId"],
-    ["referralClaims", "referredId"], ["referralClaims", "referrerId"]
+    ["referralClaims", "referredId"], ["referralClaims", "referrerId"],
+    ["referralCodes", "ownerId"]
   ]) {
     const records = await db.collection(collection).where(field, "==", uid).limit(100).get();
     if (!records.empty) {
