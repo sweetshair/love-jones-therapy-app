@@ -93,7 +93,29 @@ async function getCurrentUserIdToken() {
   return getIdToken(requireUser());
 }
 
-async function signUp({ firstName, lastName, displayName, phone, email, password, consent, termsVersion }) {
+function referralCodeForUid(uid) {
+  return `FOD-${String(uid || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 10).toUpperCase()}`;
+}
+
+async function registerReferralClaim(user, referralCode) {
+  const code = String(referralCode || "").trim().toUpperCase();
+  if (!code) return { registered:false };
+  const token = await getIdToken(user, true);
+  const response = await fetch("/.netlify/functions/referrals", {
+    method:"POST",
+    headers:{
+      Authorization:`Bearer ${token}`,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({ action:"register", referralCode:code }),
+    cache:"no-store"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Referral could not be registered.");
+  return payload;
+}
+
+async function signUp({ firstName, lastName, displayName, phone, email, password, consent, termsVersion, referralCode = "" }) {
   await authPersistenceReady;
   const cleanFirstName = String(firstName || "").trim().slice(0, 60);
   const cleanLastName = String(lastName || "").trim().slice(0, 60);
@@ -115,9 +137,18 @@ async function signUp({ firstName, lastName, displayName, phone, email, password
     ageConfirmed: true,
     termsAcceptedAt: serverTimestamp(),
     termsAcceptedVersion: String(termsVersion || ""),
+    referralCode: referralCodeForUid(user.uid),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+  let referralRegistered = false;
+  let referralError = "";
+  try {
+    const referral = await registerReferralClaim(user, referralCode);
+    referralRegistered = referral.registered === true;
+  } catch (error) {
+    referralError = error?.message || "Referral could not be registered.";
+  }
   let verificationEmailSent = true;
   let verificationEmailError = "";
   try {
@@ -126,7 +157,13 @@ async function signUp({ firstName, lastName, displayName, phone, email, password
     verificationEmailSent = false;
     verificationEmailError = error?.code || error?.message || "verification-email-failed";
   }
-  return { ...publicUser(user), verificationEmailSent, verificationEmailError };
+  return {
+    ...publicUser(user),
+    verificationEmailSent,
+    verificationEmailError,
+    referralRegistered,
+    referralError
+  };
 }
 
 async function signIn(email, password) {
