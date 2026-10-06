@@ -52,11 +52,22 @@ exports.handler = async event => {
       const wallet = walletSnapshot.exists ? walletSnapshot.data() : {};
       let balanceSeconds = Math.max(0, Number(wallet.balanceSeconds) || 0);
       let spentSeconds = Math.max(0, Number(wallet.spentSeconds) || 0);
+      let referralBonusSecondsAvailable = Math.min(
+        balanceSeconds,
+        Math.max(0, Number(wallet.referralBonusSecondsAvailable) || 0)
+      );
+      let referralBonusSecondsSpent = Math.max(0, Number(wallet.referralBonusSecondsSpent) || 0);
       const existing = sessionSnapshot.exists ? sessionSnapshot.data() : null;
 
       if (action === "start") {
         if (existing?.status === "active" && existing.ownerId === user.uid) {
-          result = { balanceSeconds, billedSeconds: Number(existing.billedSeconds) || 0, status: "active" };
+          result = {
+            balanceSeconds,
+            referralBonusSecondsAvailable,
+            referralBonusSecondsSpent,
+            billedSeconds: Number(existing.billedSeconds) || 0,
+            status: "active"
+          };
           return;
         }
         if (existing) throw new Error("Purchased time has already been used for this call.");
@@ -71,7 +82,13 @@ exports.handler = async event => {
           createdAt: now,
           updatedAt: now
         });
-        result = { balanceSeconds, billedSeconds: 0, status: "active" };
+        result = {
+          balanceSeconds,
+          referralBonusSecondsAvailable,
+          referralBonusSecondsSpent,
+          billedSeconds: 0,
+          status: "active"
+        };
         return;
       }
 
@@ -83,6 +100,9 @@ exports.handler = async event => {
       const alreadyBilled = Math.max(0, Number(existing.billedSeconds) || 0);
       const dueSeconds = Math.max(0, elapsedSeconds - alreadyBilled);
       const chargedSeconds = Math.min(dueSeconds, balanceSeconds);
+      const referralBonusChargedSeconds = Math.min(chargedSeconds, referralBonusSecondsAvailable);
+      referralBonusSecondsAvailable -= referralBonusChargedSeconds;
+      referralBonusSecondsSpent += referralBonusChargedSeconds;
       balanceSeconds -= chargedSeconds;
       spentSeconds += chargedSeconds;
       const billedSeconds = alreadyBilled + chargedSeconds;
@@ -92,6 +112,8 @@ exports.handler = async event => {
           ownerId: user.uid,
           balanceSeconds,
           spentSeconds,
+          referralBonusSecondsAvailable,
+          referralBonusSecondsSpent,
           updatedAt: now
         }, { merge: true });
       }
@@ -101,7 +123,15 @@ exports.handler = async event => {
         updatedAt: now,
         ...(status !== "active" ? { endedAt: now } : {})
       });
-      result = { balanceSeconds, billedSeconds, chargedSeconds, status };
+      result = {
+        balanceSeconds,
+        referralBonusSecondsAvailable,
+        referralBonusSecondsSpent,
+        billedSeconds,
+        chargedSeconds,
+        referralBonusChargedSeconds,
+        status
+      };
     });
 
     if (action === "start") {
