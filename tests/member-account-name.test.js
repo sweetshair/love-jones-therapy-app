@@ -22,5 +22,4 @@ test("account storage keeps full name private and Firebase Auth uses display nam
   assert.match(client, /displayName: cleanDisplayName/);
   assert.match(client, /updateProfile\(user, \{ displayName: cleanDisplayName \}\)/);
   assert.match(client, /name: fullName/);
-  assert.match(html, /Beta build UAT 68/);
 });

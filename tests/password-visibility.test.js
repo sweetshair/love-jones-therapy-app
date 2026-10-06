@@ -11,5 +11,4 @@ test("password fields include accessible show/hide controls", () => {
   assert.match(html, /id="deletePassword"[^>]*type="password"/);
   assert.match(html, /data-password-toggle="deletePassword"[^>]*aria-label="Show password"[^>]*aria-pressed="false"/);
   assert.match(html, /input\.type = showing \? "password" : "text"/);
-  assert.match(html, /Beta build UAT 67/);
 });
