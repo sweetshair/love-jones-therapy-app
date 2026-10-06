@@ -24,6 +24,11 @@ function safeOrigin(event) {
 
 exports.handler = async event => {
   if (event.httpMethod !== "POST") return jsonResponse(405, { error: "Method not allowed." });
+  // Stripe is retained only for deploy-preview QA. Production checkout stays
+  // disabled until the approved payment processor is integrated.
+  if (process.env.CONTEXT !== "deploy-preview") {
+    return jsonResponse(503, { error: "Online payments are being activated." });
+  }
   try {
     const user = await verifiedUser(event);
     if (!user) return jsonResponse(401, { error: "Sign in with a verified account first." });

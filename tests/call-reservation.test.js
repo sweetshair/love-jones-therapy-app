@@ -443,7 +443,7 @@ test("late Stripe payment records a receipt without recreating a deleted wallet"
     name=>name==='./_shared/firebase-admin'?{Timestamp,firestore:()=>db}:
     name==='./_shared/stripe'?{packageFor:()=>({id:'minutes_15',seconds:900,amount:699,currency:'cad'}),
       stripeClient:()=>({webhooks:{constructEvent:()=>({type:'checkout.session.completed',data:{object:session}})}})}:localRequire(name),
-    {env:{STRIPE_WEBHOOK_SECRET:'whsec_mock'}},console);
+    {env:{CONTEXT:'deploy-preview',STRIPE_WEBHOOK_SECRET:'whsec_mock'}},console);
   for(let retry=0;retry<2;retry++) assert.equal((await exports.handler({httpMethod:'POST',headers:{'stripe-signature':'mock'},body:'mock'})).statusCode,200);
   assert.equal((await db.collection('callWallets').doc(callerId).get()).exists,false);
   assert.equal((await db.collection('callPurchases').get()).size,1);
