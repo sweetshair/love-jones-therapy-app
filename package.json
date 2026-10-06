@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "test:calls": "node --test --test-concurrency=1 tests/call-*.test.js tests/swipe-function.test.js tests/likes-you-function.test.js tests/referrals.test.js",
-    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js tests/profile-photo.test.js tests/unblock.test.js tests/account-deletion.test.js tests/moderation.test.js tests/photo-access.test.js tests/password-visibility.test.js tests/member-account-name.test.js tests/discovery-gating.test.js tests/swipe-token-refresh.test.js tests/likes-you-ui.test.js tests/referral-ui.test.js"
+    "test:unit": "node --test tests/call-ui.test.js tests/translation.test.js tests/profile-photo.test.js tests/unblock.test.js tests/account-deletion.test.js tests/moderation.test.js tests/photo-access.test.js tests/password-visibility.test.js tests/member-account-name.test.js tests/discovery-gating.test.js tests/swipe-token-refresh.test.js tests/likes-you-ui.test.js tests/referral-ui.test.js tests/launch-readiness.test.js"
   },
   "engines": {
     "node": "22.x"

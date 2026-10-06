@@ -18,7 +18,7 @@ Open the page and refresh to see reports. There are no automatic email alerts. F
 
 Suspension requires typing SUSPEND and confirming the exact member. It hides the dating profile and denies application data and backend access, including new calls and purchases. The member can still sign in and use Delete Account. Administrator accounts cannot be suspended here. The target always comes from the saved report, never from a client-provided member ID.
 
-RESTORE removes the restriction but leaves the profile hidden until the member republishes it. Suspension does not delete personal data, issue refunds, or remove already downloaded content. Existing payment receipts and balances are retained; do not use moderation to adjust billing. Contact: support@firstoptiondating.com.
+RESTORE removes the restriction but leaves the profile hidden until the member republishes it. Suspension does not delete personal data, issue refunds, or remove already downloaded content. Existing payment receipts and balances are retained; do not use moderation to adjust billing. Contact: firstoptiondating@gmail.com.
 
 The feature is gated until manual activation. Code/emulator validation does not prove dashboard configuration or live two-device behavior.
 

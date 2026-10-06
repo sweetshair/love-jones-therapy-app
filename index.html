@@ -552,15 +552,17 @@
       Works as an installable app (PWA). Offline supported after first load.
       <div class="tiny" style="margin-top:10px; text-align:center; opacity:.85;">
         <strong style="color:var(--accent);">First Option Dating</strong> • Make the right choice •
-        <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
+        <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 73</span>
+        <!-- Beta build UAT 74 -->
+        <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
         <a href="?policy=privacy" data-policy="privacy">Privacy</a>
         <a href="?policy=terms" data-policy="terms">Terms</a>
+        <a href="?policy=pricing" data-policy="pricing">Pricing & Payments</a>
         <a href="?policy=community" data-policy="community">Community Guidelines</a>
         <a href="?policy=safety" data-policy="safety">Dating Safety</a>
       </div>
@@ -684,6 +686,8 @@
  */
 
 (() => {
+  const IS_DEPLOY_PREVIEW = window.location.hostname.startsWith("deploy-preview-");
+
   document.addEventListener("click", (event) => {
     const toggle = event.target.closest?.("[data-password-toggle]");
     if(!toggle) return;
@@ -1973,7 +1977,7 @@
         <p><b>Service providers:</b> Firebase provides authentication, database, and photo storage services. Netlify hosts the web application. We do not sell personal information.</p>
         <p><b>Your controls:</b> You can hide or edit your dating profile, remove photos, unmatch, block, and report. Contact us to request account deletion or a copy of your information.</p>
         <p><b>Retention and security:</b> We retain information while your account is active and as reasonably needed for safety, disputes, and legal obligations. No online service can guarantee absolute security.</p>
-        <p><b>Contact:</b> <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Privacy">support@firstoptiondating.com</a></p>`
+        <p><b>Contact:</b> <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Privacy">firstoptiondating@gmail.com</a></p>`
     },
     terms: {
       title: "Terms of Use",
@@ -1993,6 +1997,16 @@
         <p><b>Your responsibility for misuse:</b> To the extent permitted by law, you are responsible for claims, losses, or costs caused by your unlawful use of the service, your content, or your violation of these Terms or another person’s rights.</p>
         <p><b>Enforcement:</b> We may investigate reports, restrict features, remove content, suspend accounts, or preserve records when reasonably necessary for safety or law.</p>
         <p><b>Changes:</b> Features and these terms may change. Material changes will be communicated through the service when reasonably possible.</p>`
+    },
+    pricing: {
+      title: "Pricing & Payments",
+      subtitle: "Call-time packages and billing",
+      html: `
+        <p><b>Call-time packages:</b> 15 minutes — $6.99 CAD; 30 minutes — $11.99 CAD; 60 minutes — $19.99 CAD.</p>
+        <p><b>Payment availability:</b> Online checkout is currently being activated with our payment processor. No purchase is completed unless a checkout page clearly confirms the amount and you submit payment.</p>
+        <p><b>Call-time use:</b> Purchased call time belongs to the caller and can be used with any active match. Promotional referral minutes are added to the same usable balance, are used before purchased minutes, have no cash value, and are not transferable.</p>
+        <p><b>Billing questions and refunds:</b> Contact <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Billing">firstoptiondating@gmail.com</a>. Refunds, reversals, and billing corrections are handled in accordance with applicable law and the payment processor's requirements. Nothing here limits rights that cannot legally be waived.</p>
+      `
     },
     community: {
       title: "Community Guidelines",
@@ -2818,7 +2832,7 @@
       })).then(response => response.ok ? response.json() : null).then(access => {
         if(!moderationBtn.isConnected || state.authUser?.uid !== uid || !access) return;
         moderationBtn.style.display = access.allowed ? "" : "none";
-        if(access.suspended) document.getElementById("suspensionStatus").textContent = "Your account is suspended. Contact support@firstoptiondating.com for a review. You can still use Delete Account.";
+        if(access.suspended) document.getElementById("suspensionStatus").textContent = "Your account is suspended. Contact firstoptiondating@gmail.com for a review. You can still use Delete Account.";
       }).catch(() => {});
     }
     const deleteAccountBtn = document.getElementById("deleteAccountBtn");
@@ -4745,10 +4759,15 @@ Conversation starters:
           <div class="callPlanCard">
             <b>${plan.minutes} minutes</b>
             <div class="callPlanPrice">${escapeHtml(plan.price)}</div>
-            <button class="ok" data-buy-call-package="${escapeAttr(plan.id)}">Test checkout</button>
+            ${IS_DEPLOY_PREVIEW
+              ? `<button class="ok" data-buy-call-package="${escapeAttr(plan.id)}">Test checkout</button>`
+              : `<button class="ok" type="button" disabled>Payments activating</button>`}
           </div>`).join("")}
       </div>
       <p class="tiny">Call time belongs to the caller and can be used with any match. Referral bonus time is combined with purchased time automatically and is used first.</p>
+      ${IS_DEPLOY_PREVIEW
+        ? `<p class="tiny">Beta checkout uses test payments only. No real charge is created.</p>`
+        : `<div class="safetyNotice tiny">Online checkout is being activated. You can still use available free or referral call time while payment processing is completed.</div>`}
       <div class="btnrow"><button id="refreshCallBalanceBtn">Refresh balance</button></div>`;
     document.querySelectorAll("[data-buy-call-package]").forEach(button => {
       button.onclick = () => startCallTimeCheckout(button.dataset.buyCallPackage, button);
@@ -4764,6 +4783,10 @@ Conversation starters:
   }
 
   async function startCallTimeCheckout(packageId, button){
+    if(!IS_DEPLOY_PREVIEW){
+      showToast("Online payments are being activated. No charge was attempted.");
+      return;
+    }
     const buttons = [...document.querySelectorAll("[data-buy-call-package]")];
     buttons.forEach(item => item.disabled = true);
     if(button) button.textContent = "Opening Stripe…";
@@ -4779,7 +4802,9 @@ Conversation starters:
 
   function openCallPlans(previewEnded = false, notice = ""){
     document.getElementById("privacyTitle").textContent = "Get more call time";
-    document.getElementById("privacySubtitle").textContent = "Secure Stripe test checkout";
+    document.getElementById("privacySubtitle").textContent = IS_DEPLOY_PREVIEW
+      ? "Secure test checkout"
+      : "Call-time pricing";
     document.getElementById("privacyBackdrop").style.display = "flex";
     const message = notice || (previewEnded ? "Your 3-minute free call has ended." : "Choose a call-time package.");
     renderCallPlansContent(message);
@@ -4789,6 +4814,7 @@ Conversation starters:
   }
 
   function handleStripeReturn(){
+    if(!IS_DEPLOY_PREVIEW) return;
     const url = new URL(window.location.href);
     const result = url.searchParams.get("stripe");
     if(!result) return;
@@ -6120,6 +6146,8 @@ Conversation starters:
   }
 
   // =================== START ===================
+  const buildLabel = document.getElementById("appBuildLabel");
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 74" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");
