@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v17";
+const VERSION = "fod-riq-v74";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -15,13 +15,16 @@ const ASSETS = [
   "./hero-white.webp",
   "./hero-women.webp",
   "./manifest.webmanifest",
+  "./first-option-logo-v58.png",
   "./icon-192.png",
   "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS.map(asset => new Request(asset, { cache:"reload" }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -41,16 +44,36 @@ self.addEventListener("fetch", (event) => {
   // Only handle GET
   if (req.method !== "GET") return;
 
-  // Network-first for HTML so you see updates faster
-  if (req.headers.get("accept")?.includes("text/html")) {
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/.netlify/functions/") || url.pathname.endsWith("/moderation.html") || url.pathname.endsWith("/moderation.js")) return;
+  const isSameOrigin = url.origin === self.location.origin;
+  // External account, media, and API requests must go directly to their providers.
+  // Caching cross-origin Firebase modules can prevent member sign-in after an update.
+  if (!isSameOrigin) return;
+  const isNavigation = req.mode === "navigate" || req.destination === "document";
+  const isFreshAppFile = (
+    isNavigation
+    || req.destination === "script"
+    || url.pathname.endsWith("/manifest.webmanifest")
+  );
+
+  // Network-first for the app shell and scripts so reopening the app gets updates.
+  if (isFreshAppFile) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache:"no-store" })
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          if(res.ok){
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
           return res;
         })
-        .catch(() => caches.match(req).then((m) => m || caches.match("./")))
+        .catch(async () => {
+          const cached = await caches.match(req);
+          if(cached) return cached;
+          if(isNavigation) return caches.match("./");
+          return Response.error();
+        })
     );
     return;
   }
@@ -67,3 +90,5 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+
