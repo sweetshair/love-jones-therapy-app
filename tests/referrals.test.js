@@ -44,7 +44,7 @@ function request(action, body = {}) {
 }
 
 async function clean() {
-  for (const collection of ["users","datingProfiles","referralClaims","callWallets","accountDeletions","accountSuspensions"]) {
+  for (const collection of ["users","datingProfiles","referralClaims","referralCodes","callWallets","accountDeletions","accountSuspensions"]) {
     const snapshot = await db.collection(collection).get();
     await Promise.all(snapshot.docs
       .filter(doc => doc.id.includes("referrer_member") || doc.id.includes("referred_member")
@@ -66,6 +66,7 @@ beforeEach(async () => {
     termsAcceptedAt:Timestamp.now(),
     relationshipType:"GR"
   });
+  await db.collection("referralCodes").doc(referralCode).set({ ownerId:referrerId, createdAt:Timestamp.now() });
   await db.collection("datingProfiles").doc(referredId).set({
     ownerId:referredId,
     active:true,
