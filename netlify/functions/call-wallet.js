@@ -11,7 +11,10 @@ exports.handler = async event => {
     return jsonResponse(200, {
       balanceSeconds: Math.max(0, Number(wallet.balanceSeconds) || 0),
       purchasedSeconds: Math.max(0, Number(wallet.purchasedSeconds) || 0),
-      spentSeconds: Math.max(0, Number(wallet.spentSeconds) || 0)
+      spentSeconds: Math.max(0, Number(wallet.spentSeconds) || 0),
+      referralBonusSecondsAvailable: Math.max(0, Number(wallet.referralBonusSecondsAvailable) || 0),
+      referralBonusSecondsEarned: Math.max(0, Number(wallet.referralBonusSecondsEarned) || 0),
+      referralBonusSecondsSpent: Math.max(0, Number(wallet.referralBonusSecondsSpent) || 0)
     });
   } catch (error) {
     console.error("Call wallet lookup failed:", error.message);
