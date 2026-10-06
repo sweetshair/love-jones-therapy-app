@@ -374,6 +374,11 @@ function publicProfileSnapshot(profile = {}) {
 
 async function recordSwipe(targetProfile, decision) {
   const user = requireUser();
+  // A member can verify their email after this browser already received an ID token.
+  // Refresh the token before permission-gated swipe reads/writes so Firestore sees
+  // the current email_verified claim.
+  await getIdToken(user, true);
+  if (requireUser() !== user) throw new Error("Your account changed. Please try again.");
   const targetId = String(targetProfile?.id || "");
   if (!targetId || targetId === user.uid) throw new Error("That profile is unavailable.");
   if (!["like", "pass"].includes(decision)) throw new Error("Choose Like or Pass.");
