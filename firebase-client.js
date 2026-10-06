@@ -374,62 +374,28 @@ function publicProfileSnapshot(profile = {}) {
 
 async function recordSwipe(targetProfile, decision) {
   const user = requireUser();
-  // A member can verify their email after this browser already received an ID token.
-  // Refresh the token before permission-gated swipe reads/writes so Firestore sees
-  // the current email_verified claim.
-  await getIdToken(user, true);
-  if (requireUser() !== user) throw new Error("Your account changed. Please try again.");
   const targetId = String(targetProfile?.id || "");
   if (!targetId || targetId === user.uid) throw new Error("That profile is unavailable.");
   if (!["like", "pass"].includes(decision)) throw new Error("Choose Like or Pass.");
 
-  const id = `${user.uid}_${targetId}`;
-  const swipeReference = doc(db, "swipes", id);
-  const existingSwipe = await getDoc(swipeReference);
-  if (existingSwipe.exists()) {
-    await setDoc(swipeReference, {
-      decision,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-  } else {
-    await setDoc(swipeReference, {
-      fromId: user.uid,
-      toId: targetId,
-      decision,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
-    });
-  }
-
-  if (decision !== "like") return { matched: false, matchId: "" };
-
-  const reverse = await getDoc(doc(db, "swipes", `${targetId}_${user.uid}`));
-  if (!reverse.exists() || reverse.data().decision !== "like") {
-    return { matched: false, matchId: "" };
-  }
-
-  const ownProfileSnapshot = await getDoc(doc(db, "datingProfiles", user.uid));
-  if (!ownProfileSnapshot.exists()) throw new Error("Complete your dating profile first.");
-  const memberIds = [user.uid, targetId].sort();
-  const matchId = matchIdFor(user.uid, targetId);
-  const matchReference = doc(db, "matches", matchId);
-  try {
-    await setDoc(matchReference, {
-      memberIds,
-      status: "active",
-      profileSnapshots: {
-        [user.uid]: publicProfileSnapshot(ownProfileSnapshot.data()),
-        [targetId]: publicProfileSnapshot(targetProfile)
-      },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-  } catch (error) {
-    if (!String(error?.code || "").endsWith("permission-denied")) throw error;
-    const existingMatch = await getDoc(matchReference);
-    if (!existingMatch.exists() || existingMatch.data().status !== "active") throw error;
-  }
-  return { matched: true, matchId };
+  // Swipe writes are handled server-side so the same eligibility, suspension,
+  // deletion and block checks apply consistently before Firestore is changed.
+  const token = await getIdToken(user, true);
+  if (requireUser() !== user) throw new Error("Your account changed. Please try again.");
+  const response = await fetch("/.netlify/functions/record-swipe", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ targetId, decision })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not save your choice.");
+  return {
+    matched: payload.matched === true,
+    matchId: String(payload.matchId || "")
+  };
 }
 
 async function getMutualMatches() {
