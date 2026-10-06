@@ -42,7 +42,8 @@ async function cleanAccountStep(db, uid, bucket, auth) {
   for (const [collection, field] of [
     ["swipes", "fromId"], ["swipes", "toId"],
     ["blocks", "blockerId"], ["blocks", "blockedId"],
-    ["freeCallReservations", "ownerId"], ["paidCallSessions", "ownerId"]
+    ["freeCallReservations", "ownerId"], ["paidCallSessions", "ownerId"],
+    ["referralClaims", "referredId"], ["referralClaims", "referrerId"]
   ]) {
     const records = await db.collection(collection).where(field, "==", uid).limit(100).get();
     if (!records.empty) {
