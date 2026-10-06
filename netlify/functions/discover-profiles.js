@@ -23,16 +23,25 @@ exports.handler = async event => {
     const user = await verifiedUser(event);
     if (!user) return jsonResponse(401, { error:"Sign in with a verified account first." });
     const db = firestore();
-    const [ownProfileDoc, ownUserDoc, profiles, users, outgoing, incoming, outgoingBlocks, incomingBlocks] = await Promise.all([
+    const [ownProfileDoc, ownUserDoc, deletionDoc, suspensionDoc, profiles, users, outgoing, incoming, outgoingBlocks, incomingBlocks] = await Promise.all([
       db.collection("datingProfiles").doc(user.uid).get(), db.collection("users").doc(user.uid).get(),
+      db.collection("accountDeletions").doc(user.uid).get(), db.collection("accountSuspensions").doc(user.uid).get(),
       db.collection("datingProfiles").where("active", "==", true).get(), db.collection("users").get(),
       db.collection("swipes").where("fromId", "==", user.uid).limit(250).get(),
       db.collection("swipes").where("toId", "==", user.uid).limit(250).get(),
       db.collection("blocks").where("blockerId", "==", user.uid).limit(250).get(),
       db.collection("blocks").where("blockedId", "==", user.uid).limit(250).get()
     ]);
+    if (deletionDoc.exists) return jsonResponse(403, { error:"This account is being deleted." });
+    if (suspensionDoc.exists) return jsonResponse(403, { error:"This account is suspended." });
+    if (!ownUserDoc.exists || ownUserDoc.data()?.ageConfirmed !== true || !ownUserDoc.data()?.termsAcceptedAt) {
+      return jsonResponse(403, { error:"Accept the member terms before using Discover People." });
+    }
     if (!ownProfileDoc.exists) return jsonResponse(400, { error:"Complete your dating profile first." });
     const own = ownProfileDoc.data();
+    if (own.active !== true || own.termsAccepted !== true || !Array.isArray(own.photoPaths) || own.photoPaths.length < 1) {
+      return jsonResponse(403, { error:"Publish your completed dating profile before using Discover People." });
+    }
     const ownPreferences = ownUserDoc.data()?.datingPreferences || {};
     const privatePreferences = new Map(users.docs.map(item => [item.id, item.data().datingPreferences || {}]));
     const decisions = new Map(outgoing.docs.map(item => [item.data().toId, item.data().decision]));

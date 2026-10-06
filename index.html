@@ -555,7 +555,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 68</span>
+        <span id="appBuildLabel">Beta build UAT 69</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -3357,6 +3357,7 @@ Conversation starters:
     const canEnterDating = emailVerified
       && profileExists
       && savedCurrentTerms
+      && savedProfile.active === true
       && getPhotoPaths(savedProfile).length > 0;
     const options = (items, selected) => items.map(item => {
       const value = typeof item === "string" ? item : item[0];
@@ -3951,10 +3952,13 @@ Conversation starters:
     const hasCompletedDatingAgreement = state.datingProfile?.ownerId
       && state.datingProfile.termsAccepted === true
       && state.datingProfile.termsVersion === TERMS_VERSION
+      && state.datingProfile.active === true
       && getPhotoPaths(state.datingProfile).length > 0;
     if(!hasCompletedDatingAgreement){
       state.screen = "datingProfile";
-      showToast("Accept the current Terms and save your completed dating profile first.");
+      showToast(state.datingProfile?.active === true
+        ? "Accept the current Terms and save your completed dating profile first."
+        : "Turn on “Show my dating profile to signed-in members” and save your profile before using Discover People.");
       return render();
     }
 
