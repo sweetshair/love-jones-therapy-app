@@ -46,6 +46,11 @@ async function creditCompletedCheckout(session) {
 
 exports.handler = async event => {
   if (event.httpMethod !== "POST") return jsonResponse(405, { error: "Method not allowed." });
+  // Never credit production wallets from the legacy Stripe test integration.
+  // Acknowledge any stray event so the old test endpoint does not retry.
+  if (process.env.CONTEXT !== "deploy-preview") {
+    return jsonResponse(200, { received: true, disabled: true });
+  }
   try {
     const signature = String(event.headers?.["stripe-signature"] || "");
     const webhookSecret = String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
