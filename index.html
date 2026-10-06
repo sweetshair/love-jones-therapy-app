@@ -555,7 +555,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 71</span>
+        <span id="appBuildLabel">Beta build UAT 72</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -985,6 +985,10 @@
     sentLikesLoading: false,
     sentLikesLoaded: false,
     sentLikesError: "",
+    likesYou: [],
+    likesYouLoading: false,
+    likesYouLoaded: false,
+    likesYouError: "",
     activeConversation: null,
     messages: [],
     messagesLoading: false,
@@ -3922,10 +3926,16 @@ Conversation starters:
     return preferenceMatchDetails(own, candidate).mutualMatch;
   }
 
+  function likeTimeValue(value){
+    if(value?.toMillis) return value.toMillis();
+    const time = Date.parse(String(value || ""));
+    return Number.isFinite(time) ? time : 0;
+  }
+
   function formatLikeDate(value){
-    const date = value?.toDate ? value.toDate() : null;
-    if(!date) return "Recently";
-    return date.toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" });
+    const millis = likeTimeValue(value);
+    if(!millis) return "Recently";
+    return new Date(millis).toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" });
   }
 
   function renderMatches(){
@@ -3985,11 +3995,7 @@ Conversation starters:
         state.sentLikesLoading = true;
         state.sentLikesError = "";
         window.ljtFirebase.getSentLikes().then(profiles => {
-          state.sentLikes = profiles.sort((first, second) => {
-            const firstTime = first.likedAt?.toMillis?.() || 0;
-            const secondTime = second.likedAt?.toMillis?.() || 0;
-            return secondTime - firstTime;
-          });
+          state.sentLikes = profiles.sort((first, second) => likeTimeValue(second.likedAt) - likeTimeValue(first.likedAt));
           state.sentLikesLoaded = true;
           state.sentLikesLoading = false;
           if(state.screen === "matches" && state.matchView === "sent") render();
@@ -3999,6 +4005,23 @@ Conversation starters:
           state.sentLikesLoading = false;
           state.sentLikesError = error.message || "Could not load your sent Likes.";
           if(state.screen === "matches" && state.matchView === "sent") render();
+        });
+      }
+    }else if(state.matchView === "received"){
+      if(!state.likesYouLoaded && !state.likesYouLoading){
+        state.likesYouLoading = true;
+        state.likesYouError = "";
+        window.ljtFirebase.getLikesYou().then(profiles => {
+          state.likesYou = profiles.sort((first, second) => likeTimeValue(second.likedAt) - likeTimeValue(first.likedAt));
+          state.likesYouLoaded = true;
+          state.likesYouLoading = false;
+          if(state.screen === "matches" && state.matchView === "received") render();
+        }).catch(error => {
+          state.likesYou = [];
+          state.likesYouLoaded = true;
+          state.likesYouLoading = false;
+          state.likesYouError = error.message || "Could not load the people who Like you.";
+          if(state.screen === "matches" && state.matchView === "received") render();
         });
       }
     }else if(!state.matchesLoaded && !state.matchesLoading){
@@ -4140,6 +4163,43 @@ Conversation starters:
         </article>`;
     }).join("");
 
+    const likesYouCards = state.likesYou.map(profile => {
+      const name = profile.displayName || "Member";
+      const location = [profile.city, profile.region, profile.country].filter(Boolean).join(", ");
+      const typeName = TYPES[profile.relationshipType]?.name || "Relationship IQ member";
+      const mainPhoto = getPhotoPaths(profile)[0] || profile.photoPath;
+      const preferenceDetails = preferenceMatchDetails(state.datingProfile, profile);
+      const visibleBodyType = profile.bodyType && profile.bodyType !== "Prefer not to say"
+        ? profile.bodyType
+        : "";
+      return `
+        <article class="matchCard likesYouCard">
+          ${mainPhoto
+            ? `<img class="matchPhoto" data-photo-path="${escapeAttr(mainPhoto)}" alt="${escapeAttr(name)} profile photo" />`
+            : `<div class="discoveryFallback"><div class="avatarInitial">${escapeHtml(name.charAt(0).toUpperCase())}</div></div>`}
+          <div>
+            <h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3>
+            <div class="tiny">${escapeHtml(location)}</div>
+            <div class="badgeGrid">
+              <span class="badge"><strong>Liked you</strong></span>
+              ${!preferenceDetails.ownPreferenceMatch ? `<span class="badge">Outside your selected preferences</span>` : ``}
+              <span class="badge">${escapeHtml(typeName)}</span>
+              <span class="badge">${escapeHtml(profile.relationshipGoal || "Dating with intention")}</span>
+              ${visibleBodyType ? `<span class="badge">${escapeHtml(visibleBodyType)}</span>` : ``}
+            </div>
+            <p>${escapeHtml(profile.bio || "This member is still completing their profile.")}</p>
+            <div class="tiny">Looking to meet: ${escapeHtml(profile.lookingFor || "Not specified")}</div>
+            <div class="tiny" style="margin-top:5px;">Liked you ${escapeHtml(formatLikeDate(profile.likedAt))}</div>
+          </div>
+          <div class="btnrow">
+            <button class="ok" data-likes-you-action="like" data-member-id="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Like Back</button>
+            <button data-likes-you-action="pass" data-member-id="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Pass</button>
+            <button data-likes-you-action="report" data-member-id="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Report</button>
+            <button class="danger" data-likes-you-action="block" data-member-id="${escapeAttr(profile.id)}" data-member-name="${escapeAttr(name)}">Block</button>
+          </div>
+        </article>`;
+    }).join("");
+
     const emptyDiscoveryMessage = state.discoveryStatus?.incomingLikes === 0
       ? "No incoming likes are currently recorded for this account."
       : state.discoveryStatus?.unavailableIncomingLikes > 0
@@ -4148,13 +4208,14 @@ Conversation starters:
 
     app.innerHTML = `
       <div class="topbar">
-        <div class="brand"><div class="logo"><img src="first-option-logo-v58.png" alt="First Option Dating" /></div><div class="brandTxt"><div class="title">${state.matchView === "connections" ? "My Matches" : state.matchView === "sent" ? "Likes Sent" : "Discover People"}</div><div class="sub">First Option Dating • Relationship IQ compatibility</div></div></div>
+        <div class="brand"><div class="logo"><img src="first-option-logo-v58.png" alt="First Option Dating" /></div><div class="brandTxt"><div class="title">${state.matchView === "connections" ? "My Matches" : state.matchView === "sent" ? "Likes Sent" : state.matchView === "received" ? "Likes You" : "Discover People"}</div><div class="sub">First Option Dating • Relationship IQ compatibility</div></div></div>
         ${headerRightPill()}
       </div>
       ${storyBanner("hero-interracial.webp", "Compatibility with intention", "Meet people who value how you love.", "Your matches combine Relationship IQ compatibility with mutual dating preferences.")}
       <div class="sectionTabs">
         <button id="discoverTabBtn" class="${state.matchView === "discover" ? "active" : ""}">Discover People</button>
         <button id="sentLikesTabBtn" class="${state.matchView === "sent" ? "active" : ""}">Likes Sent</button>
+        <button id="likesYouTabBtn" class="${state.matchView === "received" ? "active" : ""}">Likes You</button>
         <button id="connectionsTabBtn" class="${state.matchView === "connections" ? "active" : ""}">My Matches</button>
       </div>
       <div class="kpi">
@@ -4169,6 +4230,10 @@ Conversation starters:
         ${state.sentLikesLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading the profiles you liked…</p></div>` : ``}
         ${state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.sentLikesError)}</p></div>` : ``}
         ${state.sentLikesLoaded && !state.sentLikes.length && !state.sentLikesError ? `<div class="kpi" style="margin-top:12px;"><b>No Likes Sent Yet</b><p>Profiles you Like will appear here, including members who later become matches.</p></div>` : `<div class="matchGrid">${sentLikeCards}</div>`}
+      ` : state.matchView === "received" ? `
+        ${state.likesYouLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading the people who Like you…</p></div>` : ``}
+        ${state.likesYouError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.likesYouError)}</p></div>` : ``}
+        ${state.likesYouLoaded && !state.likesYou.length && !state.likesYouError ? `<div class="kpi" style="margin-top:12px;"><b>No new Likes yet</b><p>When someone Likes you, they will appear here until you Like them back or Pass.</p></div>` : `<div class="matchGrid">${likesYouCards}</div>`}
       ` : `
         ${state.connectionsLoading ? `<div class="kpi" style="margin-top:12px;"><p>Loading your mutual matches…</p></div>` : ``}
         ${state.connectionsError ? `<div class="kpi" style="margin-top:12px;"><p style="color:var(--bad);">${escapeHtml(state.connectionsError)}</p></div>` : ``}
@@ -4186,6 +4251,11 @@ Conversation starters:
       state.sentLikesLoaded = false;
       render();
     };
+    document.getElementById("likesYouTabBtn").onclick = () => {
+      state.matchView = "received";
+      state.likesYouLoaded = false;
+      render();
+    };
     document.getElementById("connectionsTabBtn").onclick = () => {
       state.matchView = "connections";
       state.connectionsLoaded = false;
@@ -4200,6 +4270,9 @@ Conversation starters:
       }else if(state.matchView === "sent"){
         state.sentLikesLoaded = false;
         state.sentLikesLoading = false;
+      }else if(state.matchView === "received"){
+        state.likesYouLoaded = false;
+        state.likesYouLoading = false;
       }else{
         state.matchesLoaded = false;
         state.matchesLoading = false;
@@ -4218,10 +4291,12 @@ Conversation starters:
         if(outcome.matched){
           state.connectionsLoaded = false;
           state.sentLikesLoaded = false;
+          state.likesYouLoaded = false;
           startIncomingCallWatches().catch(() => {});
           showToast(`It’s a match with ${candidate.displayName || "this member"}! Start a conversation.`);
         }else{
           if(decision === "like") state.sentLikesLoaded = false;
+          state.likesYouLoaded = false;
           showToast(decision === "like" ? "Liked. We’ll tell you if it’s mutual." : "Profile passed.");
         }
         render();
@@ -4267,6 +4342,54 @@ Conversation starters:
       });
       discoveryElement.addEventListener("pointercancel", () => { swipeStartX = null; });
     }
+
+    document.querySelectorAll("[data-likes-you-action]").forEach(button => {
+      button.onclick = async () => {
+        const action = button.dataset.likesYouAction;
+        const memberId = button.dataset.memberId;
+        const name = button.dataset.memberName || "this member";
+        const profile = state.likesYou.find(item => item.id === memberId);
+        if(!profile) return;
+        if(action === "report") return openReportModal({ id: memberId, name });
+        if(action === "block"){
+          if(!window.confirm(`Block ${name}? You will no longer see each other.`)) return;
+          button.disabled = true;
+          try{
+            await window.ljtFirebase.blockMember(memberId);
+            state.likesYou = state.likesYou.filter(item => item.id !== memberId);
+            state.matchesLoaded = false;
+            state.sentLikesLoaded = false;
+            showToast(`${name} has been blocked.`);
+            return render();
+          }catch(error){
+            showToast(error.message || "Could not block this member.");
+            button.disabled = false;
+            return;
+          }
+        }
+        button.disabled = true;
+        try{
+          const outcome = await window.ljtFirebase.recordSwipe(profile, action === "like" ? "like" : "pass");
+          state.likesYou = state.likesYou.filter(item => item.id !== memberId);
+          state.likesYouLoaded = true;
+          state.matchesLoaded = false;
+          state.sentLikesLoaded = false;
+          state.connectionsLoaded = false;
+          if(outcome.matched){
+            startIncomingCallWatches().catch(() => {});
+            showToast(`It’s a match with ${name}! Open My Matches to start a conversation.`);
+          }else{
+            showToast(action === "like"
+              ? `You Liked ${name}. We’ll tell you if it becomes mutual.`
+              : `${name} was passed.`);
+          }
+          render();
+        }catch(error){
+          showToast(error.message || "Could not save your choice.");
+          button.disabled = false;
+        }
+      };
+    });
 
     document.querySelectorAll("[data-withdraw-like]").forEach(button => {
       button.onclick = async () => {
@@ -5886,6 +6009,10 @@ Conversation starters:
       state.sentLikes = [];
       state.sentLikesLoaded = false;
       state.sentLikesError = "";
+      state.likesYou = [];
+      state.likesYouLoading = false;
+      state.likesYouLoaded = false;
+      state.likesYouError = "";
       state.callWallet = null;
       state.callWalletLoaded = false;
       state.callWalletLoading = false;

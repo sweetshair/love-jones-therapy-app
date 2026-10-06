@@ -493,6 +493,19 @@ async function getFreeCallAllowance(mode) {
   };
 }
 
+async function getLikesYou() {
+  const user = requireUser();
+  const token = await getIdToken(user, true);
+  if (requireUser() !== user) throw new Error("Your account changed. Please try again.");
+  const response = await fetch("/.netlify/functions/likes-you", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not load the people who Like you.");
+  return Array.isArray(payload.profiles) ? payload.profiles : [];
+}
+
 async function getSentLikes() {
   const user = requireUser();
   const sentLikes = new Map();
@@ -1046,6 +1059,7 @@ window.ljtFirebase = {
   recordSwipe,
   getMutualMatches,
   getFreeCallAllowance,
+  getLikesYou,
   getSentLikes,
   withdrawLike,
   watchMessages,
