@@ -555,7 +555,7 @@
         <a href="mailto:support@firstoptiondating.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <span id="appBuildLabel">Beta build UAT 72</span>
+        <span id="appBuildLabel">Beta build UAT 73</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
       <div class="policyLinks tiny">
@@ -938,8 +938,17 @@
   const STORAGE = {
     cookieChoice: "ljt_cookie_choice",
     installDismissed: "ljt_install_dismissed",
-    datingProfileDraftPrefix: "fod_dating_profile_draft_"
+    datingProfileDraftPrefix: "fod_dating_profile_draft_",
+    referralCode: "fod_referral_code"
   };
+
+  const referralUrl = new URL(window.location.href);
+  const referralFromUrl = String(referralUrl.searchParams.get("ref") || "").trim().toUpperCase();
+  if(/^FOD-[A-Z0-9]{6,20}$/.test(referralFromUrl)){
+    localStorage.setItem(STORAGE.referralCode, referralFromUrl);
+    referralUrl.searchParams.delete("ref");
+    window.history.replaceState({}, "", `${referralUrl.pathname}${referralUrl.search}${referralUrl.hash}`);
+  }
 
   const Mode = { SINGLE:"single", COUPLES:"couples" };
   const CouplesStep = { SETUP:"setup", PARTNER_A:"partnerA", PARTNER_B:"partnerB", COMPARE:"compare" };
@@ -965,6 +974,7 @@
     authReady: false,
     authUser: null,
     accountMode: "register",
+    referralCode: String(localStorage.getItem(STORAGE.referralCode) || "").trim().toUpperCase(),
     profileLoaded: false,
     resultSaveStatus: "idle",
     relationshipType: "",
@@ -2169,6 +2179,50 @@
     }
   }
 
+  async function openReferralProgram(){
+    if(!state.authUser?.emailVerified) return showToast("Verify your email before using the referral program.");
+    document.getElementById("privacyTitle").textContent = "Refer Friends";
+    document.getElementById("privacySubtitle").textContent = "Give 3 minutes • Get 3 minutes";
+    document.getElementById("privacyBackdrop").style.display = "flex";
+    const content = document.getElementById("policyContent");
+    content.innerHTML = '<div class="kpi"><b>Loading your referral program…</b></div>';
+    try{
+      const status = await callServerFunction("referrals", { action:"status" });
+      const link = `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(status.referralCode)}`;
+      const bonus = Math.max(0, Number(status.referralBonusSecondsAvailable) || 0);
+      content.innerHTML = `
+        <div class="safetyNotice"><b>Give 3, Get 3</b><p class="tiny" style="margin-bottom:0;">When your friend signs up with your code, verifies their email, completes Relationship IQ, accepts the current Terms, adds a profile photo, and publishes their dating profile, you both receive 3 bonus call minutes.</p></div>
+        <div class="kpi" style="margin-top:12px;">
+          <b>Your referral code</b>
+          <p style="font-size:20px;color:var(--accent);font-weight:900;">${escapeHtml(status.referralCode)}</p>
+          <div class="tiny" style="overflow-wrap:anywhere;">${escapeHtml(link)}</div>
+          <div class="btnrow">
+            <button class="ok" id="copyReferralBtn">Copy Invite Link</button>
+            <button id="shareReferralBtn">Share Invite</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div class="col kpi"><b>${Number(status.successfulReferrals) || 0}</b><div class="tiny">Successful referrals</div></div>
+          <div class="col kpi"><b>${Number(status.pendingReferrals) || 0}</b><div class="tiny">Pending referrals</div></div>
+          <div class="col kpi"><b>${escapeHtml(formatCallDuration(bonus))}</b><div class="tiny">Unused referral bonus</div></div>
+        </div>
+        <p class="tiny" style="margin-top:12px;">Referral minutes are added to your normal call-time balance automatically. No separate call button is needed, and bonus minutes are used before purchased minutes.</p>`;
+      document.getElementById("copyReferralBtn").onclick = () => copyText(link);
+      document.getElementById("shareReferralBtn").onclick = async () => {
+        const text = "Join me on First Option Dating. When you complete and publish your profile, we both get 3 bonus call minutes.";
+        try{
+          if(navigator.share){
+            await navigator.share({ title:"First Option Dating", text, url:link });
+            return;
+          }
+        }catch(error){}
+        await copyText(`${text} ${link}`);
+      };
+    }catch(error){
+      content.innerHTML = `<div class="kpi"><b>Referral program unavailable</b><p>${escapeHtml(error.message || "Try again in a moment.")}</p></div>`;
+    }
+  }
+
   async function shareResultText(singleResult){
     const shareText = `${state.userName ? state.userName + ", " : ""}my Relationship IQ result is ${TYPES[singleResult.primary].name}${singleResult.tie ? " (blend)" : ""}. Secondary: ${TYPES[singleResult.secondary].name}.`;
     try{
@@ -2391,6 +2445,13 @@
           </div>
         ` : ``}
 
+        ${state.accountMode === "register" ? `
+          <div style="margin-top:10px;">
+            <label class="tiny" for="referralCodeInput">Referral code (optional)</label>
+            <input id="referralCodeInput" class="in" type="text" autocomplete="off" maxlength="24" placeholder="FOD-XXXXXXXXXX" value="${escapeAttr(state.referralCode)}" style="margin-top:6px;text-transform:uppercase;" />
+            <div class="tiny" style="margin-top:5px;">If a friend invited you, their code can qualify both of you for 3 bonus call minutes after you verify your email, complete Relationship IQ, and publish your profile.</div>
+          </div>
+        ` : ``}
         <div style="margin-top:10px;">
           <input id="emailInput" class="in" type="email" autocomplete="email" placeholder="Email address" value="${escapeAttr(state.userEmail)}" />
         </div>
@@ -2453,6 +2514,7 @@
           <button class="ok" id="matchesBtn">Discover People</button>
           <button id="connectionsBtn">My Matches</button>
           <button id="blockedMembersBtn">Blocked Members</button>
+          <button id="referralBtn">Refer Friends</button>
           <button id="moderationBtn" style="display:none">Member Reports</button>
           <p id="suspensionStatus" role="status"></p>
           <button class="danger" id="deleteAccountBtn">Delete Account</button>
@@ -2549,6 +2611,7 @@
     const accountDisplayNameInput = document.getElementById("accountDisplayNameInput");
     const phoneInput = document.getElementById("phoneInput");
     const emailInput = document.getElementById("emailInput");
+    const referralCodeInput = document.getElementById("referralCodeInput");
     const consentChk = document.getElementById("consentChk");
     const termsChk = document.getElementById("termsChk");
 
@@ -2576,6 +2639,11 @@
       state.userName = [state.userFirstName, state.userLastName].filter(Boolean).join(" ").trim();
       if(phoneInput) state.userPhone = phoneInput.value.trim();
       if(emailInput) state.userEmail = emailInput.value.trim();
+      if(referralCodeInput) {
+        state.referralCode = referralCodeInput.value.trim().toUpperCase();
+        if(state.referralCode) localStorage.setItem(STORAGE.referralCode, state.referralCode);
+        else localStorage.removeItem(STORAGE.referralCode);
+      }
       if(consentChk) state.consentOk = !!consentChk.checked;
       if(termsChk) state.termsOk = !!termsChk.checked;
 
@@ -2586,7 +2654,7 @@
       }
     }
 
-    [firstNameInput, lastNameInput, accountDisplayNameInput, phoneInput, emailInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
+    [firstNameInput, lastNameInput, accountDisplayNameInput, phoneInput, emailInput, referralCodeInput].filter(Boolean).forEach(el => el.addEventListener("input", syncState));
     if(consentChk) consentChk.addEventListener("change", syncState);
     if(termsChk) termsChk.addEventListener("change", syncState);
     syncState();
@@ -2657,9 +2725,14 @@
             email: state.userEmail,
             password,
             consent: state.consentOk,
-            termsVersion: TERMS_VERSION
+            termsVersion: TERMS_VERSION,
+            referralCode: state.referralCode
           });
-          if(createdUser.verificationEmailSent){
+          localStorage.removeItem(STORAGE.referralCode);
+          state.referralCode = "";
+          if(createdUser.referralError){
+            showToast(`Account created. Referral note: ${createdUser.referralError}`);
+          }else if(createdUser.verificationEmailSent){
             showToast(`Account created ✅ Verification sent to ${createdUser.email}`);
           }else{
             showToast("Account created, but the verification email could not be delivered. Use Resend Verification Email.");
@@ -2752,6 +2825,8 @@
     if(deleteAccountBtn) deleteAccountBtn.onclick = () => { state.screen = "deleteAccount"; render(); };
     const blockedMembersBtn = document.getElementById("blockedMembersBtn");
     if(blockedMembersBtn) blockedMembersBtn.onclick = () => { state.screen = "blockedMembers"; render(); };
+    const referralBtn = document.getElementById("referralBtn");
+    if(referralBtn) referralBtn.onclick = () => openReferralProgram();
     const connectionsBtn = document.getElementById("connectionsBtn");
     if(connectionsBtn) connectionsBtn.onclick = () => {
       if(!state.relationshipType) return showToast("Complete your Relationship IQ first");
@@ -3864,9 +3939,19 @@ Conversation starters:
         clearDatingProfileDraft();
         state.datingProfile = { ...profile, ...payload, ownerId: state.authUser.uid };
         state.matchesLoaded = false;
+        let referralAwarded = false;
+        if(payload.active){
+          try{
+            const referralResult = await callServerFunction("referrals", { action:"qualify" });
+            referralAwarded = referralResult.awarded === true;
+            if(referralAwarded) state.callWalletLoaded = false;
+          }catch(error){}
+        }
         showToast(savePrivatelyUntilPhoto
           ? "Profile saved privately. Add a photo, then turn on visibility."
-          : "Dating profile saved ✅");
+          : referralAwarded
+            ? "Dating profile saved ✅ Your referral qualified — 3 bonus call minutes were added."
+            : "Dating profile saved ✅");
         render();
       }catch(error){
         errorBox.textContent = error.message || "Could not save the dating profile.";
@@ -4650,10 +4735,11 @@ Conversation starters:
       ? `${formatCallDuration(state.callWallet.balanceSeconds)} available`
       : state.callWalletLoading
         ? "Loading balance…"
-        : "Balance unavailable until Stripe test mode is connected";
+        : "Balance unavailable until payment service is connected";
+    const referralBonus = Math.max(0, Number(state.callWallet?.referralBonusSecondsAvailable) || 0);
     content.innerHTML = `
       ${notice ? `<div class="safetyNotice"><b>${escapeHtml(notice)}</b></div>` : ``}
-      <div class="kpi" style="margin-top:12px;"><b>Your call-time balance</b><p>${escapeHtml(balance)}</p></div>
+      <div class="kpi" style="margin-top:12px;"><b>Your call-time balance</b><p>${escapeHtml(balance)}</p>${referralBonus ? `<div class="tiny">Includes ${escapeHtml(formatCallDuration(referralBonus))} referral bonus time. Bonus time is used first.</div>` : ``}</div>
       <div class="callPlanGrid">
         ${CALL_TIME_PACKAGES.map(plan => `
           <div class="callPlanCard">
@@ -4662,7 +4748,7 @@ Conversation starters:
             <button class="ok" data-buy-call-package="${escapeAttr(plan.id)}">Test checkout</button>
           </div>`).join("")}
       </div>
-      <p class="tiny">Stripe test mode only. Test cards do not create a real charge. Purchased time belongs to the caller and can be used with any match.</p>
+      <p class="tiny">Call time belongs to the caller and can be used with any match. Referral bonus time is combined with purchased time automatically and is used first.</p>
       <div class="btnrow"><button id="refreshCallBalanceBtn">Refresh balance</button></div>`;
     document.querySelectorAll("[data-buy-call-package]").forEach(button => {
       button.onclick = () => startCallTimeCheckout(button.dataset.buyCallPackage, button);
@@ -4750,7 +4836,9 @@ Conversation starters:
     });
     state.callWallet = {
       ...(state.callWallet || {}),
-      balanceSeconds:Math.max(0, Number(payload.balanceSeconds) || 0)
+      balanceSeconds:Math.max(0, Number(payload.balanceSeconds) || 0),
+      referralBonusSecondsAvailable:Math.max(0, Number(payload.referralBonusSecondsAvailable) || 0),
+      referralBonusSecondsSpent:Math.max(0, Number(payload.referralBonusSecondsSpent) || 0)
     };
     state.paidCallBilledSeconds = Math.max(0, Number(payload.billedSeconds) || 0);
     return payload;
@@ -4785,7 +4873,7 @@ Conversation starters:
       state.callDeadline = 0;
       stopPaidCallHeartbeat();
       state.paidCallHeartbeat = setInterval(updatePaidCallUsage, PAID_CALL_HEARTBEAT_MS);
-      showToast(`Purchased time is now in use. ${formatCallDuration(payload.balanceSeconds)} available.`);
+      showToast(`Call time is now in use. ${formatCallDuration(payload.balanceSeconds)} available.`);
       if(state.screen === "messages") renderMessages();
     }catch(error){
       state.usePaidTimeAfterFree = false;
