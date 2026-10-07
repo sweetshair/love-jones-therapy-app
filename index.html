@@ -16,9 +16,9 @@
   <link rel="canonical" href="https://firstoptiondating.com/" />
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon-192.png">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest-v78.webmanifest">
+  <link rel="icon" href="icon-192-v78.png">
+  <link rel="apple-touch-icon" href="icon-192-v78.png">
 
   <style>
     :root{
@@ -522,10 +522,6 @@
       text-align:center;
       line-height: 1.15;
     }
-    #splashText .name{
-      font-weight: 900;
-      letter-spacing: .3px;
-    }
     #splashText .sub{
       margin-top: 4px;
       font-size: 12px;
@@ -539,7 +535,6 @@
     <div id="splashCard">
       <img id="splashLogo" src="first-option-logo-v58.png" alt="First Option Dating" />
       <div id="splashText">
-        <div class="name">First Option Dating</div>
         <div class="sub">Make the right choice</div>
       </div>
     </div>
@@ -555,7 +550,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 75 -->
+        <!-- Beta build UAT 79 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -5282,7 +5277,7 @@ Conversation starters:
       try{
         const notification = new Notification("Incoming First Option Dating call", {
           body:`${details.name} is starting a ${callLabel} call.`,
-          icon:"./icon-192.png",
+          icon:"./icon-192-v78.png",
           tag:`fod-call-${call.id}`,
           requireInteraction:true
         });
@@ -6147,7 +6142,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 75" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 79" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");

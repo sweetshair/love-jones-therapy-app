@@ -58,3 +58,14 @@
   for = "/moderation.js"
   [headers.values]
     Cache-Control = "no-store"
+
+# Install metadata and legacy icon URLs must refresh after branding updates.
+[[headers]]
+  for = "/*.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/icon*"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
