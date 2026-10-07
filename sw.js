@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v77";
+const VERSION = "fod-riq-v78";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -14,10 +14,10 @@ const ASSETS = [
   "./hero-latino.webp",
   "./hero-white.webp",
   "./hero-women.webp",
-  "./manifest-v77.webmanifest",
+  "./manifest-v78.webmanifest",
   "./first-option-logo-v58.png",
-  "./icon-192-v77.png",
-  "./icon-512-v77.png"
+  "./icon-192-v78.png",
+  "./icon-512-v78.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -54,7 +54,8 @@ self.addEventListener("fetch", (event) => {
   const isFreshAppFile = (
     isNavigation
     || req.destination === "script"
-    || url.pathname.endsWith("/manifest.webmanifest")
+    || url.pathname.endsWith(".webmanifest")
+    || /\/icon(?:-|\.)/.test(url.pathname)
   );
 
   // Network-first for the app shell and scripts so reopening the app gets updates.
