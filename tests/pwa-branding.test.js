@@ -15,7 +15,7 @@ test('legacy and current manifests share identity and new icons',()=>{
 test('cache upgrade and ordinary reload fetch current branding',async()=>{
  const handlers={},removed=[],fetched=[];
  const cache={addAll:async requests=>{for(const r of requests) assert.ok(fs.existsSync(path.join(root,r.url==='./'?'index.html':r.url)));},put:async()=>{}};
- vm.runInNewContext(read('sw.js'),{self:{location:{origin:'https://example.com'},addEventListener:(n,f)=>handlers[n]=f,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['fod-riq-v75-cache','fod-riq-v77-cache','fod-riq-v78-cache','unrelated'],delete:async k=>removed.push(k),match:async()=>({cached:true})},Request:class{constructor(url){this.url=url;}},URL,Response,fetch:async(req,options)=>{fetched.push(options);return{ok:true,clone:()=>({})};}});
+ vm.runInNewContext(read('sw.js'),{self:{location:{origin:'https://example.com'},addEventListener:(n,f)=>handlers[n]=f,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['fod-riq-v75-cache','fod-riq-v77-cache','fod-riq-v79-cache','unrelated'],delete:async k=>removed.push(k),match:async()=>({cached:true})},Request:class{constructor(url){this.url=url;}},URL,Response,fetch:async(req,options)=>{fetched.push(options);return{ok:true,clone:()=>({})};}});
  let pending;handlers.install({waitUntil:p=>pending=p});await pending;
  handlers.activate({waitUntil:p=>pending=p});await pending;
  assert.deepEqual(removed,['fod-riq-v75-cache','fod-riq-v77-cache']);
