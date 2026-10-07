@@ -15,6 +15,13 @@
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://firstoptiondating.com/" />
 
+  <!-- Detect iOS home-screen launches before the splash can paint. -->
+  <script id="installed-app-launch">
+    if (navigator.standalone === true) {
+      document.documentElement.classList.add("installed-app");
+    }
+  </script>
+
   <!-- PWA -->
   <link rel="manifest" href="manifest-v78.webmanifest">
   <link rel="icon" href="icon-192-v78.png">
@@ -494,6 +501,11 @@
       z-index:9999;
       transition: opacity .65s ease;
     }
+    /* Installed apps already receive the operating system's launch screen. */
+    @media (display-mode: standalone) {
+      #splashScreen{ display:none; }
+    }
+    html.installed-app #splashScreen{ display:none; }
     #splashCard{
       display:flex;
       flex-direction:column;
@@ -550,7 +562,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 79 -->
+        <!-- Beta build UAT 80 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -6142,7 +6154,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 79" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 80" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");

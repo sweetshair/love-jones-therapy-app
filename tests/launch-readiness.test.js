@@ -21,7 +21,7 @@ test("real payment checkout stays disabled on production while beta keeps test c
   assert.match(html, /if\(!IS_DEPLOY_PREVIEW\)\{\s*showToast\("Online payments are being activated\. No charge was attempted\."\)/);
 });
 
-test("production-facing build label is live while preview retains UAT 79", () => {
+test("production-facing build label is live while preview retains UAT 80", () => {
   assert.match(html, /id="appBuildLabel">First Option Dating • Live<\/span>/);
-  assert.match(html, /Beta build UAT 79/);
+  assert.match(html, /Beta build UAT 80/);
 });
