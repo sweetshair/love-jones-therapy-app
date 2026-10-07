@@ -1,0 +1,14 @@
+{
+  "name": "First Option Dating • Relationship IQ",
+  "short_name": "First Option",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0e",
+  "theme_color": "#111111",
+  "description": "First Option Dating helps members make the right choice through Relationship IQ, thoughtful profiles, and compatible matches.",
+  "icons": [
+    { "src": "icon-192-v77.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512-v77.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
