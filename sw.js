@@ -1,7 +1,7 @@
 // First Option Dating • Relationship IQ
 // Service worker with versioned cache (bump VERSION when you deploy changes)
 
-const VERSION = "fod-riq-v80";
+const VERSION = "fod-riq-v81";
 const CACHE_NAME = `${VERSION}-cache`;
 
 const ASSETS = [
@@ -45,6 +45,8 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+  // Never cache account-action URLs containing one-time email codes.
+  if (url.pathname.endsWith("/auth-action.html") || url.pathname.endsWith("/auth-action.js")) return;
   if (url.pathname.startsWith("/.netlify/functions/") || url.pathname.endsWith("/moderation.html") || url.pathname.endsWith("/moderation.js")) return;
   const isSameOrigin = url.origin === self.location.origin;
   // External account, media, and API requests must go directly to their providers.
