@@ -15,13 +15,6 @@
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://firstoptiondating.com/" />
 
-  <!-- Detect iOS home-screen launches before the splash can paint. -->
-  <script id="installed-app-launch">
-    if (navigator.standalone === true) {
-      document.documentElement.classList.add("installed-app");
-    }
-  </script>
-
   <!-- PWA -->
   <link rel="manifest" href="manifest-v78.webmanifest">
   <link rel="icon" href="icon-192-v78.png">
@@ -487,71 +480,10 @@
       *{ transition:none !important; animation:none !important; }
     }
 
-    /* Premium splash */
-    #splashScreen{
-      position:fixed;
-      inset:0;
-      background:
-        radial-gradient(700px 500px at 50% 30%, rgba(246,195,74,.10), transparent 60%),
-        radial-gradient(900px 700px at 20% 0%, rgba(255,255,255,.06), transparent 55%),
-        #070912;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
-      transition: opacity .65s ease;
-    }
-    /* Installed apps already receive the operating system's launch screen. */
-    @media (display-mode: standalone) {
-      #splashScreen{ display:none; }
-    }
-    html.installed-app #splashScreen{ display:none; }
-    #splashCard{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap: 14px;
-      padding: 18px 18px 14px;
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(15,16,24,.62);
-      box-shadow: 0 22px 70px rgba(0,0,0,.65);
-      backdrop-filter: blur(10px);
-      transform: translateY(0) scale(1);
-      animation: splashPop .9s ease both;
-    }
-    @keyframes splashPop{
-      0%{ opacity:0; transform: translateY(10px) scale(.98); }
-      100%{ opacity:1; transform: translateY(0) scale(1); }
-    }
-    #splashLogo{
-      width: min(280px, 75vw); height: auto;
-      border-radius: 26px;
-      box-shadow: 0 0 0 1px rgba(246,195,74,.22), 0 30px 80px rgba(0,0,0,.70);
-      outline: 1px solid rgba(255,255,255,.10);
-    }
-    #splashText{
-      text-align:center;
-      line-height: 1.15;
-    }
-    #splashText .sub{
-      margin-top: 4px;
-      font-size: 12px;
-      color: rgba(166,166,179,.92);
-    }
   </style>
 </head>
 
 <body>
-  <div id="splashScreen" aria-hidden="true">
-    <div id="splashCard">
-      <img id="splashLogo" src="first-option-logo-v58.png" alt="First Option Dating" />
-      <div id="splashText">
-        <div class="sub">Make the right choice</div>
-      </div>
-    </div>
-  </div>
-
   <div class="wrap">
     <div class="card" id="app"></div>
 
@@ -688,7 +620,6 @@
  * Firebase-connected build:
  * - Email/password member accounts
  * - Private profiles and Relationship IQ results stored in Firestore
- * - Premium splash
  * - SW update flow to avoid stale cached UI
  */
 
@@ -6143,15 +6074,6 @@ Conversation starters:
     if(state.screen === "home") render();
   });
 
-  // =================== SPLASH ===================
-  function removeSplash(){
-    const splash = document.getElementById("splashScreen");
-    if(!splash) return;
-    splash.style.opacity = "0";
-    splash.style.pointerEvents = "none";
-    setTimeout(() => splash.remove(), 800);
-  }
-
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
   if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 80" : "First Option Dating • Live";
@@ -6163,8 +6085,6 @@ Conversation starters:
   showCookieBannerIfNeeded();
   registerSW();
 
-  document.addEventListener("DOMContentLoaded", () => setTimeout(removeSplash, 900));
-  setTimeout(removeSplash, 2600);
 
 })();
 </script>
