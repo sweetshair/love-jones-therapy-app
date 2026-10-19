@@ -435,19 +435,31 @@ async function recordSwipe(targetProfile, decision) {
   };
 }
 
+// Share only an in-flight query. Reopening My Matches still reads fresh data.
+let mutualMatchesRequest = null;
 async function getMutualMatches() {
   const user = requireUser();
-  const matches = [];
-  const snapshot = await getDocs(query(
-    collection(db, "matches"),
-    where("memberIds", "array-contains", user.uid),
-    limit(80)
-  ));
-  snapshot.forEach(item => {
-    const data = item.data();
-    if (data.status === "active") matches.push({ id: item.id, ...data });
-  });
-  return matches;
+  if (mutualMatchesRequest?.user === user) return mutualMatchesRequest.promise;
+  const promise = (async () => {
+    const matches = [];
+    const snapshot = await getDocs(query(
+      collection(db, "matches"),
+      where("memberIds", "array-contains", user.uid),
+      limit(80)
+    ));
+    if (auth.currentUser !== user) throw new Error("Your account changed. Please try again.");
+    snapshot.forEach(item => {
+      const data = item.data();
+      if (data.status === "active") matches.push({ id: item.id, ...data });
+    });
+    return matches;
+  })();
+  mutualMatchesRequest = { user, promise };
+  try {
+    return await promise;
+  } finally {
+    if (mutualMatchesRequest?.promise === promise) mutualMatchesRequest = null;
+  }
 }
 
 async function getFreeCallAllowance(mode) {
