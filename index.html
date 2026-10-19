@@ -494,7 +494,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 80 -->
+        <!-- Beta build UAT 83 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -1818,18 +1818,35 @@
       : [];
   }
 
+  let matchPhotoObserver = null;
   async function hydrateProfilePhotos(){
+    matchPhotoObserver?.disconnect();
+    matchPhotoObserver = null;
     const images = [...document.querySelectorAll("img[data-photo-path]")];
-    await Promise.all(images.map(async image => {
+    const load = async image => {
+      if(!image.isConnected) return;
       try{
         const objectUrl = await window.ljtFirebase.loadProfilePhoto(image.dataset.photoPath);
+        if(!image.isConnected){ URL.revokeObjectURL(objectUrl); return; }
         image.onload = () => URL.revokeObjectURL(objectUrl);
         image.onerror = () => URL.revokeObjectURL(objectUrl);
         image.src = objectUrl;
       }catch(error){
-        image.alt = "Photo unavailable";
+        if(image.isConnected) image.alt = "Photo unavailable";
       }
-    }));
+    };
+    if("IntersectionObserver" in window){
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if(!entry.isIntersecting) return;
+          observer.unobserve(entry.target);
+          load(entry.target);
+        });
+      }, { rootMargin:"150px" });
+      matchPhotoObserver = observer;
+      images.filter(image => image.hasAttribute("data-photo-lazy")).forEach(image => observer.observe(image));
+    }
+    await Promise.all(images.filter(image => !matchPhotoObserver || !image.hasAttribute("data-photo-lazy")).map(load));
   }
 
   let heroCarouselTimer = null;
@@ -3975,19 +3992,50 @@ Conversation starters:
     return new Date(millis).toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" });
   }
 
+  let connectionsRequest = null;
+  function loadConnections(){
+    if(state.connectionsLoaded || state.connectionsLoading) return;
+    const user = state.authUser;
+    const request = {};
+    connectionsRequest = request;
+    state.connections = [];
+    state.connectionsLoading = true;
+    state.connectionsError = "";
+    window.ljtFirebase.getMutualMatches().then(connections => {
+      if(state.authUser !== user || connectionsRequest !== request) return;
+      state.connections = connections;
+      state.connectionsLoaded = true;
+      state.connectionsLoading = false;
+      startIncomingCallWatches(connections).catch(() => {});
+      if(state.datingProfileLoaded && state.screen === "matches" && state.matchView === "connections") render();
+    }).catch(error => {
+      if(state.authUser !== user || connectionsRequest !== request) return;
+      state.connections = [];
+      state.connectionsLoaded = true;
+      state.connectionsLoading = false;
+      state.connectionsError = error.message || "Could not load your matches.";
+      if(state.datingProfileLoaded && state.screen === "matches" && state.matchView === "connections") render();
+    });
+  }
+
   function renderMatches(){
     if(!state.authUser){ state.screen = "home"; return render(); }
     if(!state.authUser.emailVerified){ state.screen = "datingProfile"; return render(); }
     if(!state.relationshipType){ state.screen = "datingProfile"; return render(); }
 
+    // Fetch independently, but keep cards hidden until the profile gate passes.
+    if(state.matchView === "connections") loadConnections();
+    const user = state.authUser;
     if(!state.datingProfileLoaded){
       app.innerHTML = `<div class="kpi"><b>Loading your matching preferences…</b></div>`;
       window.ljtFirebase.getMyDatingProfile().then(profile => {
+        if(state.authUser !== user) return;
         state.datingProfile = profile || {};
         state.datingProfileLoaded = true;
         if(!profile) state.screen = "datingProfile";
         if(state.screen === "matches" || state.screen === "datingProfile") render();
       }).catch(error => {
+        if(state.authUser !== user) return;
         state.matchesError = error.message || "Could not load your dating profile.";
         state.datingProfile = {};
         state.datingProfileLoaded = true;
@@ -4010,23 +4058,7 @@ Conversation starters:
     }
 
     if(state.matchView === "connections"){
-      if(!state.connectionsLoaded && !state.connectionsLoading){
-        state.connectionsLoading = true;
-        state.connectionsError = "";
-        window.ljtFirebase.getMutualMatches().then(connections => {
-          state.connections = connections;
-          state.connectionsLoaded = true;
-          state.connectionsLoading = false;
-          startIncomingCallWatches(connections).catch(() => {});
-          if(state.screen === "matches" && state.matchView === "connections") render();
-        }).catch(error => {
-          state.connections = [];
-          state.connectionsLoaded = true;
-          state.connectionsLoading = false;
-          state.connectionsError = error.message || "Could not load your matches.";
-          if(state.screen === "matches" && state.matchView === "connections") render();
-        });
-      }
+      // The match request starts alongside the profile check above.
     }else if(state.matchView === "sent"){
       if(!state.sentLikesLoaded && !state.sentLikesLoading){
         state.sentLikesLoading = true;
@@ -4147,7 +4179,7 @@ Conversation starters:
         <article class="matchCard connectionCard">
           <div style="display:flex;align-items:center;gap:12px;">
             ${profile.photoPath
-              ? `<img class="matchPhoto" data-photo-path="${escapeAttr(profile.photoPath)}" alt="${escapeAttr(name)} profile photo" />`
+              ? `<img class="matchPhoto" data-photo-lazy decoding="async" data-photo-path="${escapeAttr(profile.photoPath)}" alt="${escapeAttr(name)} profile photo" />`
               : `<div class="avatarInitial">${escapeHtml(name.charAt(0).toUpperCase())}</div>`}
             <div>
               <h3 style="margin:0;">${escapeHtml(name)}${profile.age ? `, ${escapeHtml(profile.age)}` : ""}</h3>
@@ -5965,6 +5997,7 @@ Conversation starters:
   }
 
   function render(){
+    matchPhotoObserver?.disconnect();
     if(state.screen === "deleteAccount") return renderDeleteAccount();
     if(state.screen === "blockedMembers") return renderBlockedMembers();
     if(state.screen === "home") return renderHome();
@@ -6007,6 +6040,14 @@ Conversation starters:
     stopIncomingCallWatches();
     state.authReady = true;
     state.authUser = event.detail.user;
+    connectionsRequest = null;
+    state.connections = [];
+    state.connectionsLoaded = false;
+    state.connectionsLoading = false;
+    state.connectionsError = "";
+    state.datingProfile = null;
+    state.datingProfileLoaded = false;
+    matchPhotoObserver?.disconnect();
     state.profileLoaded = false;
     state.activeConversation = null;
     state.messages = [];
@@ -6076,7 +6117,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 80" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 83" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");
