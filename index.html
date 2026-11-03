@@ -494,7 +494,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 85 -->
+        <!-- Beta build UAT 86 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -740,7 +740,7 @@
     "Stocky"
   ];
   const BODY_TYPE_OPEN = "Open to all body types";
-  const TERMS_VERSION = "2026-09-27";
+  const TERMS_VERSION = "2026-11-03";
 
   // =================== QUIZ ===================
   const QUIZ = {
@@ -1965,11 +1965,13 @@
       title: "Terms of Use",
       subtitle: "Rules for using First Option Dating",
       html: `
-        <p class="tiny">Effective September 27, 2026</p>
+        <p class="tiny">Effective November 3, 2026</p>
         <p><b>Eligibility:</b> You must be at least 18 years old and legally able to enter an agreement. You may not use the service if prohibited by law.</p>
         <p><b>Your account:</b> Provide accurate information, use your own photos, protect your password, and notify us of unauthorized access. One person may not impersonate another.</p>
         <p><b>Acceptable use:</b> Do not harass, threaten, discriminate, scam, solicit money, scrape data, upload illegal or sexually explicit content, or use the service for commercial sexual activity.</p>
-        <p><b>Member content:</b> You keep ownership of your content and give First Option Dating permission to store, display, and process it only as needed to operate and improve the service.</p>
+        <p><b>Member content and photo consent:</b> You keep ownership of your content. By uploading profile photos or other profile content, you confirm that you have the rights and permissions to share it and consent to First Option Dating storing, processing, displaying, publishing and distributing it within the service to operate your dating profile.</p>
+        <p>You agree that other signed-in members may view your profile photos and download copies for personal, non-commercial use in connection with this dating service. This permission does not allow advertising use, sale, impersonation, harassment, or republication or distribution outside the service without the rights holder's separate permission. Removing a photo from your profile does not remove copies someone has already saved.</p>
+        <p><b>Member contact:</b> You consent to other members contacting you through the service's available matching, messaging and calling features, subject to your settings, matching requirements, blocking choices and these Terms. This is not consent to unwanted contact outside the service.</p>
         <p><b>Calls and recording:</b> Voice and video are not recorded by First Option Dating. You may not record or distribute a call without every participant’s consent and compliance with applicable law.</p>
         <p><b>Assumption of risk and member responsibility:</b> Communicating with or meeting people online or in person carries inherent risk. You decide whom to contact, meet, trust, or share information with and are responsible for those choices and for taking reasonable safety precautions. Use the service and interact with members at your own risk.</p>
         <p><b>Identity and background checks:</b> Unless First Option Dating expressly says otherwise for a particular feature, we do not perform criminal, sex-offender-registry, or other background checks and do not independently verify every member’s identity, age, statements, photos, or conduct. Email, photo, voice, or video features are not a guarantee that a member is truthful or safe.</p>
@@ -2464,7 +2466,7 @@
         ${state.accountMode === "register" ? `
           <label style="display:flex;gap:8px;margin-top:12px;">
             <input type="checkbox" id="termsChk" ${state.termsOk ? "checked" : ""} />
-            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.</span>
+            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>. By uploading profile photos, you allow other signed-in members to view and download them for personal use as explained in the Terms.</span>
           </label>
           <label style="display:flex;gap:8px;margin-top:10px;">
             <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
@@ -3579,7 +3581,7 @@ Conversation starters:
           <b>Required: Terms and Safety Agreement</b>
           <label style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
             <input type="checkbox" id="datingTermsChk" required aria-describedby="datingTermsRecord" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
+            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>. By uploading profile photos, you allow other signed-in members to view and download them for personal use as explained in the Terms.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
           </label>
           <p class="tiny" id="datingTermsRecord" style="margin:8px 0 0;">You must check this box before saving a completed profile. The acceptance date and current Terms version are recorded when you save.</p>
         </div>
@@ -6144,7 +6146,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 85" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 86" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");
