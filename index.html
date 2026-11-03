@@ -494,7 +494,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 84 -->
+        <!-- Beta build UAT 85 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -2464,7 +2464,7 @@
         ${state.accountMode === "register" ? `
           <label style="display:flex;gap:8px;margin-top:12px;">
             <input type="checkbox" id="termsChk" ${state.termsOk ? "checked" : ""} />
-            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.</span>
+            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.</span>
           </label>
           <label style="display:flex;gap:8px;margin-top:10px;">
             <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
@@ -2712,7 +2712,7 @@
           if(state.userDisplayName.length < 2) throw new Error("Choose a display name with at least 2 characters.");
           if(state.userDisplayName.length > 30) throw new Error("Keep your display name to 30 characters or fewer.");
           if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid telephone number, including the country code when needed.");
-          if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.");
+          if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, Community Guidelines, and Anti-Human-Trafficking Policy.");
           const createdUser = await window.ljtFirebase.signUp({
             firstName: state.userFirstName,
             lastName: state.userLastName,
@@ -3579,7 +3579,7 @@ Conversation starters:
           <b>Required: Terms and Safety Agreement</b>
           <label style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
             <input type="checkbox" id="datingTermsChk" required aria-describedby="datingTermsRecord" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
+            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
           </label>
           <p class="tiny" id="datingTermsRecord" style="margin:8px 0 0;">You must check this box before saving a completed profile. The acceptance date and current Terms version are recorded when you save.</p>
         </div>
@@ -3913,7 +3913,7 @@ Conversation starters:
         render();
         return;
       }
-      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.";
+      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, Community Guidelines, and Anti-Human-Trafficking Policy.";
       if(payload.photoPaths.some(path => String(path).startsWith("draftPhoto:"))){
         button.disabled = true;
         button.textContent = "Uploading Saved Pictures…";
@@ -6144,7 +6144,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 84" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 85" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");
