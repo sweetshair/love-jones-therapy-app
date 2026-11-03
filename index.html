@@ -494,7 +494,7 @@
         <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Support">Contact Us</a>
       </div>
       <div class="buildStatus tiny">
-        <!-- Beta build UAT 83 -->
+        <!-- Beta build UAT 85 -->
         <span id="appBuildLabel">First Option Dating • Live</span>
         <button class="linkButton" id="appUpdateBtn" type="button">Check for updates</button>
       </div>
@@ -504,6 +504,7 @@
         <a href="?policy=pricing" data-policy="pricing">Pricing & Payments</a>
         <a href="?policy=community" data-policy="community">Community Guidelines</a>
         <a href="?policy=safety" data-policy="safety">Dating Safety</a>
+        <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>
       </div>
     </div>
   </div>
@@ -1920,6 +1921,32 @@
 
   // =================== POLICIES & SAFETY ===================
   const POLICY_COPY = {
+    "anti-trafficking": {
+      title: "Anti-Human-Trafficking Policy",
+      subtitle: "Preventing exploitation and reporting concerns",
+      html: `
+        <p class="tiny">Effective November 3, 2026</p>
+        <p>First Option Dating has zero tolerance for human trafficking, sexual exploitation, forced labour, child exploitation and non-consensual sexual content.</p>
+        <p><b>Prohibited activity</b></p>
+        <p>Members must not use profiles, photographs, messages, voice calls or video calls to:</p>
+        <ul class="list">
+          <li>Recruit, threaten, deceive, coerce or exploit another person.</li>
+          <li>Facilitate human trafficking or commercial sexual services.</li>
+          <li>Share content depicting sexual abuse, exploitation or non-consensual activity.</li>
+          <li>Involve anyone under 18 in the platform or its content.</li>
+          <li>Impersonate another person or upload their photographs without permission.</li>
+        </ul>
+        <p><b>Reporting concerns</b></p>
+        <p>Use the reporting feature on the relevant profile or contact <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Safety%20Report">firstoptiondating@gmail.com</a>. Include the member's display name, relevant dates and a description of the concern. Do not download or forward suspected child sexual abuse material.</p>
+        <p>If someone is in immediate danger, contact emergency services.</p>
+        <p><b>Review and enforcement</b></p>
+        <p>We will review and resolve complaints under this policy within five business days. Urgent reports involving suspected exploitation or immediate danger receive priority.</p>
+        <p>Actions may include restricting access, removing prohibited content, suspending or terminating accounts, preserving relevant records and reporting suspected criminal activity to appropriate authorities where required or permitted by law.</p>
+        <p><b>Appeals</b></p>
+        <p>To request a review of an enforcement decision, email <a href="mailto:firstoptiondating@gmail.com?subject=First%20Option%20Dating%20Safety%20Appeal">firstoptiondating@gmail.com</a> with the relevant account details and reasons for the appeal.</p>
+        <p><b>Contact</b></p>
+        <p>First Option Dating<br>1280 Finch Avenue West, Unit 105<br>North York, Ontario M3J 3K6, Canada<br><a href="tel:+16475644247">647-564-4247</a><br><a href="mailto:firstoptiondating@gmail.com">firstoptiondating@gmail.com</a></p>`
+    },
     privacy: {
       title: "Privacy",
       subtitle: "Your information and choices",
@@ -2437,7 +2464,7 @@
         ${state.accountMode === "register" ? `
           <label style="display:flex;gap:8px;margin-top:12px;">
             <input type="checkbox" id="termsChk" ${state.termsOk ? "checked" : ""} />
-            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.</span>
+            <span class="tiny">I confirm I am 18 or older, understand that member interactions involve risk and are my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms</a>, <a href="?policy=privacy" data-policy="privacy">Privacy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.</span>
           </label>
           <label style="display:flex;gap:8px;margin-top:10px;">
             <input type="checkbox" id="consentChk" ${state.consentOk ? "checked" : ""} />
@@ -2685,7 +2712,7 @@
           if(state.userDisplayName.length < 2) throw new Error("Choose a display name with at least 2 characters.");
           if(state.userDisplayName.length > 30) throw new Error("Keep your display name to 30 characters or fewer.");
           if(!isValidPhone(state.userPhone)) throw new Error("Enter a valid telephone number, including the country code when needed.");
-          if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.");
+          if(!state.termsOk) throw new Error("Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, Community Guidelines, and Anti-Human-Trafficking Policy.");
           const createdUser = await window.ljtFirebase.signUp({
             firstName: state.userFirstName,
             lastName: state.userLastName,
@@ -3552,7 +3579,7 @@ Conversation starters:
           <b>Required: Terms and Safety Agreement</b>
           <label style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
             <input type="checkbox" id="datingTermsChk" required aria-describedby="datingTermsRecord" ${acceptedCurrentTerms ? "checked" : ""} ${emailVerified ? "" : "disabled"} />
-            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, and <a href="?policy=community" data-policy="community">Community Guidelines</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
+            <span class="tiny">I confirm I am 18 or older, understand that meeting and interacting with members involves risk and is my responsibility, and agree to the <a href="?policy=terms" data-policy="terms">Terms and Conditions</a>, <a href="?policy=privacy" data-policy="privacy">Privacy Policy</a>, <a href="?policy=community" data-policy="community">Community Guidelines</a>, and <a href="?policy=anti-trafficking" data-policy="anti-trafficking">Anti-Human-Trafficking Policy</a>.${emailVerified ? "" : " Verify your email after adding your pictures to complete this agreement."}</span>
           </label>
           <p class="tiny" id="datingTermsRecord" style="margin:8px 0 0;">You must check this box before saving a completed profile. The acceptance date and current Terms version are recorded when you save.</p>
         </div>
@@ -3886,7 +3913,7 @@ Conversation starters:
         render();
         return;
       }
-      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, and Community Guidelines.";
+      if(!payload.termsAccepted) return errorBox.textContent = "Confirm you are 18 or older, acknowledge the interaction risks, and accept the Terms, Privacy, Community Guidelines, and Anti-Human-Trafficking Policy.";
       if(payload.photoPaths.some(path => String(path).startsWith("draftPhoto:"))){
         button.disabled = true;
         button.textContent = "Uploading Saved Pictures…";
@@ -6117,7 +6144,7 @@ Conversation starters:
 
   // =================== START ===================
   const buildLabel = document.getElementById("appBuildLabel");
-  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 83" : "First Option Dating • Live";
+  if(buildLabel) buildLabel.textContent = IS_DEPLOY_PREVIEW ? "Beta build UAT 85" : "First Option Dating • Live";
   render();
   if(new URLSearchParams(window.location.search).get("account") === "deleted"){
     showToast("Your account has been deleted.");
